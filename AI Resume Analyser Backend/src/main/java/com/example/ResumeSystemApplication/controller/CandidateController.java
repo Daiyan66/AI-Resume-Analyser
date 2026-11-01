@@ -58,4 +58,21 @@ public class CandidateController {
     public ResponseEntity<SkillGapAnalysisDto> getSkillGapAnalysis(@PathVariable Long appId) {
         return ResponseEntity.ok(candidateService.getSkillGapAnalysis(appId));
     }
+
+    @GetMapping("/notifications")
+    public ResponseEntity<List<NotificationDto>> getNotifications() {
+        return ResponseEntity.ok(candidateService.getNotifications());
+    }
+
+    @PutMapping("/notifications/{id}/read")
+    public ResponseEntity<Map<String, String>> markNotificationAsRead(@PathVariable Long id) {
+        candidateService.markNotificationAsRead(id);
+        return ResponseEntity.ok(Map.of("message", "Notification marked as read"));
+    }
+
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<Map<String, String>> markAllNotificationsAsRead() {
+        candidateService.markAllNotificationsAsRead();
+        return ResponseEntity.ok(Map.of("message", "All notifications marked as read"));
+    }
 }

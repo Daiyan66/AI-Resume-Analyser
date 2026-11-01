@@ -1,7 +1,9 @@
 import React from 'react';
-import { Navbar, Nav, Container, NavDropdown, Badge } from 'react-bootstrap';
+import { Navbar, Nav, Container, NavDropdown, Badge, Dropdown, Button } from 'react-bootstrap';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../auth/AuthProvider';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import api from '../api/axios';
 import { 
   Briefcase, 
   Users, 
@@ -13,17 +15,63 @@ import {
   CheckCircle, 
   Compass, 
   Layers, 
-  Sparkles 
+  Sparkles,
+  Bell,
+  MessageSquare,
+  ExternalLink,
+  Check
 } from 'lucide-react';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const userRole = (user?.role || '').toUpperCase();
   const isAdmin = userRole === 'ROLE_ADMIN';
-  const isRecruiter = userRole === 'ROLE_RECRUITER' || isAdmin;
-  const isCandidate = userRole === 'ROLE_CANDIDATE' || (!isAdmin && userRole !== 'ROLE_RECRUITER');
+  const isRecruiter = userRole === 'ROLE_RECRUITER';
+  const isCandidate = userRole === 'ROLE_CANDIDATE' || (!isAdmin && !isRecruiter);
+
+  // Candidate Notifications Query
+  const { data: notifications = [] } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: async () => {
+      const res = await api.get('/candidate/notifications');
+      return res.data || [];
+    },
+    enabled: isCandidate,
+    refetchInterval: 15000 // Poll notifications every 15s
+  });
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const markReadMutation = useMutation({
+    mutationFn: async (id) => {
+      await api.put(`/candidate/notifications/${id}/read`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+    }
+  });
+
+  const markAllReadMutation = useMutation({
+    mutationFn: async () => {
+      await api.put('/candidate/notifications/read-all');
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['notifications']);
+    }
+  });
+
+  const handleNotificationClick = (n) => {
+    if (!n.isRead) {
+      markReadMutation.mutate(n.id);
+    }
+    if (n.link) {
+      navigate(n.link);
+    }
+  };
 
   const getRoleBadge = (role) => {
     switch (role) {
@@ -90,18 +138,91 @@ export const Layout = ({ children }) => {
               {/* Admin Navigation */}
               {isAdmin && (
                 <>
-                  <Nav.Link as={Link} to="/admin" active={location.pathname === '/admin'} className="d-flex align-items-center text-danger-emphasis">
-                    <Users size={18} className="me-1" /> Manage Users
+                  <Nav.Link as={Link} to="/admin" active={location.pathname === '/admin'} className="d-flex align-items-center">
+                    <Users size={18} className="me-1 text-primary" /> Manage Users
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/admin/add-recruiter" active={location.pathname === '/admin/add-recruiter'} className="d-flex align-items-center text-danger-emphasis">
-                    <UserPlus size={18} className="me-1" /> Invite Recruiter
+                  <Nav.Link as={Link} to="/admin/candidates" active={location.pathname === '/admin/candidates'} className="d-flex align-items-center">
+                    <Layers size={18} className="me-1 text-success" /> Candidates
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/admin/add-recruiter" active={location.pathname === '/admin/add-recruiter'} className="d-flex align-items-center">
+                    <UserPlus size={18} className="me-1 text-indigo" /> Invite Recruiter
                   </Nav.Link>
                 </>
               )}
             </Nav>
 
-            {/* User Profile & Logout */}
-            <Nav className="align-items-center gap-2">
+            {/* Notification Bell & User Profile */}
+            <Nav className="align-items-center gap-3">
+              {/* Candidate Notifications Bell */}
+              {isCandidate && user && (
+                <Dropdown align="end">
+                  <Dropdown.Toggle variant="light" className="position-relative border-0 rounded-circle p-2 bg-transparent text-dark shadow-none">
+                    <Bell size={20} className={unreadCount > 0 ? "text-primary" : "text-muted"} />
+                    {unreadCount > 0 && (
+                      <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger border border-white" style={{ fontSize: '0.65rem' }}>
+                        {unreadCount}
+                      </span>
+                    )}
+                  </Dropdown.Toggle>
+
+                  <Dropdown.Menu className="shadow-lg border-0 rounded-4 p-0 dropdown-menu-end" style={{ width: '340px', maxHeight: '420px', overflowY: 'auto' }}>
+                    <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top-4">
+                      <div className="fw-bold text-dark d-flex align-items-center gap-1">
+                        <Bell size={16} className="text-primary" /> Notifications
+                      </div>
+                      {unreadCount > 0 && (
+                        <Button 
+                          variant="link" 
+                          size="sm" 
+                          className="p-0 text-decoration-none small text-muted"
+                          onClick={() => markAllReadMutation.mutate()}
+                        >
+                          Mark all as read
+                        </Button>
+                      )}
+                    </div>
+
+                    <div className="list-group list-group-flush">
+                      {notifications.length === 0 ? (
+                        <div className="p-4 text-center text-muted small">
+                          No notifications yet.
+                        </div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div 
+                            key={n.id}
+                            className={`list-group-item list-group-item-action p-3 border-bottom ${!n.isRead ? 'bg-primary-subtle' : ''}`}
+                            style={{ cursor: 'pointer' }}
+                            onClick={() => handleNotificationClick(n)}
+                          >
+                            <div className="d-flex justify-content-between align-items-start mb-1">
+                              <span className="fw-bold small text-dark d-flex align-items-center gap-1">
+                                {n.type === 'FEEDBACK' ? (
+                                  <MessageSquare size={14} className="text-danger" />
+                                ) : (
+                                  <Briefcase size={14} className="text-primary" />
+                                )}
+                                {n.title}
+                              </span>
+                              {!n.isRead && <Badge bg="danger" pill className="p-1" />}
+                            </div>
+                            <p className="text-secondary small mb-1" style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
+                              {n.message}
+                            </p>
+                            <div className="d-flex justify-content-between align-items-center text-muted" style={{ fontSize: '0.7rem' }}>
+                              <span>{new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              <span className="text-primary fw-semibold d-flex align-items-center gap-1">
+                                View <ExternalLink size={10} />
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </Dropdown.Menu>
+                </Dropdown>
+              )}
+
               {user ? (
                 <NavDropdown
                   title={

@@ -27,31 +27,31 @@ public class RecruiterController {
     }
 
     @GetMapping("/stats")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<RecruiterStatsDto> getStats() {
         return ResponseEntity.ok(recruiterService.getRecruiterStats());
     }
 
     @GetMapping("/jobs")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<List<JobDto>> getJobs() {
         return ResponseEntity.ok(recruiterService.getRecruiterJobs());
     }
 
     @PostMapping("/jobs")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<JobDto> createJob(@Valid @RequestBody JobFormDto dto) {
         return ResponseEntity.ok(recruiterService.createJob(dto));
     }
 
     @PostMapping(value = "/jobs/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<JobDto> uploadJobDescription(@RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(recruiterService.uploadJobDescription(file));
     }
 
     @PostMapping(value = "/jobs/{jobId}/upload-resumes", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<Map<String, Object>> uploadBatchResumes(
             @PathVariable Long jobId,
             @RequestParam("files") List<MultipartFile> files
@@ -70,25 +70,37 @@ public class RecruiterController {
     }
 
     @GetMapping("/jobs/{jobId}/candidates")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
-    public ResponseEntity<List<CandidateDto>> getCandidates(@PathVariable Long jobId) {
-        return ResponseEntity.ok(recruiterService.getCandidatesForJob(jobId));
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<List<CandidateDto>> getCandidates(
+            @PathVariable Long jobId,
+            @RequestParam(required = false) String source
+    ) {
+        return ResponseEntity.ok(recruiterService.getCandidatesForJob(jobId, source));
     }
 
     @GetMapping("/jobs/{jobId}/upload-results")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
-    public ResponseEntity<List<CandidateDto>> getUploadResults(@PathVariable Long jobId) {
-        return ResponseEntity.ok(recruiterService.getLatestBatchResults(jobId));
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<List<CandidateDto>> getUploadResults(
+            @PathVariable Long jobId,
+            @RequestParam(required = false) String batchId
+    ) {
+        return ResponseEntity.ok(recruiterService.getBatchResults(jobId, batchId));
+    }
+
+    @GetMapping("/jobs/{jobId}/batches")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<List<String>> getBatchesForJob(@PathVariable Long jobId) {
+        return ResponseEntity.ok(recruiterService.getBatchesForJob(jobId));
     }
 
     @PostMapping("/applications/{appId}/accept")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApplicationDto> acceptCandidate(@PathVariable Long appId) {
         return ResponseEntity.ok(recruiterService.acceptCandidate(appId));
     }
 
     @PostMapping("/applications/{appId}/reject")
-    @PreAuthorize("hasAnyRole('RECRUITER', 'ADMIN')")
+    @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApplicationDto> rejectCandidate(
             @PathVariable Long appId,
             @RequestBody(required = false) Map<String, String> payload

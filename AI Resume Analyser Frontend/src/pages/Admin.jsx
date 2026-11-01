@@ -10,6 +10,7 @@ export const Admin = () => {
   const queryClient = useQueryClient();
   const [editingUser, setEditingUser] = useState(null);
   const [selectedRole, setSelectedRole] = useState('');
+  const [filterRole, setFilterRole] = useState('ALL');
   const [msg, setMsg] = useState('');
 
   // Fetch all users
@@ -19,6 +20,11 @@ export const Admin = () => {
       const res = await api.get('/admin/users');
       return res.data;
     }
+  });
+
+  const filteredUsers = users.filter(u => {
+    if (filterRole === 'ALL') return true;
+    return u.roles?.includes(filterRole);
   });
 
   // Delete User Mutation
@@ -84,12 +90,38 @@ export const Admin = () => {
 
       {msg && <Alert variant="success" className="py-2 small mb-4">{msg}</Alert>}
 
+      {/* Filter Tabs */}
+      <div className="d-flex gap-2 mb-3">
+        <Button 
+          variant={filterRole === 'ALL' ? 'primary' : 'outline-secondary'} 
+          size="sm"
+          onClick={() => setFilterRole('ALL')}
+        >
+          All Accounts ({users.length})
+        </Button>
+        <Button 
+          variant={filterRole === 'ROLE_RECRUITER' ? 'primary' : 'outline-primary'} 
+          size="sm"
+          onClick={() => setFilterRole('ROLE_RECRUITER')}
+        >
+          Recruiters ({users.filter(u => u.roles?.includes('ROLE_RECRUITER')).length})
+        </Button>
+        <Button 
+          variant={filterRole === 'ROLE_CANDIDATE' ? 'success' : 'outline-success'} 
+          size="sm"
+          onClick={() => setFilterRole('ROLE_CANDIDATE')}
+        >
+          Candidates ({users.filter(u => u.roles?.includes('ROLE_CANDIDATE')).length})
+        </Button>
+      </div>
+
       <Card className="border-0 shadow-sm rounded-4 overflow-hidden">
         <div className="table-responsive">
           <Table hover align="middle" className="mb-0">
             <thead className="table-light">
               <tr>
-                <th className="py-3 px-3">User</th>
+                <th className="py-3 px-3">System ID</th>
+                <th className="py-3">User</th>
                 <th className="py-3">Email Address</th>
                 <th className="py-3">Role</th>
                 <th className="py-3">Recommendations</th>
@@ -100,20 +132,37 @@ export const Admin = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5">
+                  <td colSpan="7" className="text-center py-5">
                     <Spinner animation="border" variant="primary" />
                   </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-5 text-muted">
-                    No users found.
+                  <td colSpan="7" className="text-center py-5 text-muted">
+                    No users matching this filter found.
                   </td>
                 </tr>
               ) : (
-                users.map((u) => (
+                filteredUsers.map((u) => (
                   <tr key={u.id}>
                     <td className="px-3">
+                      {u.roles?.includes('ROLE_RECRUITER') && (
+                        <Badge bg="primary-subtle" className="text-primary border border-primary-subtle font-monospace px-2 py-1">
+                          Recruiter ID: #{u.id}
+                        </Badge>
+                      )}
+                      {u.roles?.includes('ROLE_CANDIDATE') && (
+                        <Badge bg="success-subtle" className="text-success border border-success-subtle font-monospace px-2 py-1">
+                          Candidate ID: #{u.id}
+                        </Badge>
+                      )}
+                      {u.roles?.includes('ROLE_ADMIN') && (
+                        <Badge bg="danger-subtle" className="text-danger border border-danger-subtle font-monospace px-2 py-1">
+                          Admin ID: #{u.id}
+                        </Badge>
+                      )}
+                    </td>
+                    <td>
                       <div className="fw-semibold text-dark">{u.firstName} {u.lastName}</div>
                       <div className="text-muted small">@{u.username}</div>
                     </td>

@@ -8,6 +8,9 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.io.File;
@@ -28,6 +31,11 @@ public class FileUploadController {
 
     @GetMapping("/resumes/{resumeId}")
     public ResponseEntity<Resource> viewResume(@PathVariable Long resumeId) {
+        // Enforce: Administrators cannot access or view candidate resume files
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getAuthorities().stream().anyMatch(a -> "ROLE_ADMIN".equals(a.getAuthority()))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         Resume resume = resumeRepository.findById(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume record not found with id: " + resumeId));
 

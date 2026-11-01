@@ -1,8 +1,6 @@
 package com.example.ResumeSystemApplication.controller;
 
-import com.example.ResumeSystemApplication.dto.AdminStatsDto;
-import com.example.ResumeSystemApplication.dto.CreateRecruiterDto;
-import com.example.ResumeSystemApplication.dto.UserDto;
+import com.example.ResumeSystemApplication.dto.*;
 import com.example.ResumeSystemApplication.service.AdminService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -31,6 +29,21 @@ public class AdminController {
     @GetMapping("/users")
     public ResponseEntity<List<UserDto>> getUsers() {
         return ResponseEntity.ok(adminService.getAllUsers());
+    }
+
+    @GetMapping("/recruiters")
+    public ResponseEntity<List<RecruiterOverviewDto>> getRecruiters() {
+        return ResponseEntity.ok(adminService.getAllRecruiters());
+    }
+
+    @GetMapping("/recruiters/{recruiterId}/jobs")
+    public ResponseEntity<List<JobDto>> getJobsByRecruiter(@PathVariable Long recruiterId) {
+        return ResponseEntity.ok(adminService.getJobsByRecruiter(recruiterId));
+    }
+
+    @GetMapping("/jobs/{jobId}/candidates")
+    public ResponseEntity<List<CandidateDto>> getCandidatesForJob(@PathVariable Long jobId) {
+        return ResponseEntity.ok(adminService.getCandidatesForJob(jobId));
     }
 
     @PostMapping("/add-recruiter")

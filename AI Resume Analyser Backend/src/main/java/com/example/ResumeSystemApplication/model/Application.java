@@ -22,6 +22,11 @@ public class Application {
         REJECTED
     }
 
+    public enum ApplicationSource {
+        INDIVIDUAL_APPLY,
+        BATCH_UPLOAD
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -37,6 +42,13 @@ public class Application {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ApplicationStatus status = ApplicationStatus.PENDING;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "application_source", length = 30)
+    private ApplicationSource applicationSource = ApplicationSource.INDIVIDUAL_APPLY;
+
+    @Column(name = "batch_id", length = 100)
+    private String batchId;
 
     @Column(name = "match_score")
     private Double matchScore = 0.0;
@@ -62,6 +74,9 @@ public class Application {
         this.appliedAt = LocalDateTime.now();
         if (this.status == null) {
             this.status = ApplicationStatus.PENDING;
+        }
+        if (this.applicationSource == null) {
+            this.applicationSource = ApplicationSource.INDIVIDUAL_APPLY;
         }
         if (this.matchScore == null) this.matchScore = 0.0;
         if (this.skillMatchScore == null) this.skillMatchScore = 0.0;

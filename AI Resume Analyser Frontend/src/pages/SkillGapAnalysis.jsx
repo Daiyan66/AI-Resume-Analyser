@@ -11,7 +11,9 @@ import {
   BookOpen, 
   HelpCircle, 
   ArrowLeft, 
-  Layers 
+  Layers,
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -125,6 +127,26 @@ export const SkillGapAnalysis = () => {
         </Badge>
       </div>
 
+      {/* Recruiter Direct Feedback Note */}
+      {analysis.recruiterFeedback && (
+        <Card className="border-0 shadow-sm rounded-4 p-4 mb-4 bg-primary-subtle border-start border-4 border-primary">
+          <div className="d-flex align-items-start gap-3">
+            <div className="p-2 bg-primary text-white rounded-circle flex-shrink-0">
+              <MessageSquare size={22} />
+            </div>
+            <div className="flex-grow-1">
+              <div className="d-flex justify-content-between align-items-center mb-1">
+                <h5 className="fw-bold text-primary mb-0">Hiring Team Direct Feedback</h5>
+                <Badge bg="primary">Official Recruiter Note</Badge>
+              </div>
+              <p className="text-dark mb-0 fs-6 fw-medium" style={{ whiteSpace: 'pre-wrap' }}>
+                "{analysis.recruiterFeedback}"
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Row className="g-4 mb-4">
         {/* Executive Summary & Radar Fit */}
         <Col lg={7}>
@@ -210,15 +232,29 @@ export const SkillGapAnalysis = () => {
 
         <Col md={6}>
           <Card className="border-0 shadow-sm rounded-4 p-4 bg-white h-100">
-            <h6 className="fw-bold text-danger mb-3 d-flex align-items-center gap-2">
+            <h6 className="fw-bold text-danger mb-1 d-flex align-items-center gap-2">
               <AlertCircle size={18} /> Critical Skill Gaps to Bridge ({missingList.length})
             </h6>
+            <p className="text-muted small mb-3">
+              Click any skill button below to search Google for tutorials, courses, and certifications:
+            </p>
             <div className="d-flex flex-wrap gap-2">
               {missingList.length > 0 ? (
                 missingList.map((skill, idx) => (
-                  <Badge key={idx} bg="danger-subtle" className="text-danger border border-danger-subtle px-3 py-2 fs-6">
-                    {skill}
-                  </Badge>
+                  <Button
+                    key={idx}
+                    variant="outline-danger"
+                    size="sm"
+                    className="d-inline-flex align-items-center gap-1 rounded-pill px-3 py-2 fw-semibold shadow-xs"
+                    title={`Search Google for ${skill} skill improvement`}
+                    onClick={() => {
+                      const query = encodeURIComponent(`how to learn and improve ${skill} skill tutorials courses certifications`);
+                      window.open(`https://www.google.com/search?q=${query}`, '_blank', 'noopener,noreferrer');
+                    }}
+                  >
+                    <span>{skill}</span>
+                    <ExternalLink size={13} className="ms-1 opacity-75" />
+                  </Button>
                 ))
               ) : (
                 <span className="text-muted small">No critical skill gaps detected. You meet all primary criteria!</span>

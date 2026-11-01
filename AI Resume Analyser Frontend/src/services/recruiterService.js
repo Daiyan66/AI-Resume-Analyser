@@ -36,13 +36,22 @@ export const recruiterService = {
     return res.data;
   },
 
-  getCandidates: async (jobId) => {
-    const res = await api.get(`/recruiter/jobs/${jobId}/candidates`);
+  getCandidates: async (jobId, source) => {
+    const res = await api.get(`/recruiter/jobs/${jobId}/candidates`, {
+      params: source && source !== 'ALL' ? { source } : {}
+    });
     return res.data;
   },
 
-  getUploadResults: async (jobId) => {
-    const res = await api.get(`/recruiter/jobs/${jobId}/upload-results`);
+  getUploadResults: async (jobId, batchId) => {
+    const res = await api.get(`/recruiter/jobs/${jobId}/upload-results`, {
+      params: batchId ? { batchId } : {}
+    });
+    return res.data;
+  },
+
+  getBatches: async (jobId) => {
+    const res = await api.get(`/recruiter/jobs/${jobId}/batches`);
     return res.data;
   },
 

@@ -98,7 +98,7 @@ export const Dashboard = () => {
           </p>
         </div>
 
-        {(isRecruiter || isAdmin) && (
+        {isRecruiter && (
           <div className="d-flex gap-2">
             <Button as={Link} to="/recruiter/upload-resumes" variant="primary" className="d-flex align-items-center gap-2">
               <UploadCloud size={18} />
@@ -128,37 +128,37 @@ export const Dashboard = () => {
                       <Users size={20} className="text-white-50" />
                     </div>
                     <h3 className="fw-bold mb-0">{adminStats?.totalUsers || 0}</h3>
-                    <div className="small text-white-50 mt-1">Candidates & Recruiters</div>
+                    <div className="small text-white-50 mt-1">Platform Accounts</div>
                   </Card>
                 </Col>
                 <Col md={3} sm={6}>
                   <Card className="border-0 shadow-sm rounded-4 p-3 stat-card bg-success-gradient text-white">
                     <div className="d-flex justify-content-between align-items-start mb-2">
-                      <span className="small text-white-50">Active Job Postings</span>
-                      <Briefcase size={20} className="text-white-50" />
+                      <span className="small text-white-50">Registered Candidates</span>
+                      <Users size={20} className="text-white-50" />
                     </div>
-                    <h3 className="fw-bold mb-0">{adminStats?.totalJobs || 0}</h3>
-                    <div className="small text-white-50 mt-1">Across all departments</div>
+                    <h3 className="fw-bold mb-0">{adminStats?.totalCandidates || 0}</h3>
+                    <div className="small text-white-50 mt-1">Active Job Seekers</div>
                   </Card>
                 </Col>
                 <Col md={3} sm={6}>
                   <Card className="border-0 shadow-sm rounded-4 p-3 stat-card bg-indigo-gradient text-white">
                     <div className="d-flex justify-content-between align-items-start mb-2">
-                      <span className="small text-white-50">Total Applications</span>
-                      <FileText size={20} className="text-white-50" />
+                      <span className="small text-white-50">Provisioned Recruiters</span>
+                      <Users size={20} className="text-white-50" />
                     </div>
-                    <h3 className="fw-bold mb-0">{adminStats?.totalApplications || 0}</h3>
-                    <div className="small text-white-50 mt-1">Screened via AI Pipeline</div>
+                    <h3 className="fw-bold mb-0">{adminStats?.totalRecruiters || 0}</h3>
+                    <div className="small text-white-50 mt-1">Hiring Managers</div>
                   </Card>
                 </Col>
                 <Col md={3} sm={6}>
                   <Card className="border-0 shadow-sm rounded-4 p-3 stat-card bg-warning-gradient text-white">
                     <div className="d-flex justify-content-between align-items-start mb-2">
-                      <span className="small text-white-50">Ingested Resumes</span>
-                      <UploadCloud size={20} className="text-white-50" />
+                      <span className="small text-white-50">Active Job Postings</span>
+                      <Briefcase size={20} className="text-white-50" />
                     </div>
-                    <h3 className="fw-bold mb-0">{adminStats?.totalResumes || 0}</h3>
-                    <div className="small text-white-50 mt-1">PDF & DOCX Parsed</div>
+                    <h3 className="fw-bold mb-0">{adminStats?.totalJobs || 0}</h3>
+                    <div className="small text-white-50 mt-1">Open Positions Listed</div>
                   </Card>
                 </Col>
               </Row>

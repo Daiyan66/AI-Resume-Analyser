@@ -1,11 +1,8 @@
 package com.example.ResumeSystemApplication.service;
 
-import com.example.ResumeSystemApplication.dto.AdminStatsDto;
-import com.example.ResumeSystemApplication.dto.CreateRecruiterDto;
-import com.example.ResumeSystemApplication.dto.UserDto;
+import com.example.ResumeSystemApplication.dto.*;
 import com.example.ResumeSystemApplication.exception.ResourceNotFoundException;
-import com.example.ResumeSystemApplication.model.Role;
-import com.example.ResumeSystemApplication.model.User;
+import com.example.ResumeSystemApplication.model.*;
 import com.example.ResumeSystemApplication.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -172,6 +169,99 @@ public class AdminServiceImpl implements AdminService {
             throw new ResourceNotFoundException("User not found with id: " + id);
         }
         userRepository.deleteById(id);
+    }
+
+    @Override
+    public List<RecruiterOverviewDto> getAllRecruiters() {
+        List<User> recruiters = userRepository.findByRolesName("ROLE_RECRUITER");
+        return recruiters.stream().map(u -> RecruiterOverviewDto.builder()
+                .id(u.getId())
+                .username(u.getUsername())
+                .email(u.getEmail())
+                .firstName(u.getFirstName())
+                .lastName(u.getLastName())
+                .jobsCount(jobRepository.countByCreatedById(u.getId()))
+                .createdAt(u.getCreatedAt())
+                .build()
+        ).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<JobDto> getJobsByRecruiter(Long recruiterId) {
+        User recruiter = userRepository.findById(recruiterId)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter not found with id: " + recruiterId));
+
+        return jobRepository.findByCreatedByIdOrderByCreatedAtDesc(recruiter.getId()).stream()
+                .map(this::mapToJobDto)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<CandidateDto> getCandidatesForJob(Long jobId) {
+        JobDescription job = jobRepository.findById(jobId)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id: " + jobId));
+
+        List<Application> apps = applicationRepository.findByJobIdOrderByMatchScoreDesc(job.getId());
+        return apps.stream().map(this::mapToCandidateDto).collect(Collectors.toList());
+    }
+
+    private JobDto mapToJobDto(JobDescription job) {
+        long applicantsCount = applicationRepository.countByJobId(job.getId());
+        String createdByName = "Recruiter";
+        try {
+            if (job.getCreatedBy() != null) {
+                createdByName = job.getCreatedBy().getFirstName() != null && !job.getCreatedBy().getFirstName().isBlank()
+                        ? job.getCreatedBy().getFirstName() + " " + (job.getCreatedBy().getLastName() != null ? job.getCreatedBy().getLastName() : "")
+                        : job.getCreatedBy().getUsername();
+            }
+        } catch (Exception ignored) {}
+
+        return JobDto.builder()
+                .id(job.getId())
+                .title(job.getTitle())
+                .description(job.getDescription())
+                .skillsRequired(job.getSkillsRequired())
+                .educationLevel(job.getEducationLevel())
+                .experienceRequired(job.getExperienceRequired())
+                .createdById(job.getCreatedBy() != null ? job.getCreatedBy().getId() : null)
+                .createdByName(createdByName)
+                .createdAt(job.getCreatedAt())
+                .applicantCount((int) applicantsCount)
+                .build();
+    }
+
+    private CandidateDto mapToCandidateDto(Application app) {
+        Resume resume = app.getResume();
+        User candidateUser = resume != null ? resume.getCandidate() : null;
+
+        Long candidateId = candidateUser != null ? candidateUser.getId() : null;
+        String name = candidateUser != null ? (candidateUser.getFirstName() + " " + (candidateUser.getLastName() != null ? candidateUser.getLastName() : "")).trim() : null;
+        if (name == null || name.isBlank()) {
+            name = resume != null && resume.getFileName() != null ? resume.getFileName().replaceFirst("\\.[^.]+$", "") : "Applicant #" + app.getId();
+        }
+
+        String email = candidateUser != null ? candidateUser.getEmail() : "applicant" + app.getId() + "@example.com";
+        List<String> matchedSkills = resume != null && resume.getExtractedSkills() != null
+                ? Arrays.stream(resume.getExtractedSkills().split(",")).map(String::trim).filter(s -> !s.isBlank()).collect(Collectors.toList())
+                : List.of();
+
+        return CandidateDto.builder()
+                .applicationId(app.getId())
+                .resumeId(resume != null ? resume.getId() : null)
+                .candidateId(candidateId)
+                .name(name)
+                .email(email)
+                .fileName(resume != null ? resume.getFileName() : "resume.pdf")
+                .status(app.getStatus() != null ? app.getStatus().name() : "PENDING")
+                .applicationSource(app.getApplicationSource() != null ? app.getApplicationSource().name() : "INDIVIDUAL_APPLY")
+                .batchId(app.getBatchId())
+                .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
+                .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
+                .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)
+                .impactScore(app.getImpactScore() != null ? app.getImpactScore() : 0.0)
+                .matchedSkills(matchedSkills)
+                .appliedAt(app.getAppliedAt())
+                .build();
     }
 
     private UserDto mapToUserDto(User user) {

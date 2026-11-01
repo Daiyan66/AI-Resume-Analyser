@@ -13,7 +13,10 @@ public interface RecruiterService {
     void saveAndProcessBatchResumes(Long jobId, List<MultipartFile> files);
     void processBatchResumesAsync(Long jobId, List<MultipartFile> files);
     List<CandidateDto> getCandidatesForJob(Long jobId);
+    List<CandidateDto> getCandidatesForJob(Long jobId, String source);
     List<CandidateDto> getLatestBatchResults(Long jobId);
+    List<CandidateDto> getBatchResults(Long jobId, String batchId);
+    List<String> getBatchesForJob(Long jobId);
     ApplicationDto acceptCandidate(Long applicationId);
     ApplicationDto rejectCandidate(Long applicationId, Map<String, String> payload);
     List<JobDto> getRecruiterJobs();

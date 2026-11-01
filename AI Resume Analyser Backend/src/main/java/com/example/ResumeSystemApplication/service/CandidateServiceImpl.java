@@ -2,13 +2,8 @@ package com.example.ResumeSystemApplication.service;
 
 import com.example.ResumeSystemApplication.dto.*;
 import com.example.ResumeSystemApplication.exception.ResourceNotFoundException;
-import com.example.ResumeSystemApplication.model.Application;
-import com.example.ResumeSystemApplication.model.JobDescription;
-import com.example.ResumeSystemApplication.model.Resume;
-import com.example.ResumeSystemApplication.model.User;
-import com.example.ResumeSystemApplication.repository.ApplicationRepository;
-import com.example.ResumeSystemApplication.repository.JobRepository;
-import com.example.ResumeSystemApplication.repository.ResumeRepository;
+import com.example.ResumeSystemApplication.model.*;
+import com.example.ResumeSystemApplication.repository.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +24,8 @@ public class CandidateServiceImpl implements CandidateService {
     private final JobRepository jobRepository;
     private final ResumeRepository resumeRepository;
     private final ApplicationRepository applicationRepository;
+    private final FeedbackRepository feedbackRepository;
+    private final NotificationRepository notificationRepository;
     private final AuthService authService;
     private final FileProcessingService fileProcessingService;
     private final AiScreeningService aiScreeningService;
@@ -38,6 +35,8 @@ public class CandidateServiceImpl implements CandidateService {
             JobRepository jobRepository,
             ResumeRepository resumeRepository,
             ApplicationRepository applicationRepository,
+            FeedbackRepository feedbackRepository,
+            NotificationRepository notificationRepository,
             AuthService authService,
             FileProcessingService fileProcessingService,
             AiScreeningService aiScreeningService,
@@ -46,6 +45,8 @@ public class CandidateServiceImpl implements CandidateService {
         this.jobRepository = jobRepository;
         this.resumeRepository = resumeRepository;
         this.applicationRepository = applicationRepository;
+        this.feedbackRepository = feedbackRepository;
+        this.notificationRepository = notificationRepository;
         this.authService = authService;
         this.fileProcessingService = fileProcessingService;
         this.aiScreeningService = aiScreeningService;
@@ -145,6 +146,8 @@ public class CandidateServiceImpl implements CandidateService {
             app.setJob(job);
             app.setResume(savedResume);
             app.setStatus(Application.ApplicationStatus.PENDING);
+            app.setApplicationSource(Application.ApplicationSource.INDIVIDUAL_APPLY);
+            app.setBatchId(null);
             app.setMatchScore(aiEval.getOverallScore());
             app.setSkillMatchScore(aiEval.getSkillMatchScore());
             app.setExperienceScore(aiEval.getExperienceScore());
@@ -230,11 +233,28 @@ public class CandidateServiceImpl implements CandidateService {
             }
         } catch (Exception ignored) {}
 
+        String recruiterFeedback = null;
+        try {
+            List<Feedback> fbs = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+            if (!fbs.isEmpty()) {
+                recruiterFeedback = fbs.get(0).getContent();
+            }
+        } catch (Exception ignored) {}
+
+        Long candidateId = null;
+        try {
+            if (app.getResume() != null && app.getResume().getCandidate() != null) {
+                candidateId = app.getResume().getCandidate().getId();
+            }
+        } catch (Exception ignored) {}
+
         return SkillGapAnalysisDto.builder()
                 .applicationId(app.getId())
                 .jobId(jobId)
                 .jobTitle(jobTitle)
+                .candidateId(candidateId)
                 .candidateName(candidateName.trim())
+                .recruiterFeedback(recruiterFeedback)
                 .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
                 .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
                 .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)
@@ -249,6 +269,38 @@ public class CandidateServiceImpl implements CandidateService {
                 .interviewQuestions(aiEval.getInterviewQuestions() != null ? aiEval.getInterviewQuestions() : Collections.emptyList())
                 .coachingReport(aiEval.getCoachingReport())
                 .build();
+    }
+
+    @Override
+    public List<NotificationDto> getNotifications() {
+        User candidate = authService.getCurrentUser();
+        return notificationRepository.findByUserIdOrderByCreatedAtDesc(candidate.getId()).stream()
+                .map(n -> NotificationDto.builder()
+                        .id(n.getId())
+                        .title(n.getTitle())
+                        .message(n.getMessage())
+                        .type(n.getType())
+                        .link(n.getLink())
+                        .isRead(n.isRead())
+                        .createdAt(n.getCreatedAt())
+                        .build()
+                ).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void markNotificationAsRead(Long notificationId) {
+        notificationRepository.findById(notificationId).ifPresent(n -> {
+            n.setRead(true);
+            notificationRepository.save(n);
+        });
+    }
+
+    @Override
+    @Transactional
+    public void markAllNotificationsAsRead() {
+        User candidate = authService.getCurrentUser();
+        notificationRepository.markAllAsReadForUser(candidate.getId());
     }
 
     private JobDto mapToJobDto(JobDescription job) {
@@ -300,11 +352,23 @@ public class CandidateServiceImpl implements CandidateService {
         } catch (Exception ignored) {}
 
         Long resumeId = null;
+        Long candidateId = null;
         String fileName = "Resume.pdf";
         try {
             if (app.getResume() != null) {
                 resumeId = app.getResume().getId();
                 fileName = app.getResume().getFileName();
+                if (app.getResume().getCandidate() != null) {
+                    candidateId = app.getResume().getCandidate().getId();
+                }
+            }
+        } catch (Exception ignored) {}
+
+        String recruiterFeedback = null;
+        try {
+            List<Feedback> fbs = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+            if (!fbs.isEmpty()) {
+                recruiterFeedback = fbs.get(0).getContent();
             }
         } catch (Exception ignored) {}
 
@@ -313,10 +377,14 @@ public class CandidateServiceImpl implements CandidateService {
                 .jobId(jobId)
                 .jobTitle(jobTitle)
                 .resumeId(resumeId)
+                .candidateId(candidateId)
                 .fileName(fileName)
                 .candidateName(candidateName.trim())
                 .candidateEmail(candidateEmail)
                 .status(app.getStatus() != null ? app.getStatus().name() : "PENDING")
+                .applicationSource(app.getApplicationSource() != null ? app.getApplicationSource().name() : "INDIVIDUAL_APPLY")
+                .batchId(app.getBatchId())
+                .recruiterFeedback(recruiterFeedback)
                 .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
                 .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
                 .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)

@@ -13,4 +13,7 @@ public interface CandidateService {
     List<ApplicationDto> getCandidateApplications();
     Map<String, Object> getLatestApplicationId();
     SkillGapAnalysisDto getSkillGapAnalysis(Long applicationId);
+    List<NotificationDto> getNotifications();
+    void markNotificationAsRead(Long notificationId);
+    void markAllNotificationsAsRead();
 }

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '../components/Layout';
 import { candidateService } from '../services/candidateService';
-import { FileText, Award, ArrowRight, Compass } from 'lucide-react';
+import { FileText, Award, ArrowRight, Compass, MessageSquare } from 'lucide-react';
 
 export const CandidateStatus = () => {
   const { data: applications = [], isLoading } = useQuery({
@@ -83,7 +83,17 @@ export const CandidateStatus = () => {
                         {Math.round(app.matchScore)}%
                       </Badge>
                     </td>
-                    <td>{getStatusBadge(app.status)}</td>
+                    <td>
+                      <div>{getStatusBadge(app.status)}</div>
+                      {app.recruiterFeedback && (
+                        <div className="mt-2 p-2 bg-light rounded small border">
+                          <strong className="text-primary d-flex align-items-center gap-1 mb-1" style={{ fontSize: '0.75rem' }}>
+                            <MessageSquare size={12} /> Recruiter Feedback:
+                          </strong>
+                          <span className="text-secondary" style={{ fontSize: '0.78rem' }}>"{app.recruiterFeedback}"</span>
+                        </div>
+                      )}
+                    </td>
                     <td className="text-muted small">
                       {new Date(app.appliedAt).toLocaleDateString()}
                     </td>

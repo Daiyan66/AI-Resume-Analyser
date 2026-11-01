@@ -20,6 +20,7 @@ public class JobDto {
     private Integer experienceRequired;
     private Long createdById;
     private String createdByName;
+    private Integer applicantCount;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

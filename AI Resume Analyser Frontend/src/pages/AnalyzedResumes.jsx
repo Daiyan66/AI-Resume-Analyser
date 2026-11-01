@@ -12,6 +12,7 @@ export const AnalyzedResumes = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
 
+  const [selectedBatchId, setSelectedBatchId] = useState('');
   const [rejectingCandidate, setRejectingCandidate] = useState(null);
   const [actionMsg, setActionMsg] = useState('');
 
@@ -23,9 +24,17 @@ export const AnalyzedResumes = () => {
 
   const currentJobId = searchParams.get('jobId') || (jobs.length > 0 ? String(jobs[0].id) : '');
 
+  // Fetch historical persistent batches for this job
+  const { data: batches = [] } = useQuery({
+    queryKey: ['jobBatches', currentJobId],
+    queryFn: () => recruiterService.getBatches(Number(currentJobId)),
+    enabled: !!currentJobId
+  });
+
+  // Fetch batch results from database
   const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ['uploadResults', currentJobId],
-    queryFn: () => recruiterService.getUploadResults(Number(currentJobId)),
+    queryKey: ['uploadResults', currentJobId, selectedBatchId],
+    queryFn: () => recruiterService.getUploadResults(Number(currentJobId), selectedBatchId),
     enabled: !!currentJobId
   });
 
@@ -64,20 +73,53 @@ export const AnalyzedResumes = () => {
           </p>
         </div>
 
-        {jobs.length > 0 && (
-          <div style={{ minWidth: '260px' }}>
-            <Form.Select
-              value={currentJobId}
-              onChange={(e) => setSearchParams({ jobId: e.target.value })}
-              className="fw-semibold bg-white shadow-sm"
-            >
-              {jobs.map((j) => (
-                <option key={j.id} value={j.id}>
-                  {j.title}
-                </option>
-              ))}
-            </Form.Select>
-          </div>
+        <div className="d-flex gap-2 flex-wrap align-items-center">
+          {jobs.length > 0 && (
+            <div style={{ minWidth: '220px' }}>
+              <Form.Select
+                value={currentJobId}
+                onChange={(e) => {
+                  setSelectedBatchId('');
+                  setSearchParams({ jobId: e.target.value });
+                }}
+                className="fw-semibold bg-white shadow-sm"
+              >
+                {jobs.map((j) => (
+                  <option key={j.id} value={j.id}>
+                    {j.title}
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+          )}
+
+          {batches.length > 0 && (
+            <div style={{ minWidth: '220px' }}>
+              <Form.Select
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
+                className="fw-semibold bg-white shadow-sm border-warning"
+              >
+                <option value="">Latest Upload Batch (Default)</option>
+                {batches.map((b, idx) => (
+                  <option key={b} value={b}>
+                    Batch Session #{idx + 1} ({b.substring(0, 18)})
+                  </option>
+                ))}
+              </Form.Select>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="d-flex align-items-center gap-2 mb-3">
+        <span className="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+          Database Persisted: Batch Results Permanently Saved
+        </span>
+        {selectedBatchId && (
+          <span className="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle px-2 py-1 font-monospace">
+            Active Batch: {selectedBatchId}
+          </span>
         )}
       </div>
 

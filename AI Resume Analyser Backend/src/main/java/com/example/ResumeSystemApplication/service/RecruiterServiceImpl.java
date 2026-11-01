@@ -30,6 +30,8 @@ public class RecruiterServiceImpl implements RecruiterService {
     private final ApplicationRepository applicationRepository;
     private final ResumeRepository resumeRepository;
     private final FeedbackRepository feedbackRepository;
+    private final NotificationRepository notificationRepository;
+    private final UserRepository userRepository;
     private final AuthService authService;
     private final FileProcessingService fileProcessingService;
     private final AiScreeningService aiScreeningService;
@@ -47,6 +49,8 @@ public class RecruiterServiceImpl implements RecruiterService {
             ApplicationRepository applicationRepository,
             ResumeRepository resumeRepository,
             FeedbackRepository feedbackRepository,
+            NotificationRepository notificationRepository,
+            UserRepository userRepository,
             AuthService authService,
             FileProcessingService fileProcessingService,
             AiScreeningService aiScreeningService,
@@ -58,6 +62,8 @@ public class RecruiterServiceImpl implements RecruiterService {
         this.applicationRepository = applicationRepository;
         this.resumeRepository = resumeRepository;
         this.feedbackRepository = feedbackRepository;
+        this.notificationRepository = notificationRepository;
+        this.userRepository = userRepository;
         this.authService = authService;
         this.fileProcessingService = fileProcessingService;
         this.aiScreeningService = aiScreeningService;
@@ -112,6 +118,25 @@ public class RecruiterServiceImpl implements RecruiterService {
         job.setCreatedBy(recruiter);
 
         JobDescription saved = jobRepository.save(job);
+
+        // Notify opted-in candidates about new job opening
+        try {
+            List<User> candidates = userRepository.findByRolesName("ROLE_CANDIDATE");
+            for (User cand : candidates) {
+                if (Boolean.TRUE.equals(cand.getOptInForRecommendations())) {
+                    Notification notif = new Notification();
+                    notif.setUser(cand);
+                    notif.setTitle("New Opening: " + saved.getTitle());
+                    notif.setMessage("A recruiter posted a new opening for " + saved.getTitle() + ". Review required skills and submit your application!");
+                    notif.setType("NEW_JOB");
+                    notif.setLink("/candidate/jobs");
+                    notificationRepository.save(notif);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to create new job notifications", e);
+        }
+
         return mapToJobDto(saved);
     }
 
@@ -144,8 +169,10 @@ public class RecruiterServiceImpl implements RecruiterService {
             }
         }
 
-        // Delegate to async execution with safely stored files on disk
-        processStoredBatchAsync(jobId, storedItems);
+        String batchId = "BATCH-" + DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss").format(LocalDateTime.now()) + "-" + (100 + new Random().nextInt(900));
+
+        // Delegate to async execution with safely stored files on disk and batch tracking
+        processStoredBatchAsync(jobId, storedItems, batchId);
     }
 
     @Override
@@ -155,7 +182,7 @@ public class RecruiterServiceImpl implements RecruiterService {
 
     @Async
     @Transactional
-    public void processStoredBatchAsync(Long jobId, List<StoredResumeItem> items) {
+    public void processStoredBatchAsync(Long jobId, List<StoredResumeItem> items, String batchId) {
         JobDescription job = jobRepository.findById(jobId).orElse(null);
         if (job == null) {
             progressService.completeProgress(jobId, "Error: Job ID not found");
@@ -197,12 +224,14 @@ public class RecruiterServiceImpl implements RecruiterService {
                 resume.setExtractedExperience(aiEval.getExtractedProfile() != null ? aiEval.getExtractedProfile().getYearsExperience() : 2);
                 Resume savedResume = resumeRepository.save(resume);
 
-                // 4. Save Application
+                // 4. Save Application with BATCH_UPLOAD source & batchId
                 String rawJson = objectMapper.writeValueAsString(aiEval);
                 Application app = new Application();
                 app.setJob(job);
                 app.setResume(savedResume);
                 app.setStatus(Application.ApplicationStatus.PENDING);
+                app.setApplicationSource(Application.ApplicationSource.BATCH_UPLOAD);
+                app.setBatchId(batchId);
                 app.setMatchScore(aiEval.getOverallScore());
                 app.setSkillMatchScore(aiEval.getSkillMatchScore());
                 app.setExperienceScore(aiEval.getExperienceScore());
@@ -229,20 +258,60 @@ public class RecruiterServiceImpl implements RecruiterService {
 
     @Override
     public List<CandidateDto> getCandidatesForJob(Long jobId) {
-        List<Application> apps = applicationRepository.findByJobIdOrderByMatchScoreDesc(jobId);
+        return getCandidatesForJob(jobId, null);
+    }
+
+    @Override
+    public List<CandidateDto> getCandidatesForJob(Long jobId, String source) {
+        List<Application> apps;
+        if ("BATCH_UPLOAD".equalsIgnoreCase(source)) {
+            apps = applicationRepository.findByJobIdAndApplicationSourceOrderByMatchScoreDesc(jobId, Application.ApplicationSource.BATCH_UPLOAD);
+        } else if ("INDIVIDUAL_APPLY".equalsIgnoreCase(source)) {
+            apps = applicationRepository.findByJobIdAndApplicationSourceOrderByMatchScoreDesc(jobId, Application.ApplicationSource.INDIVIDUAL_APPLY);
+        } else {
+            apps = applicationRepository.findByJobIdOrderByMatchScoreDesc(jobId);
+        }
         return apps.stream().map(this::mapToCandidateDto).collect(Collectors.toList());
     }
 
     @Override
     public List<CandidateDto> getLatestBatchResults(Long jobId) {
-        List<Long> appIds = latestBatchByJob.get(jobId);
-        if (appIds == null || appIds.isEmpty()) {
-            return getCandidatesForJob(jobId);
+        return getBatchResults(jobId, null);
+    }
+
+    @Override
+    public List<CandidateDto> getBatchResults(Long jobId, String batchId) {
+        if (batchId != null && !batchId.isBlank()) {
+            return applicationRepository.findByJobIdAndBatchIdOrderByMatchScoreDesc(jobId, batchId).stream()
+                    .map(this::mapToCandidateDto)
+                    .collect(Collectors.toList());
         }
-        return applicationRepository.findAllById(appIds).stream()
-                .sorted((a, b) -> Double.compare(b.getMatchScore(), a.getMatchScore()))
+
+        // Check if database has recorded batches
+        Optional<String> latestBatchOpt = applicationRepository.findLatestBatchIdByJobId(jobId);
+        if (latestBatchOpt.isPresent()) {
+            return applicationRepository.findByJobIdAndBatchIdOrderByMatchScoreDesc(jobId, latestBatchOpt.get()).stream()
+                    .map(this::mapToCandidateDto)
+                    .collect(Collectors.toList());
+        }
+
+        // In-memory fallback
+        List<Long> appIds = latestBatchByJob.get(jobId);
+        if (appIds != null && !appIds.isEmpty()) {
+            return applicationRepository.findAllById(appIds).stream()
+                    .sorted((a, b) -> Double.compare(b.getMatchScore(), a.getMatchScore()))
+                    .map(this::mapToCandidateDto)
+                    .collect(Collectors.toList());
+        }
+
+        return applicationRepository.findByJobIdAndApplicationSourceOrderByMatchScoreDesc(jobId, Application.ApplicationSource.BATCH_UPLOAD).stream()
                 .map(this::mapToCandidateDto)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<String> getBatchesForJob(Long jobId) {
+        return applicationRepository.findDistinctBatchIdsByJobId(jobId);
     }
 
     @Override
@@ -259,6 +328,22 @@ public class RecruiterServiceImpl implements RecruiterService {
         String candidateName = getCandidateName(app);
         if (candidateEmail != null && !candidateEmail.isBlank()) {
             emailService.sendApplicationAccepted(candidateEmail, candidateName, app.getJob().getTitle());
+        }
+
+        // Notify Candidate
+        try {
+            User candidateUser = app.getResume() != null ? app.getResume().getCandidate() : null;
+            if (candidateUser != null) {
+                Notification notif = new Notification();
+                notif.setUser(candidateUser);
+                notif.setTitle("Application Shortlisted: " + app.getJob().getTitle());
+                notif.setMessage("Congratulations! Your application for " + app.getJob().getTitle() + " has been shortlisted/accepted by the hiring team.");
+                notif.setType("FEEDBACK");
+                notif.setLink("/candidate/status");
+                notificationRepository.save(notif);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to create candidate acceptance notification", e);
         }
 
         return mapToApplicationDto(saved);
@@ -298,6 +383,22 @@ public class RecruiterServiceImpl implements RecruiterService {
             emailService.sendApplicationRejected(candidateEmail, candidateName, app.getJob().getTitle(), feedbackContent, coachingReport);
         }
 
+        // Notify Candidate with Feedback
+        try {
+            User candidateUser = app.getResume() != null ? app.getResume().getCandidate() : null;
+            if (candidateUser != null) {
+                Notification notif = new Notification();
+                notif.setUser(candidateUser);
+                notif.setTitle("Recruiter Feedback: " + app.getJob().getTitle());
+                notif.setMessage("Feedback from recruiter on " + app.getJob().getTitle() + ": " + feedbackContent);
+                notif.setType("FEEDBACK");
+                notif.setLink("/candidate/skill-gap/" + app.getId());
+                notificationRepository.save(notif);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to create candidate rejection notification", e);
+        }
+
         return mapToApplicationDto(saved);
     }
 
@@ -324,6 +425,14 @@ public class RecruiterServiceImpl implements RecruiterService {
             } catch (Exception ignored) {}
         }
 
+        String recruiterFeedback = null;
+        try {
+            List<Feedback> fbs = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+            if (!fbs.isEmpty()) {
+                recruiterFeedback = fbs.get(0).getContent();
+            }
+        } catch (Exception ignored) {}
+
         return CandidateDto.builder()
                 .applicationId(app.getId())
                 .resumeId(app.getResume() != null ? app.getResume().getId() : null)
@@ -332,6 +441,9 @@ public class RecruiterServiceImpl implements RecruiterService {
                 .email(email)
                 .fileName(app.getResume() != null ? app.getResume().getFileName() : "Resume.pdf")
                 .status(app.getStatus() != null ? app.getStatus().name() : "PENDING")
+                .applicationSource(app.getApplicationSource() != null ? app.getApplicationSource().name() : "BATCH_UPLOAD")
+                .batchId(app.getBatchId())
+                .recruiterFeedback(recruiterFeedback)
                 .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
                 .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
                 .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)
@@ -426,11 +538,23 @@ public class RecruiterServiceImpl implements RecruiterService {
         } catch (Exception ignored) {}
 
         Long resumeId = null;
+        Long candidateId = null;
         String fileName = "Resume.pdf";
         try {
             if (app.getResume() != null) {
                 resumeId = app.getResume().getId();
                 fileName = app.getResume().getFileName();
+                if (app.getResume().getCandidate() != null) {
+                    candidateId = app.getResume().getCandidate().getId();
+                }
+            }
+        } catch (Exception ignored) {}
+
+        String recruiterFeedback = null;
+        try {
+            List<Feedback> fbs = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+            if (!fbs.isEmpty()) {
+                recruiterFeedback = fbs.get(0).getContent();
             }
         } catch (Exception ignored) {}
 
@@ -439,10 +563,14 @@ public class RecruiterServiceImpl implements RecruiterService {
                 .jobId(jobId)
                 .jobTitle(jobTitle)
                 .resumeId(resumeId)
+                .candidateId(candidateId)
                 .fileName(fileName)
                 .candidateName(getCandidateName(app))
                 .candidateEmail(getCandidateEmail(app))
                 .status(app.getStatus() != null ? app.getStatus().name() : "PENDING")
+                .applicationSource(app.getApplicationSource() != null ? app.getApplicationSource().name() : "BATCH_UPLOAD")
+                .batchId(app.getBatchId())
+                .recruiterFeedback(recruiterFeedback)
                 .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
                 .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
                 .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)

@@ -15,6 +15,7 @@ export const Candidates = () => {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [sourceFilter, setSourceFilter] = useState('ALL');
   const [minScore, setMinScore] = useState(0);
 
   const [rejectingCandidate, setRejectingCandidate] = useState(null);
@@ -30,8 +31,8 @@ export const Candidates = () => {
 
   // Fetch candidates for selected job
   const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ['jobCandidates', selectedJobId],
-    queryFn: () => recruiterService.getCandidates(Number(selectedJobId)),
+    queryKey: ['jobCandidates', selectedJobId, sourceFilter],
+    queryFn: () => recruiterService.getCandidates(Number(selectedJobId), sourceFilter),
     enabled: !!selectedJobId
   });
 
@@ -94,6 +95,31 @@ export const Candidates = () => {
       </div>
 
       {actionMsg && <Alert variant="success" className="py-2 small mb-4">{actionMsg}</Alert>}
+
+      {/* Candidate Pipeline Source Tabs */}
+      <div className="d-flex gap-2 mb-3">
+        <button
+          type="button"
+          className={`btn btn-sm ${sourceFilter === 'ALL' ? 'btn-primary' : 'btn-outline-secondary'}`}
+          onClick={() => setSourceFilter('ALL')}
+        >
+          All Applications ({candidates.length})
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${sourceFilter === 'INDIVIDUAL_APPLY' ? 'btn-primary' : 'btn-outline-primary'}`}
+          onClick={() => setSourceFilter('INDIVIDUAL_APPLY')}
+        >
+          Direct Applicants (Individual Apply)
+        </button>
+        <button
+          type="button"
+          className={`btn btn-sm ${sourceFilter === 'BATCH_UPLOAD' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark'}`}
+          onClick={() => setSourceFilter('BATCH_UPLOAD')}
+        >
+          Batch Uploaded (Batch Screened)
+        </button>
+      </div>
 
       <FilterBar
         searchQuery={searchQuery}

@@ -17,6 +17,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
     boolean existsByEmail(String email);
     long countByRolesName(String roleName);
+    List<User> findByRolesName(String roleName);
 
     @Query("SELECT u FROM User u WHERE u.optInForRecommendations = true")
     List<User> findUsersOptedInForRecommendations();

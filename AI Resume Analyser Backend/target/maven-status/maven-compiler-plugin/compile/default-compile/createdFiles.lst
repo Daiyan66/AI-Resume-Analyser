@@ -3,7 +3,6 @@ com\example\ResumeSystemApplication\exception\ResourceNotFoundException.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$InterviewQuestionItem$InterviewQuestionItemBuilder.class
 com\example\ResumeSystemApplication\dto\RecruiterStatsDto.class
 com\example\ResumeSystemApplication\service\AdminService.class
-com\example\ResumeSystemApplication\service\JobRecommendationService.class
 com\example\ResumeSystemApplication\dto\UserDto$UserDtoBuilder.class
 com\example\ResumeSystemApplication\dto\AdminStatsDto$AdminStatsDtoBuilder.class
 com\example\ResumeSystemApplication\dto\JobDto$JobDtoBuilder.class
@@ -23,7 +22,6 @@ com\example\ResumeSystemApplication\dto\ApplyResponse.class
 com\example\ResumeSystemApplication\dto\ApplicationDto$ApplicationDtoBuilder.class
 com\example\ResumeSystemApplication\service\AiScreeningService.class
 com\example\ResumeSystemApplication\repository\ApplicationRepository.class
-com\example\ResumeSystemApplication\service\FileProcessingService.class
 com\example\ResumeSystemApplication\repository\RoleRepository.class
 com\example\ResumeSystemApplication\service\AuthService.class
 com\example\ResumeSystemApplication\config\PasswordEncoderConfig.class
@@ -39,7 +37,6 @@ com\example\ResumeSystemApplication\dto\UserDto.class
 com\example\ResumeSystemApplication\controller\AuthController.class
 com\example\ResumeSystemApplication\config\CorsConfig.class
 com\example\ResumeSystemApplication\config\JwtAuthenticationFilter.class
-com\example\ResumeSystemApplication\service\AdminServiceImpl.class
 com\example\ResumeSystemApplication\service\CandidateService.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$ExtractedProfile$ExtractedProfileBuilder.class
 com\example\ResumeSystemApplication\dto\CandidateDto.class
@@ -47,9 +44,7 @@ com\example\ResumeSystemApplication\model\Role.class
 com\example\ResumeSystemApplication\config\SecurityConfig.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse.class
 com\example\ResumeSystemApplication\service\ProgressService.class
-com\example\ResumeSystemApplication\service\EmailServiceImpl.class
 com\example\ResumeSystemApplication\dto\SkillGapAnalysisDto$SkillGapAnalysisDtoBuilder.class
-com\example\ResumeSystemApplication\service\AuthServiceImpl.class
 com\example\ResumeSystemApplication\repository\ResumeRepository.class
 com\example\ResumeSystemApplication\controller\FileUploadController.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$InterviewQuestionItem.class
@@ -62,15 +57,11 @@ com\example\ResumeSystemApplication\repository\FeedbackRepository.class
 com\example\ResumeSystemApplication\config\DataInitializer.class
 com\example\ResumeSystemApplication\config\JwtService.class
 com\example\ResumeSystemApplication\service\RecruiterService.class
-com\example\ResumeSystemApplication\service\EmailService.class
 com\example\ResumeSystemApplication\repository\JobRepository.class
-com\example\ResumeSystemApplication\service\CandidateServiceImpl.class
 com\example\ResumeSystemApplication\controller\AdminController.class
 com\example\ResumeSystemApplication\model\Application.class
-com\example\ResumeSystemApplication\service\RecruiterServiceImpl$StoredResumeItem.class
 com\example\ResumeSystemApplication\controller\CandidateController.class
 com\example\ResumeSystemApplication\dto\ApplyResponse$ApplyResponseBuilder.class
 com\example\ResumeSystemApplication\dto\JobFormDto.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$AiEvaluationResponseBuilder.class
-com\example\ResumeSystemApplication\service\RecruiterServiceImpl.class
 com\example\ResumeSystemApplication\dto\AdminStatsDto.class

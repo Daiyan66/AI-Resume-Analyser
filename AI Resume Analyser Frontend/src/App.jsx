@@ -13,6 +13,7 @@ import { AnalyzedResumes } from './pages/AnalyzedResumes';
 import { CandidateJobBoard } from './pages/CandidateJobBoard';
 import { CandidateStatus } from './pages/CandidateStatus';
 import { SkillGapAnalysis } from './pages/SkillGapAnalysis';
+import { AdminCandidatesOverview } from './pages/AdminCandidatesOverview';
 
 function App() {
   return (
@@ -51,7 +52,7 @@ function App() {
       <Route
         path="/recruiter/upload-job"
         element={
-          <PrivateRoute allowedRoles={['ROLE_RECRUITER', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_RECRUITER']}>
             <UploadJob />
           </PrivateRoute>
         }
@@ -59,7 +60,7 @@ function App() {
       <Route
         path="/recruiter/upload-resumes"
         element={
-          <PrivateRoute allowedRoles={['ROLE_RECRUITER', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_RECRUITER']}>
             <UploadResumes />
           </PrivateRoute>
         }
@@ -67,7 +68,7 @@ function App() {
       <Route
         path="/recruiter/candidates"
         element={
-          <PrivateRoute allowedRoles={['ROLE_RECRUITER', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_RECRUITER']}>
             <Candidates />
           </PrivateRoute>
         }
@@ -75,7 +76,7 @@ function App() {
       <Route
         path="/recruiter/analyzed"
         element={
-          <PrivateRoute allowedRoles={['ROLE_RECRUITER', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_RECRUITER']}>
             <AnalyzedResumes />
           </PrivateRoute>
         }
@@ -85,7 +86,7 @@ function App() {
       <Route
         path="/candidate/jobs"
         element={
-          <PrivateRoute allowedRoles={['ROLE_CANDIDATE', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_CANDIDATE']}>
             <CandidateJobBoard />
           </PrivateRoute>
         }
@@ -93,7 +94,7 @@ function App() {
       <Route
         path="/candidate/status"
         element={
-          <PrivateRoute allowedRoles={['ROLE_CANDIDATE', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_CANDIDATE']}>
             <CandidateStatus />
           </PrivateRoute>
         }
@@ -101,7 +102,7 @@ function App() {
       <Route
         path="/candidate/skill-gap"
         element={
-          <PrivateRoute allowedRoles={['ROLE_CANDIDATE', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_CANDIDATE']}>
             <SkillGapAnalysis />
           </PrivateRoute>
         }
@@ -109,7 +110,7 @@ function App() {
       <Route
         path="/candidate/skill-gap/:appId"
         element={
-          <PrivateRoute allowedRoles={['ROLE_CANDIDATE', 'ROLE_ADMIN']}>
+          <PrivateRoute allowedRoles={['ROLE_CANDIDATE']}>
             <SkillGapAnalysis />
           </PrivateRoute>
         }
@@ -121,6 +122,14 @@ function App() {
         element={
           <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
             <Admin />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/candidates"
+        element={
+          <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
+            <AdminCandidatesOverview />
           </PrivateRoute>
         }
       />

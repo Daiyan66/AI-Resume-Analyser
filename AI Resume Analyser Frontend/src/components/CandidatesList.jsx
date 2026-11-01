@@ -71,6 +71,31 @@ export const CandidatesList = ({ candidates = [], onAccept, onReject, loading })
                       <div>
                         <div className="fw-semibold text-dark">{cand.name || 'Candidate'}</div>
                         <div className="text-muted small">{cand.email || 'candidate@example.com'}</div>
+                        <div className="d-flex align-items-center gap-1 mt-1 flex-wrap">
+                          {cand.candidateId ? (
+                            <Badge bg="success-subtle" className="text-success border border-success-subtle font-monospace px-1 py-0" style={{ fontSize: '0.72rem' }}>
+                              Candidate ID: #{cand.candidateId}
+                            </Badge>
+                          ) : (
+                            <Badge bg="secondary-subtle" className="text-secondary border border-secondary-subtle font-monospace px-1 py-0" style={{ fontSize: '0.72rem' }}>
+                              App ID: #{cand.applicationId}
+                            </Badge>
+                          )}
+                          {cand.applicationSource === 'BATCH_UPLOAD' ? (
+                            <Badge bg="warning-subtle" className="text-warning-emphasis border border-warning-subtle px-1 py-0" style={{ fontSize: '0.72rem' }}>
+                              Batch Upload {cand.batchId ? `(${cand.batchId.substring(0, 12)})` : ''}
+                            </Badge>
+                          ) : (
+                            <Badge bg="info-subtle" className="text-info-emphasis border border-info-subtle px-1 py-0" style={{ fontSize: '0.72rem' }}>
+                              Direct Apply
+                            </Badge>
+                          )}
+                          {cand.recruiterFeedback && (
+                            <Badge bg="light" className="text-muted border px-1 py-0" style={{ fontSize: '0.72rem' }}>
+                              Feedback Recorded
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>

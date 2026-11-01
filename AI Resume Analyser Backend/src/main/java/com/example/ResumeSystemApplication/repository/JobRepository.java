@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface JobRepository extends JpaRepository<JobDescription, Long> {
     List<JobDescription> findByCreatedByIdOrderByCreatedAtDesc(Long userId);
+    long countByCreatedById(Long userId);
     List<JobDescription> findAllByOrderByCreatedAtDesc();
 
     @Query(value = "SELECT * FROM job_descriptions j WHERE " +

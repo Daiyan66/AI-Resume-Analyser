@@ -20,6 +20,9 @@ public class CandidateDto {
     private String email;
     private String fileName;
     private String status;
+    private String applicationSource;
+    private String batchId;
+    private String recruiterFeedback;
     private Double matchScore;
     private Double skillMatchScore;
     private Double experienceScore;

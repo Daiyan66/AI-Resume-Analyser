@@ -15,7 +15,9 @@ public class SkillGapAnalysisDto {
     private Long applicationId;
     private Long jobId;
     private String jobTitle;
+    private Long candidateId;
     private String candidateName;
+    private String recruiterFeedback;
     private Double matchScore;
     private Double skillMatchScore;
     private Double experienceScore;
