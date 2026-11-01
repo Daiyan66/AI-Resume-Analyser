@@ -1,0 +1,13 @@
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+export const USER_ROLES = {
+  ADMIN: 'ROLE_ADMIN',
+  RECRUITER: 'ROLE_RECRUITER',
+  CANDIDATE: 'ROLE_CANDIDATE'
+};
+
+export const APPLICATION_STATUS = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  REJECTED: 'REJECTED'
+};
