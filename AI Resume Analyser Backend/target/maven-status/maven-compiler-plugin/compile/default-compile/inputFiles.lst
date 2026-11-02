@@ -34,6 +34,7 @@ E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\examp
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\Feedback.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\JobDescription.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\Notification.java
+E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\RecruiterInvitation.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\Resume.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\Role.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\model\User.java
@@ -41,6 +42,7 @@ E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\examp
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\FeedbackRepository.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\JobRepository.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\NotificationRepository.java
+E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\RecruiterInvitationRepository.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\ResumeRepository.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\RoleRepository.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\repository\UserRepository.java

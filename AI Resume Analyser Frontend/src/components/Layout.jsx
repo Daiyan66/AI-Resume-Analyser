@@ -237,25 +237,23 @@ export const Layout = ({ children }) => {
                   <NavDropdown.ItemText className="text-muted small">
                     Signed in as <strong>{user.username}</strong>
                   </NavDropdown.ItemText>
+                  <NavDropdown.Item as={Link} to="/" className="d-flex align-items-center">
+                    <Sparkles size={16} className="me-2 text-primary" /> Platform Overview
+                  </NavDropdown.Item>
                   <NavDropdown.Divider />
                   <NavDropdown.Item onClick={logout} className="text-danger d-flex align-items-center">
                     <LogOut size={16} className="me-2" /> Sign Out
                   </NavDropdown.Item>
                 </NavDropdown>
-              ) : (
-                <div className="d-flex gap-2">
-                  <Link to="/login" className="btn btn-outline-primary btn-sm">Sign In</Link>
-                  <Link to="/register" className="btn btn-primary btn-sm">Get Started</Link>
-                </div>
-              )}
+              ) : null}
             </Nav>
           </Navbar.Collapse>
         </Container>
       </Navbar>
 
       {/* Main Content Area */}
-      <main className="flex-grow-1 position-relative">
-        <Container fluid="xl" className="py-4">
+      <main className="flex-grow-1 position-relative p-0 m-0">
+        <Container fluid="xl" className="pt-2 pb-4">
           {children}
         </Container>
       </main>

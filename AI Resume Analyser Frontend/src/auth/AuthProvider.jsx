@@ -96,16 +96,24 @@ export const AuthProvider = ({ children }) => {
     return userData;
   };
 
+  const loginWithToken = (userData, receivedToken) => {
+    localStorage.setItem('ats_token', receivedToken);
+    localStorage.setItem('ats_user', JSON.stringify(userData));
+    setToken(receivedToken);
+    setUser(userData);
+    return userData;
+  };
+
   const logout = () => {
     localStorage.removeItem('ats_token');
     localStorage.removeItem('ats_user');
     setUser(null);
     setToken(null);
-    window.location.href = '/login';
+    window.location.href = '/';
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, login, register, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ user, token, loading, login, loginWithToken, register, logout, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

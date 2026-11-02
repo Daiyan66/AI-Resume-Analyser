@@ -3,6 +3,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { PrivateRoute } from './auth/PrivateRoute';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
+import { LandingPage } from './pages/LandingPage';
+import { RecruiterOnboardPage } from './pages/RecruiterOnboardPage';
 import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { AddRecruiter } from './pages/AddRecruiter';
@@ -19,8 +21,10 @@ function App() {
   return (
     <Routes>
       {/* Public Routes */}
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/recruiter/onboard" element={<RecruiterOnboardPage />} />
 
       {/* Authenticated Dashboard & Aliases */}
       <Route

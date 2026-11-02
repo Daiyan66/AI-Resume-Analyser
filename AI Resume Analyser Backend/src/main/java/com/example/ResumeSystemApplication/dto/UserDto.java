@@ -20,6 +20,28 @@ public class UserDto {
     private String lastName;
     private Set<String> roles;
     private Boolean optInForRecommendations;
+
+    // Candidate Profile
+    private String phone;
+    private String location;
+    private String headline;
+    private String educationLevel;
+    private String fieldOfStudy;
+    private String university;
+    private String graduationYear;
+    private Integer yearsExperience;
+    private String currentCompany;
+    private String currentTitle;
+    private String skillsSummary;
+    private String portfolioUrl;
+
+    // Recruiter Profile
+    private String companyName;
+    private String companyWebsite;
+    private String designation;
+    private String hiringDomains;
+    private Boolean isVerified;
+
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

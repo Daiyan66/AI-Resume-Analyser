@@ -52,6 +52,49 @@ public class EmailServiceImpl implements EmailService {
 
     @Override
     @Async
+    public void sendRecruiterVerificationLink(String toEmail, String name, String inviteToken, String otp) {
+        String subject = "Verify Your Recruiter Account - OTP & Onboarding Link";
+        String onboardUrl = "http://localhost:5173/recruiter/onboard?token=" + inviteToken;
+
+        String htmlContent = String.format("""
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 10px; background: #ffffff;">
+                <div style="border-bottom: 2px solid #4f46e5; padding-bottom: 12px; margin-bottom: 20px;">
+                    <h2 style="color: #4f46e5; margin: 0;">Next-Gen AI ATS &bull; Recruiter Verification</h2>
+                    <p style="color: #64748b; margin: 4px 0 0 0; font-size: 14px;">Enterprise Hiring Manager Verification</p>
+                </div>
+                <p>Hello <strong>%s</strong>,</p>
+                <p>Thank you for requesting Recruiter access to the Next-Gen AI ATS platform. To ensure complete hiring authenticity, all recruiter accounts must undergo 2-factor OTP verification and formal verification.</p>
+                
+                <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 18px; border-radius: 8px; margin: 20px 0; text-align: center;">
+                    <p style="margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; color: #1e40af; font-weight: bold; letter-spacing: 1px;">Your 6-Digit Email Verification OTP</p>
+                    <div style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #1d4ed8; font-family: monospace;">%s</div>
+                    <p style="margin: 8px 0 0 0; font-size: 12px; color: #3b82f6;">Valid for 48 hours. Never share this code with anyone.</p>
+                </div>
+
+                <div style="text-align: center; margin: 25px 0;">
+                    <a href="%s" style="display: inline-block; background-color: #4f46e5; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 15px; box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);">
+                        Complete Recruiter Onboarding &rarr;
+                    </a>
+                </div>
+
+                <div style="background: #f8fafc; border-radius: 6px; padding: 14px; font-size: 13px; color: #475569; margin-top: 20px;">
+                    <strong>Next Steps on the Portal:</strong>
+                    <ol style="margin: 8px 0 0 0; padding-left: 20px;">
+                        <li>Enter the 6-digit OTP code shown above.</li>
+                        <li>Upload a formal verification document (Company ID, Employment Offer Letter, or Business Registration).</li>
+                        <li>Configure your corporate profile & password to begin posting jobs and AI batch screening.</li>
+                    </ol>
+                </div>
+
+                <p style="font-size: 12px; color: #94a3b8; margin-top: 24px;">If you did not request recruiter access, please disregard this email or report to Management at formusic7766@gmail.com.</p>
+            </div>
+            """, name != null && !name.isBlank() ? name : "Hiring Partner", otp, onboardUrl);
+
+        sendHtmlEmail(toEmail, subject, htmlContent);
+    }
+
+    @Override
+    @Async
     public void sendApplicationAccepted(String toEmail, String candidateName, String jobTitle) {
         String subject = "Congratulations! Next Steps for " + jobTitle;
         String htmlContent = String.format("""

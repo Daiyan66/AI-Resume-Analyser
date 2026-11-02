@@ -1,4 +1,4 @@
-/* Modern Enterprise ATS Theme with Glassmorphism & Micro-animations */
+/* Modern Enterprise ATS Theme with Glassmorphism, Subtle Moving Light Gradient & Micro-animations */
 @import 'bootstrap/dist/css/bootstrap.min.css';
 
 :root {
@@ -7,35 +7,84 @@
   --font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
 }
 
+/* Subtle, randomly shifting gentle pastel light gradient animation */
+@keyframes subtleGradientMesh {
+  0% {
+    background-position: 0% 40%;
+  }
+  25% {
+    background-position: 60% 80%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  75% {
+    background-position: 40% 10%;
+  }
+  100% {
+    background-position: 0% 40%;
+  }
+}
+
 body {
   font-family: var(--font-family);
-  background-color: #f8fafc;
+  background: linear-gradient(
+    135deg,
+    #f8fafc 0%,
+    #eef2ff 20%,
+    #fdf4ff 40%,
+    #f0fdf4 60%,
+    #eff6ff 80%,
+    #faf5ff 100%
+  );
+  background-size: 350% 350%;
+  animation: subtleGradientMesh 24s ease-in-out infinite;
   color: #1e293b;
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* Semi-transparent Glass Navbar with zero bottom margin */
+.navbar-glass {
+  background: rgba(255, 255, 255, 0.78) !important;
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7) !important;
+  margin-bottom: 0 !important;
+  box-shadow: 0 4px 20px -2px rgba(79, 70, 229, 0.05);
 }
 
 /* Glassmorphism Styles */
-.navbar-glass {
-  background: rgba(255, 255, 255, 0.85) !important;
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-}
-
 .glass-card {
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.90);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 10px 30px -5px rgba(79, 70, 229, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.03);
+}
+
+.glass-card-subtle {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow: 0 8px 25px -4px rgba(79, 70, 229, 0.06);
 }
 
 .login-wrapper {
-  background: radial-gradient(circle at 10% 20%, rgb(240, 244, 255) 0%, rgb(248, 250, 252) 90%);
+  background: transparent;
 }
 
 .text-gradient {
   background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.text-gradient-emerald {
+  background: linear-gradient(135deg, #059669 0%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -59,7 +108,7 @@ body {
 }
 .hover-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 0 12px 30px -5px rgba(79, 70, 229, 0.12), 0 8px 10px -6px rgba(0, 0, 0, 0.04) !important;
 }
 
 /* Avatars */
@@ -95,4 +144,52 @@ body {
 }
 .pulsing-badge {
   animation: pulse 1.8s infinite ease-in-out;
+}
+
+/* Stepper circles for Candidate and Recruiter Tunnels */
+.step-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+.step-circle.active {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 0 0 5px rgba(79, 70, 229, 0.22);
+}
+.step-circle.completed {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
+}
+.step-circle.pending {
+  background: #e2e8f0;
+  color: #64748b;
+}
+
+/* Form floating labels / sleek inputs */
+.form-control-sleek {
+  border-radius: 0.75rem;
+  border: 1px solid #cbd5e1;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.9rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  background: rgba(255, 255, 255, 0.9);
+}
+.form-control-sleek:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  background: #ffffff;
+}
+
+/* Flush top content utility (remove gap between navbar and page) */
+.flush-nav-content {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
 }

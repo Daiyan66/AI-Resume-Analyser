@@ -142,11 +142,24 @@ export const LoginPage = () => {
           </div>
         </Form>
 
-        <div className="text-center mt-4">
-          <span className="small text-muted">Don't have an account yet? </span>
-          <Link to="/register" className="small fw-bold text-primary text-decoration-none">
-            Create Candidate Account
-          </Link>
+        <div className="text-center mt-4 border-top pt-3">
+          <div className="mb-2">
+            <span className="small text-muted">Are you a candidate? </span>
+            <Link to="/register" className="small fw-bold text-primary text-decoration-none">
+              Create Candidate Account
+            </Link>
+          </div>
+          <div className="mb-2">
+            <span className="small text-muted">Are you a recruiter? </span>
+            <Link to="/" className="small fw-semibold text-warning-emphasis text-decoration-none">
+              Request Verification Link from Management
+            </Link>
+          </div>
+          <div>
+            <Link to="/" className="small text-secondary text-decoration-none">
+              ← Back to Platform Overview
+            </Link>
+          </div>
         </div>
       </Card>
     </div>
