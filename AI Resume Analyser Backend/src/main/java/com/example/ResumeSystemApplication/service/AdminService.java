@@ -10,6 +10,8 @@ public interface AdminService {
     List<RecruiterOverviewDto> getAllRecruiters();
     List<JobDto> getJobsByRecruiter(Long recruiterId);
     List<CandidateDto> getCandidatesForJob(Long jobId);
+    List<UserDto> getAllCandidates();
+    List<ApplicationDto> getApplicationsByCandidate(Long candidateId);
     UserDto createRecruiter(CreateRecruiterDto dto);
     UserDto updateUser(Long id, UserDto dto);
     void deleteUser(Long id);

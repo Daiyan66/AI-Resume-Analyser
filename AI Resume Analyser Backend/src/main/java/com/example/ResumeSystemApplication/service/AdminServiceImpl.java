@@ -22,6 +22,7 @@ public class AdminServiceImpl implements AdminService {
     private final JobRepository jobRepository;
     private final ApplicationRepository applicationRepository;
     private final ResumeRepository resumeRepository;
+    private final FeedbackRepository feedbackRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -31,6 +32,7 @@ public class AdminServiceImpl implements AdminService {
             JobRepository jobRepository,
             ApplicationRepository applicationRepository,
             ResumeRepository resumeRepository,
+            FeedbackRepository feedbackRepository,
             PasswordEncoder passwordEncoder,
             EmailService emailService
     ) {
@@ -39,6 +41,7 @@ public class AdminServiceImpl implements AdminService {
         this.jobRepository = jobRepository;
         this.applicationRepository = applicationRepository;
         this.resumeRepository = resumeRepository;
+        this.feedbackRepository = feedbackRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
     }
@@ -203,6 +206,80 @@ public class AdminServiceImpl implements AdminService {
 
         List<Application> apps = applicationRepository.findByJobIdOrderByMatchScoreDesc(job.getId());
         return apps.stream().map(this::mapToCandidateDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<UserDto> getAllCandidates() {
+        List<User> candidates = userRepository.findByRolesName("ROLE_CANDIDATE");
+        return candidates.stream().map(c -> {
+            UserDto dto = mapToUserDto(c);
+            List<Application> apps = applicationRepository.findByResumeCandidateIdOrderByAppliedAtDesc(c.getId());
+            dto.setApplicationsCount((long) apps.size());
+            return dto;
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ApplicationDto> getApplicationsByCandidate(Long candidateId) {
+        User candidate = userRepository.findById(candidateId)
+                .orElseThrow(() -> new ResourceNotFoundException("Candidate not found with id: " + candidateId));
+
+        List<Application> apps = applicationRepository.findByResumeCandidateIdOrderByAppliedAtDesc(candidate.getId());
+        return apps.stream().map(this::mapToApplicationDto).collect(Collectors.toList());
+    }
+
+    private ApplicationDto mapToApplicationDto(Application app) {
+        JobDescription job = app.getJob();
+        Resume resume = app.getResume();
+        User cand = resume != null ? resume.getCandidate() : null;
+
+        String recruiterName = "Recruiter";
+        String companyName = "Enterprise Partner";
+
+        if (job != null && job.getCreatedBy() != null) {
+            User rec = job.getCreatedBy();
+            recruiterName = (rec.getFirstName() != null && !rec.getFirstName().isBlank())
+                    ? rec.getFirstName() + " " + (rec.getLastName() != null ? rec.getLastName() : "")
+                    : rec.getUsername();
+            if (rec.getCompanyName() != null && !rec.getCompanyName().isBlank()) {
+                companyName = rec.getCompanyName();
+            }
+        }
+
+        String candName = cand != null
+                ? (cand.getFirstName() != null ? cand.getFirstName() + " " + (cand.getLastName() != null ? cand.getLastName() : "") : cand.getUsername())
+                : (resume != null ? resume.getFileName() : "Candidate #" + app.getId());
+
+        String recruiterFeedback = null;
+        try {
+            List<Feedback> fbs = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+            if (!fbs.isEmpty()) {
+                recruiterFeedback = fbs.get(0).getContent();
+            }
+        } catch (Exception ignored) {}
+
+        return ApplicationDto.builder()
+                .id(app.getId())
+                .jobId(job != null ? job.getId() : null)
+                .jobTitle(job != null ? job.getTitle() : "Position")
+                .companyName(companyName)
+                .recruiterName(recruiterName)
+                .resumeId(resume != null ? resume.getId() : null)
+                .candidateId(cand != null ? cand.getId() : null)
+                .fileName(resume != null ? resume.getFileName() : "resume.pdf")
+                .candidateName(candName)
+                .candidateEmail(cand != null ? cand.getEmail() : null)
+                .status(app.getStatus() != null ? app.getStatus().name() : "PENDING")
+                .applicationSource(app.getApplicationSource() != null ? app.getApplicationSource().name() : "INDIVIDUAL_APPLY")
+                .batchId(app.getBatchId())
+                .recruiterFeedback(recruiterFeedback)
+                .matchScore(app.getMatchScore() != null ? app.getMatchScore() : 0.0)
+                .skillMatchScore(app.getSkillMatchScore() != null ? app.getSkillMatchScore() : 0.0)
+                .experienceScore(app.getExperienceScore() != null ? app.getExperienceScore() : 0.0)
+                .impactScore(app.getImpactScore() != null ? app.getImpactScore() : 0.0)
+                .rawSkillGapJson(app.getRawSkillGapJson())
+                .appliedAt(app.getAppliedAt())
+                .build();
     }
 
     private JobDto mapToJobDto(JobDescription job) {

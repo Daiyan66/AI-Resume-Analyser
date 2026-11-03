@@ -16,6 +16,7 @@ import { CandidateJobBoard } from './pages/CandidateJobBoard';
 import { CandidateStatus } from './pages/CandidateStatus';
 import { SkillGapAnalysis } from './pages/SkillGapAnalysis';
 import { AdminCandidatesOverview } from './pages/AdminCandidatesOverview';
+import { AdminRecruitersOverview } from './pages/AdminRecruitersOverview';
 
 function App() {
   return (
@@ -125,7 +126,15 @@ function App() {
         path="/admin"
         element={
           <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
-            <Admin />
+            <AdminRecruitersOverview />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/recruiters"
+        element={
+          <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
+            <AdminRecruitersOverview />
           </PrivateRoute>
         }
       />

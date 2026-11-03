@@ -46,6 +46,16 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getCandidatesForJob(jobId));
     }
 
+    @GetMapping("/candidates")
+    public ResponseEntity<List<UserDto>> getCandidates() {
+        return ResponseEntity.ok(adminService.getAllCandidates());
+    }
+
+    @GetMapping("/candidates/{candidateId}/applications")
+    public ResponseEntity<List<ApplicationDto>> getApplicationsByCandidate(@PathVariable Long candidateId) {
+        return ResponseEntity.ok(adminService.getApplicationsByCandidate(candidateId));
+    }
+
     @PostMapping("/add-recruiter")
     public ResponseEntity<UserDto> addRecruiter(@Valid @RequestBody CreateRecruiterDto dto) {
         return ResponseEntity.ok(adminService.createRecruiter(dto));

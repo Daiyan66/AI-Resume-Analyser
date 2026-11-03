@@ -41,6 +41,7 @@ public class UserDto {
     private String designation;
     private String hiringDomains;
     private Boolean isVerified;
+    private Long applicationsCount;
 
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

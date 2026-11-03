@@ -44,7 +44,6 @@ com\example\ResumeSystemApplication\model\RecruiterInvitation.class
 com\example\ResumeSystemApplication\controller\AuthController.class
 com\example\ResumeSystemApplication\config\CorsConfig.class
 com\example\ResumeSystemApplication\config\JwtAuthenticationFilter.class
-com\example\ResumeSystemApplication\service\AdminServiceImpl.class
 com\example\ResumeSystemApplication\service\CandidateService.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$ExtractedProfile$ExtractedProfileBuilder.class
 com\example\ResumeSystemApplication\dto\CandidateDto.class

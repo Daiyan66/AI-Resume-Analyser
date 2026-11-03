@@ -156,6 +156,24 @@ public class CandidateServiceImpl implements CandidateService {
 
             Application savedApp = applicationRepository.save(app);
 
+            // Notify Recruiter of new candidate application
+            if (job.getCreatedBy() != null) {
+                try {
+                    Notification notif = new Notification();
+                    notif.setUser(job.getCreatedBy());
+                    notif.setTitle("New Candidate Application");
+                    String candName = (candidate.getFirstName() != null && !candidate.getFirstName().isBlank())
+                            ? candidate.getFirstName() + " " + (candidate.getLastName() != null ? candidate.getLastName() : "")
+                            : candidate.getUsername();
+                    notif.setMessage(candName + " applied for " + job.getTitle() + " (Score: " + Math.round(savedApp.getMatchScore()) + "%)");
+                    notif.setType("NEW_APPLICATION");
+                    notif.setLink("/recruiter/candidates?jobId=" + job.getId());
+                    notificationRepository.save(notif);
+                } catch (Exception ex) {
+                    log.warn("Failed to notify recruiter of new application", ex);
+                }
+            }
+
             return ApplyResponse.builder()
                     .applicationId(savedApp.getId())
                     .jobId(job.getId())

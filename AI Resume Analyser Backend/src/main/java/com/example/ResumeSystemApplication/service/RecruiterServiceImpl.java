@@ -254,6 +254,21 @@ public class RecruiterServiceImpl implements RecruiterService {
 
         latestBatchByJob.put(jobId, batchAppIds);
         progressService.completeProgress(jobId, "Completed batch processing of " + total + " resumes.");
+
+        // Notify recruiter of completed batch screening
+        if (job.getCreatedBy() != null) {
+            try {
+                Notification notif = new Notification();
+                notif.setUser(job.getCreatedBy());
+                notif.setTitle("Batch Screening Completed");
+                notif.setMessage("Completed batch screening of " + batchAppIds.size() + " resumes for " + job.getTitle());
+                notif.setType("BATCH_SCREENING");
+                notif.setLink("/recruiter/analyzed?jobId=" + job.getId());
+                notificationRepository.save(notif);
+            } catch (Exception ex) {
+                log.warn("Failed to notify recruiter of batch screening completion", ex);
+            }
+        }
     }
 
     @Override

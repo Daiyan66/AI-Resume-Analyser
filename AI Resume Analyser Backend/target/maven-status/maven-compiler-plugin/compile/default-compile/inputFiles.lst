@@ -11,6 +11,7 @@ E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\examp
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\controller\CandidateController.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\controller\ChatbotController.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\controller\FileUploadController.java
+E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\controller\NotificationController.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\controller\RecruiterController.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\dto\AdminStatsDto.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\dto\AiEvaluationResponse.java
@@ -58,6 +59,8 @@ E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\examp
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\EmailServiceImpl.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\FileProcessingService.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\JobRecommendationService.java
+E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\NotificationService.java
+E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\NotificationServiceImpl.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\ProgressService.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\RecruiterService.java
 E:\Project\AI Resume Analyser\AI Resume Analyser Backend\src\main\java\com\example\ResumeSystemApplication\service\RecruiterServiceImpl.java

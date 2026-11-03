@@ -12,6 +12,8 @@ import com.example.ResumeSystemApplication.model.User;
 import com.example.ResumeSystemApplication.repository.RecruiterInvitationRepository;
 import com.example.ResumeSystemApplication.repository.ResumeRepository;
 import com.example.ResumeSystemApplication.repository.RoleRepository;
+import com.example.ResumeSystemApplication.model.Notification;
+import com.example.ResumeSystemApplication.repository.NotificationRepository;
 import com.example.ResumeSystemApplication.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
     private final EmailService emailService;
     private final ResumeRepository resumeRepository;
     private final FileProcessingService fileProcessingService;
+    private final NotificationRepository notificationRepository;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -53,7 +56,8 @@ public class AuthServiceImpl implements AuthService {
             RecruiterInvitationRepository recruiterInvitationRepository,
             EmailService emailService,
             ResumeRepository resumeRepository,
-            FileProcessingService fileProcessingService
+            FileProcessingService fileProcessingService,
+            NotificationRepository notificationRepository
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -64,6 +68,7 @@ public class AuthServiceImpl implements AuthService {
         this.emailService = emailService;
         this.resumeRepository = resumeRepository;
         this.fileProcessingService = fileProcessingService;
+        this.notificationRepository = notificationRepository;
     }
 
     @Override
@@ -161,6 +166,26 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtService.generateToken(savedUser);
+
+        // Notify Admins of new candidate registration
+        try {
+            List<User> admins = userRepository.findByRolesName("ROLE_ADMIN");
+            for (User admin : admins) {
+                Notification notif = new Notification();
+                notif.setUser(admin);
+                notif.setTitle("New Candidate Registration");
+                String candName = (savedUser.getFirstName() != null && !savedUser.getFirstName().isBlank())
+                        ? savedUser.getFirstName() + " " + (savedUser.getLastName() != null ? savedUser.getLastName() : "")
+                        : savedUser.getUsername();
+                notif.setMessage(candName + " registered as a candidate (" + savedUser.getEmail() + ")");
+                notif.setType("CANDIDATE_REGISTRATION");
+                notif.setLink("/admin/candidates");
+                notificationRepository.save(notif);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to notify admins of candidate registration", ex);
+        }
+
         return AuthResponse.builder()
                 .token(token)
                 .username(savedUser.getUsername())
@@ -202,6 +227,22 @@ public class AuthServiceImpl implements AuthService {
 
         // Send automated verification email with link & OTP
         emailService.sendRecruiterVerificationLink(email, name, inviteToken, otp);
+
+        // Notify Admins of recruiter verification request
+        try {
+            List<User> admins = userRepository.findByRolesName("ROLE_ADMIN");
+            for (User admin : admins) {
+                Notification notif = new Notification();
+                notif.setUser(admin);
+                notif.setTitle("Recruiter Verification Requested");
+                notif.setMessage(invitation.getName() + " (" + invitation.getCompanyName() + ") requested recruiter access (" + email + ")");
+                notif.setType("RECRUITER_REQUEST");
+                notif.setLink("/admin/recruiters");
+                notificationRepository.save(notif);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to notify admins of recruiter access request", ex);
+        }
 
         log.info(">>> RECRUITER VERIFICATION LINK GENERATED FOR [{}]: Token={}, OTP={}", email, inviteToken, otp);
 
@@ -313,6 +354,23 @@ public class AuthServiceImpl implements AuthService {
         recruiterInvitationRepository.save(invitation);
 
         String jwt = jwtService.generateToken(saved);
+
+        // Notify Admins of completed recruiter onboarding
+        try {
+            List<User> admins = userRepository.findByRolesName("ROLE_ADMIN");
+            for (User admin : admins) {
+                Notification notif = new Notification();
+                notif.setUser(admin);
+                notif.setTitle("Recruiter Onboarded");
+                notif.setMessage(saved.getFirstName() + " (" + saved.getCompanyName() + ") completed recruiter onboarding (" + saved.getEmail() + ")");
+                notif.setType("RECRUITER_ONBOARDED");
+                notif.setLink("/admin/recruiters");
+                notificationRepository.save(notif);
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to notify admins of recruiter onboarding", ex);
+        }
+
         return AuthResponse.builder()
                 .token(jwt)
                 .username(saved.getUsername())

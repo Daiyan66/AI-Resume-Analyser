@@ -15,6 +15,10 @@ public class ApplicationDto {
     private Long id;
     private Long jobId;
     private String jobTitle;
+    private String companyName;
+    private String recruiterName;
+    private String department;
+    private String location;
     private Long resumeId;
     private Long candidateId;
     private String fileName;

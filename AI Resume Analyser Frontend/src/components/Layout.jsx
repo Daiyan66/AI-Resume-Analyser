@@ -33,14 +33,14 @@ export const Layout = ({ children }) => {
   const isRecruiter = userRole === 'ROLE_RECRUITER';
   const isCandidate = userRole === 'ROLE_CANDIDATE' || (!isAdmin && !isRecruiter);
 
-  // Candidate Notifications Query
+  // Universal Notifications Query for ALL ROLES (Admin, Recruiter, Candidate)
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications'],
     queryFn: async () => {
-      const res = await api.get('/candidate/notifications');
+      const res = await api.get('/notifications');
       return res.data || [];
     },
-    enabled: isCandidate,
+    enabled: !!user,
     refetchInterval: 15000 // Poll notifications every 15s
   });
 
@@ -48,7 +48,7 @@ export const Layout = ({ children }) => {
 
   const markReadMutation = useMutation({
     mutationFn: async (id) => {
-      await api.put(`/candidate/notifications/${id}/read`);
+      await api.put(`/notifications/${id}/read`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['notifications']);
@@ -57,7 +57,7 @@ export const Layout = ({ children }) => {
 
   const markAllReadMutation = useMutation({
     mutationFn: async () => {
-      await api.put('/candidate/notifications/read-all');
+      await api.put('/notifications/read-all');
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['notifications']);
@@ -138,11 +138,11 @@ export const Layout = ({ children }) => {
               {/* Admin Navigation */}
               {isAdmin && (
                 <>
-                  <Nav.Link as={Link} to="/admin" active={location.pathname === '/admin'} className="d-flex align-items-center">
-                    <Users size={18} className="me-1 text-primary" /> Manage Users
+                  <Nav.Link as={Link} to="/admin/recruiters" active={location.pathname.startsWith('/admin/recruiters') || location.pathname === '/admin'} className="d-flex align-items-center">
+                    <Briefcase size={18} className="me-1 text-primary" /> Recruiters
                   </Nav.Link>
-                  <Nav.Link as={Link} to="/admin/candidates" active={location.pathname === '/admin/candidates'} className="d-flex align-items-center">
-                    <Layers size={18} className="me-1 text-success" /> Candidates
+                  <Nav.Link as={Link} to="/admin/candidates" active={location.pathname.startsWith('/admin/candidates')} className="d-flex align-items-center">
+                    <Users size={18} className="me-1 text-success" /> Candidates
                   </Nav.Link>
                   <Nav.Link as={Link} to="/admin/add-recruiter" active={location.pathname === '/admin/add-recruiter'} className="d-flex align-items-center">
                     <UserPlus size={18} className="me-1 text-indigo" /> Invite Recruiter
@@ -153,8 +153,8 @@ export const Layout = ({ children }) => {
 
             {/* Notification Bell & User Profile */}
             <Nav className="align-items-center gap-3">
-              {/* Candidate Notifications Bell */}
-              {isCandidate && user && (
+              {/* Universal Notifications Bell for ALL Roles */}
+              {user && (
                 <Dropdown align="end">
                   <Dropdown.Toggle variant="light" className="position-relative border-0 rounded-circle p-2 bg-transparent text-dark shadow-none">
                     <Bell size={20} className={unreadCount > 0 ? "text-primary" : "text-muted"} />
