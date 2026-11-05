@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Table, Button, Badge, Spinner, Row, Col, Alert, Breadcrumb } from 'react-bootstrap';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../components/Layout';
 import api from '../api/axios';
 import { 
@@ -15,12 +15,15 @@ import {
   Layers,
   Sparkles,
   Info,
-  ShieldCheck
+  ShieldCheck,
+  Trash2
 } from 'lucide-react';
 
 export const AdminRecruitersOverview = () => {
+  const queryClient = useQueryClient();
   const [selectedRecruiter, setSelectedRecruiter] = useState(null);
   const [selectedJob, setSelectedJob] = useState(null);
+  const [actionMsg, setActionMsg] = useState(null);
 
   // 1. Fetch All Recruiters
   const { data: recruiters = [], isLoading: loadingRecruiters } = useQuery({
@@ -30,6 +33,36 @@ export const AdminRecruitersOverview = () => {
       return res.data || [];
     }
   });
+
+  // Delete Recruiter Mutation
+  const deleteRecruiterMutation = useMutation({
+    mutationFn: async (id) => {
+      await api.delete(`/admin/recruiters/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries(['adminRecruiters']);
+      setSelectedRecruiter(null);
+      setSelectedJob(null);
+      setActionMsg({ 
+        type: 'success', 
+        text: 'Recruiter and all associated jobs removed successfully. Candidates who applied have received an encouraging position closed update.' 
+      });
+      setTimeout(() => setActionMsg(null), 6000);
+    },
+    onError: (err) => {
+      setActionMsg({ 
+        type: 'danger', 
+        text: err.response?.data?.message || 'Failed to remove recruiter.' 
+      });
+      setTimeout(() => setActionMsg(null), 5000);
+    }
+  });
+
+  const handleDeleteRecruiter = (rec) => {
+    if (window.confirm(`Are you sure you want to permanently remove recruiter "${rec.firstName} ${rec.lastName}" (@${rec.username})?\n\nThis will remove all jobs posted by this recruiter, and all candidates who applied will receive a notification that the position has concluded.`)) {
+      deleteRecruiterMutation.mutate(rec.id);
+    }
+  };
 
   // 2. Fetch Jobs for Selected Recruiter
   const { data: recruiterJobs = [], isLoading: loadingJobs } = useQuery({
@@ -126,6 +159,14 @@ export const AdminRecruitersOverview = () => {
         </div>
       </div>
 
+      {/* Action Feedback Message */}
+      {actionMsg && (
+        <Alert variant={actionMsg.type} className="border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center justify-content-between">
+          <span>{actionMsg.text}</span>
+          <Button variant="link" size="sm" className="p-0 text-dark" onClick={() => setActionMsg(null)}>✕</Button>
+        </Alert>
+      )}
+
       {/* Admin Privacy Alert Notice */}
       <Alert variant="info" className="py-2 px-3 small border-0 shadow-sm rounded-3 mb-4 d-flex align-items-center gap-2">
         <Info size={18} className="text-info flex-shrink-0" />
@@ -198,18 +239,33 @@ export const AdminRecruitersOverview = () => {
                         {rec.createdAt ? new Date(rec.createdAt).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="text-end px-3">
-                        <Button 
-                          variant="outline-primary" 
-                          size="sm" 
-                          className="d-inline-flex align-items-center gap-1 rounded-3"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedRecruiter(rec);
-                          }}
-                        >
-                          <span>Inspect Jobs</span>
-                          <ChevronRight size={14} />
-                        </Button>
+                        <div className="d-inline-flex gap-2 align-items-center">
+                          <Button 
+                            variant="outline-primary" 
+                            size="sm" 
+                            className="d-inline-flex align-items-center gap-1 rounded-3"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRecruiter(rec);
+                            }}
+                          >
+                            <span>Inspect Jobs</span>
+                            <ChevronRight size={14} />
+                          </Button>
+                          <Button 
+                            variant="outline-danger" 
+                            size="sm" 
+                            className="d-inline-flex align-items-center gap-1 rounded-3"
+                            title="Remove Recruiter"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteRecruiter(rec);
+                            }}
+                          >
+                            <Trash2 size={13} />
+                            <span>Remove</span>
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -237,7 +293,7 @@ export const AdminRecruitersOverview = () => {
                   <span>Total Jobs: <strong>{recruiterJobs.length}</strong></span>
                 </div>
               </Col>
-              <Col md={4} className="text-md-end mt-3 mt-md-0">
+              <Col md={4} className="text-md-end mt-3 mt-md-0 d-flex gap-2 justify-content-md-end">
                 <Button 
                   variant="light" 
                   size="sm"
@@ -245,6 +301,15 @@ export const AdminRecruitersOverview = () => {
                   onClick={() => setSelectedRecruiter(null)}
                 >
                   Switch Recruiter
+                </Button>
+                <Button 
+                  variant="danger" 
+                  size="sm"
+                  className="fw-bold rounded-pill shadow-sm d-inline-flex align-items-center gap-1"
+                  onClick={() => handleDeleteRecruiter(selectedRecruiter)}
+                >
+                  <Trash2 size={13} />
+                  <span>Remove Recruiter</span>
                 </Button>
               </Col>
             </Row>

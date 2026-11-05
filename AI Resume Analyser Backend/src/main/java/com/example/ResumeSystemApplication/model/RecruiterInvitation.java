@@ -27,11 +27,32 @@ public class RecruiterInvitation {
     @Column(name = "company_name", length = 150)
     private String companyName;
 
+    @Column(name = "company_website", length = 255)
+    private String companyWebsite;
+
+    @Column(length = 100)
+    private String designation;
+
+    @Column(length = 50)
+    private String phone;
+
+    @Column(name = "hiring_domains", length = 255)
+    private String hiringDomains;
+
+    @Column(name = "verification_doc_path", length = 500)
+    private String verificationDocPath;
+
     @Column(name = "invite_token", nullable = false, unique = true, length = 100)
     private String inviteToken;
 
     @Column(nullable = false, length = 10)
     private String otp;
+
+    @Column(name = "otp_verified", nullable = false)
+    private boolean otpVerified = false;
+
+    @Column(name = "status", length = 50)
+    private String status = "PENDING_VERIFICATION"; // PENDING_VERIFICATION, UNDER_REVIEW, APPROVED, REJECTED
 
     @Column(name = "is_used", nullable = false)
     private boolean isUsed = false;
@@ -47,6 +68,9 @@ public class RecruiterInvitation {
         this.createdAt = LocalDateTime.now();
         if (this.expiresAt == null) {
             this.expiresAt = LocalDateTime.now().plusHours(48);
+        }
+        if (this.status == null) {
+            this.status = "PENDING_VERIFICATION";
         }
     }
 }

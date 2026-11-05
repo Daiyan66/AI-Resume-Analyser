@@ -17,6 +17,10 @@ import { CandidateStatus } from './pages/CandidateStatus';
 import { SkillGapAnalysis } from './pages/SkillGapAnalysis';
 import { AdminCandidatesOverview } from './pages/AdminCandidatesOverview';
 import { AdminRecruitersOverview } from './pages/AdminRecruitersOverview';
+import { AdminRecruiterRequests } from './pages/AdminRecruiterRequests';
+import { NotificationsPage } from './pages/NotificationsPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 
 function App() {
   return (
@@ -26,6 +30,18 @@ function App() {
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/recruiter/onboard" element={<RecruiterOnboardPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+
+      {/* Notifications Center (All Roles) */}
+      <Route
+        path="/notifications"
+        element={
+          <PrivateRoute>
+            <NotificationsPage />
+          </PrivateRoute>
+        }
+      />
 
       {/* Authenticated Dashboard & Aliases */}
       <Route
@@ -135,6 +151,14 @@ function App() {
         element={
           <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
             <AdminRecruitersOverview />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/admin/recruiter-requests"
+        element={
+          <PrivateRoute allowedRoles={['ROLE_ADMIN']}>
+            <AdminRecruiterRequests />
           </PrivateRoute>
         }
       />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, Row, Col, Card, Button, Form, Alert, Spinner, Badge, Modal, Tab, Nav 
 } from 'react-bootstrap';
@@ -36,6 +36,22 @@ import {
 export const LandingPage = () => {
   const { user, login, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
+
+  // If already logged in and session data is present, directly redirect to their role's dashboard
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const role = user.role || '';
+      if (role === 'ADMIN' || role === 'ROLE_ADMIN') {
+        navigate('/admin/recruiters', { replace: true });
+      } else if (role === 'RECRUITER' || role === 'ROLE_RECRUITER') {
+        navigate('/recruiter/dashboard', { replace: true });
+      } else if (role === 'CANDIDATE' || role === 'ROLE_CANDIDATE') {
+        navigate('/candidate/dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [isAuthenticated, user, navigate]);
 
   // Login form state
   const [username, setUsername] = useState('');
@@ -284,7 +300,12 @@ export const LandingPage = () => {
                     </Form.Group>
 
                     <Form.Group className="mb-3">
-                      <Form.Label className="small fw-bold text-secondary mb-1">Password</Form.Label>
+                      <div className="d-flex justify-content-between align-items-center mb-1">
+                        <Form.Label className="small fw-bold text-secondary mb-0">Password</Form.Label>
+                        <Link to="/forgot-password" className="small text-primary text-decoration-none">
+                          Forgot password?
+                        </Link>
+                      </div>
                       <Form.Control
                         type="password"
                         required

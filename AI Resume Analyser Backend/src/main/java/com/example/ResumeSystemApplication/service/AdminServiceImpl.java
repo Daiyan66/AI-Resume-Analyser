@@ -7,6 +7,9 @@ import com.example.ResumeSystemApplication.repository.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.FileSystemResource;
+import java.io.File;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,6 +26,9 @@ public class AdminServiceImpl implements AdminService {
     private final ApplicationRepository applicationRepository;
     private final ResumeRepository resumeRepository;
     private final FeedbackRepository feedbackRepository;
+    private final RecruiterInvitationRepository recruiterInvitationRepository;
+    private final NotificationRepository notificationRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
@@ -33,6 +39,9 @@ public class AdminServiceImpl implements AdminService {
             ApplicationRepository applicationRepository,
             ResumeRepository resumeRepository,
             FeedbackRepository feedbackRepository,
+            RecruiterInvitationRepository recruiterInvitationRepository,
+            NotificationRepository notificationRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository,
             PasswordEncoder passwordEncoder,
             EmailService emailService
     ) {
@@ -42,6 +51,9 @@ public class AdminServiceImpl implements AdminService {
         this.applicationRepository = applicationRepository;
         this.resumeRepository = resumeRepository;
         this.feedbackRepository = feedbackRepository;
+        this.recruiterInvitationRepository = recruiterInvitationRepository;
+        this.notificationRepository = notificationRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
         this.passwordEncoder = passwordEncoder;
         this.emailService = emailService;
     }
@@ -138,8 +150,16 @@ public class AdminServiceImpl implements AdminService {
 
         User saved = userRepository.save(user);
 
-        // Send email with credentials
-        emailService.sendRecruiterInvite(saved.getEmail(), dto.getName(), tempPassword);
+        // Provision activation token so credentials are NOT sent in plain text (framed as an exclusive offer)
+        String activationToken = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetToken prt = new PasswordResetToken();
+        prt.setUser(saved);
+        prt.setToken(activationToken);
+        prt.setExpiryDate(LocalDateTime.now().plusDays(7));
+        passwordResetTokenRepository.save(prt);
+
+        String activationUrl = "http://localhost:5173/reset-password?token=" + activationToken;
+        emailService.sendRecruiterInvite(saved.getEmail(), dto.getName(), activationUrl);
 
         return mapToUserDto(saved);
     }
@@ -168,10 +188,99 @@ public class AdminServiceImpl implements AdminService {
     @Override
     @Transactional
     public void deleteUser(Long id) {
-        if (!userRepository.existsById(id)) {
-            throw new ResourceNotFoundException("User not found with id: " + id);
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        boolean isRecruiter = user.getRoles().stream()
+                .anyMatch(r -> "ROLE_RECRUITER".equalsIgnoreCase(r.getName()));
+
+        if (isRecruiter) {
+            // 1. Find all jobs posted by this recruiter
+            List<JobDescription> recruiterJobs = jobRepository.findByCreatedByIdOrderByCreatedAtDesc(user.getId());
+            for (JobDescription job : recruiterJobs) {
+                // Find all applications submitted to this job
+                List<Application> applications = applicationRepository.findByJobIdOrderByMatchScoreDesc(job.getId());
+                for (Application app : applications) {
+                    // Notify candidate if available
+                    if (app.getResume() != null && app.getResume().getCandidate() != null) {
+                        User candidate = app.getResume().getCandidate();
+                        try {
+                            Notification notif = new Notification();
+                            notif.setUser(candidate);
+                            notif.setTitle("Position Concluded: " + job.getTitle());
+                            String orgName = user.getCompanyName() != null && !user.getCompanyName().isBlank()
+                                    ? user.getCompanyName()
+                                    : (user.getFirstName() != null ? user.getFirstName() + "'s Team" : "the hiring organization");
+                            notif.setMessage("Update regarding your application for '" + job.getTitle() + "' at " + orgName + 
+                                    ": The requisition has been retired. You couldn't crack this opening this time, but don't lose momentum — new opportunities await!");
+                            notif.setType("STATUS_CHANGE");
+                            notif.setLink("/candidate/applications");
+                            notificationRepository.save(notif);
+
+                            // Send email alert to candidate
+                            if (candidate.getEmail() != null && !candidate.getEmail().isBlank()) {
+                                emailService.sendCandidatePositionClosedAlert(candidate.getEmail(), candidate.getFirstName(), job.getTitle(), orgName);
+                            }
+                        } catch (Exception ex) {
+                            // Continue clean cascade
+                        }
+                    }
+
+                    // Delete feedback
+                    List<Feedback> feedbacks = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+                    if (!feedbacks.isEmpty()) {
+                        feedbackRepository.deleteAll(feedbacks);
+                    }
+
+                    // Delete application
+                    applicationRepository.delete(app);
+
+                    // Delete batch resume if orphaned
+                    if (app.getResume() != null && app.getResume().getCandidate() == null) {
+                        try {
+                            resumeRepository.delete(app.getResume());
+                        } catch (Exception ignored) {}
+                    }
+                }
+
+                // Delete job description
+                jobRepository.delete(job);
+            }
+
+            // Delete recruiter invitations matching recruiter email
+            try {
+                recruiterInvitationRepository.deleteByEmail(user.getEmail());
+            } catch (Exception ignored) {}
+
+        } else {
+            // If deleting a candidate, clean up their applications and resumes
+            List<Application> candidateApps = applicationRepository.findByResumeCandidateIdOrderByAppliedAtDesc(user.getId());
+            for (Application app : candidateApps) {
+                List<Feedback> feedbacks = feedbackRepository.findByApplicationIdOrderByCreatedAtDesc(app.getId());
+                if (!feedbacks.isEmpty()) {
+                    feedbackRepository.deleteAll(feedbacks);
+                }
+                applicationRepository.delete(app);
+            }
+            List<Resume> resumes = resumeRepository.findByCandidateIdOrderByUploadedAtDesc(user.getId());
+            if (!resumes.isEmpty()) {
+                resumeRepository.deleteAll(resumes);
+            }
         }
-        userRepository.deleteById(id);
+
+        // Delete notifications for this user
+        List<Notification> userNotifs = notificationRepository.findByUserIdOrderByCreatedAtDesc(user.getId());
+        if (!userNotifs.isEmpty()) {
+            notificationRepository.deleteAll(userNotifs);
+        }
+
+        // Delete password reset tokens
+        try {
+            passwordResetTokenRepository.deleteByUserId(user.getId());
+        } catch (Exception ignored) {}
+
+        // Delete user
+        userRepository.delete(user);
     }
 
     @Override
@@ -226,6 +335,155 @@ public class AdminServiceImpl implements AdminService {
 
         List<Application> apps = applicationRepository.findByResumeCandidateIdOrderByAppliedAtDesc(candidate.getId());
         return apps.stream().map(this::mapToApplicationDto).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<RecruiterRequestDto> getAllRecruiterRequests() {
+        List<RecruiterInvitation> list = recruiterInvitationRepository.findAllByOrderByCreatedAtDesc();
+        return list.stream().map(inv -> {
+            boolean isExpired = inv.getExpiresAt() != null && inv.getExpiresAt().isBefore(LocalDateTime.now());
+            String link = "http://localhost:5173/recruiter/onboard?token=" + inv.getInviteToken();
+            boolean hasDoc = inv.getVerificationDocPath() != null && !inv.getVerificationDocPath().isBlank()
+                    && new File(inv.getVerificationDocPath()).exists();
+            return RecruiterRequestDto.builder()
+                    .id(inv.getId())
+                    .name(inv.getName())
+                    .email(inv.getEmail())
+                    .companyName(inv.getCompanyName())
+                    .companyWebsite(inv.getCompanyWebsite())
+                    .designation(inv.getDesignation())
+                    .phone(inv.getPhone())
+                    .hiringDomains(inv.getHiringDomains())
+                    .verificationDocPath(inv.getVerificationDocPath())
+                    .hasDocument(hasDoc)
+                    .otpVerified(inv.isOtpVerified())
+                    .status(inv.getStatus() != null ? inv.getStatus() : (inv.isUsed() ? "APPROVED" : "PENDING_VERIFICATION"))
+                    .inviteToken(inv.getInviteToken())
+                    .otp(inv.getOtp())
+                    .isUsed(inv.isUsed())
+                    .isExpired(isExpired)
+                    .onboardingLink(link)
+                    .createdAt(inv.getCreatedAt())
+                    .expiresAt(inv.getExpiresAt())
+                    .build();
+        }).collect(Collectors.toList());
+    }
+
+    @Override
+    @Transactional
+    public void approveRecruiterRequest(Long id) {
+        RecruiterInvitation inv = recruiterInvitationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter request not found with id: " + id));
+
+        String email = inv.getEmail().trim().toLowerCase();
+        User user = userRepository.findByEmail(email).orElse(null);
+
+        Role recruiterRole = roleRepository.findByName("ROLE_RECRUITER")
+                .orElseGet(() -> roleRepository.save(new Role("ROLE_RECRUITER")));
+
+        if (user == null) {
+            user = new User();
+            String username = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "") + "_" + (100 + new Random().nextInt(900));
+            while (userRepository.existsByUsername(username)) {
+                username = email.split("@")[0].replaceAll("[^a-zA-Z0-9_]", "") + "_" + (100 + new Random().nextInt(900));
+            }
+            user.setUsername(username);
+            user.setEmail(email);
+            // Temporary scrambled password - user will set their master password via the setup link
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            String fullName = inv.getName() != null && !inv.getName().isBlank() ? inv.getName() : "Hiring Partner";
+            String[] parts = fullName.split("\\s+", 2);
+            user.setFirstName(parts[0]);
+            user.setLastName(parts.length > 1 ? parts[1] : "");
+            user.setPhone(inv.getPhone());
+            user.setCompanyName(inv.getCompanyName());
+            user.setCompanyWebsite(inv.getCompanyWebsite());
+            user.setDesignation(inv.getDesignation() != null && !inv.getDesignation().isBlank() ? inv.getDesignation() : "Recruiter");
+            user.setHiringDomains(inv.getHiringDomains());
+            user.setVerificationDocPath(inv.getVerificationDocPath());
+            user.setIsVerified(true);
+            user.setRoles(Set.of(recruiterRole));
+            user = userRepository.save(user);
+        } else {
+            user.setCompanyName(inv.getCompanyName());
+            user.setCompanyWebsite(inv.getCompanyWebsite());
+            user.setDesignation(inv.getDesignation());
+            user.setPhone(inv.getPhone());
+            user.setVerificationDocPath(inv.getVerificationDocPath());
+            user.setIsVerified(true);
+            user.getRoles().add(recruiterRole);
+            user = userRepository.save(user);
+        }
+
+        // Generate password setup token (valid for 7 days)
+        passwordResetTokenRepository.deleteByUserId(user.getId());
+        String resetToken = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetToken prt = new PasswordResetToken();
+        prt.setUser(user);
+        prt.setToken(resetToken);
+        prt.setExpiryDate(LocalDateTime.now().plusDays(7));
+        passwordResetTokenRepository.save(prt);
+
+        // Update invitation record
+        inv.setStatus("APPROVED");
+        inv.setUsed(true);
+        recruiterInvitationRepository.save(inv);
+
+        // Send email with master password setup link
+        emailService.sendRecruiterApprovalAndSetupLink(inv.getEmail(), inv.getName(), inv.getCompanyName(), resetToken);
+
+        // Notify user in-app
+        Notification notif = new Notification();
+        notif.setUser(user);
+        notif.setTitle("Corporate Account Approved");
+        notif.setMessage("Your recruiter application has been approved by Management. Welcome aboard!");
+        notif.setType("STATUS_CHANGE");
+        notif.setLink("/recruiter/jobs");
+        notificationRepository.save(notif);
+    }
+
+    @Override
+    public Resource getRecruiterRequestDocument(Long id) {
+        RecruiterInvitation inv = recruiterInvitationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter request not found with id: " + id));
+
+        if (inv.getVerificationDocPath() == null || inv.getVerificationDocPath().isBlank()) {
+            throw new ResourceNotFoundException("No formal verification document on record for this request.");
+        }
+
+        File file = new File(inv.getVerificationDocPath());
+        if (!file.exists()) {
+            throw new ResourceNotFoundException("Verification document file not found on disk.");
+        }
+
+        return new FileSystemResource(file);
+    }
+
+    @Override
+    @Transactional
+    public void resendRecruiterRequest(Long id) {
+        RecruiterInvitation inv = recruiterInvitationRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter request not found with id: " + id));
+
+        // Refresh token & expiration
+        String newToken = UUID.randomUUID().toString().replace("-", "");
+        String newOtp = String.format("%06d", new Random().nextInt(900000) + 100000);
+        inv.setInviteToken(newToken);
+        inv.setOtp(newOtp);
+        inv.setExpiresAt(LocalDateTime.now().plusHours(48));
+        inv.setUsed(false);
+        recruiterInvitationRepository.save(inv);
+
+        emailService.sendRecruiterVerificationLink(inv.getEmail(), inv.getName(), inv.getCompanyName(), newToken, newOtp);
+    }
+
+    @Override
+    @Transactional
+    public void deleteRecruiterRequest(Long id) {
+        if (!recruiterInvitationRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Recruiter request not found with id: " + id);
+        }
+        recruiterInvitationRepository.deleteById(id);
     }
 
     private ApplicationDto mapToApplicationDto(Application app) {

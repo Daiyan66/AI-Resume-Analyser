@@ -23,7 +23,7 @@ public class JwtService {
     @Value("${jwt.secret:MyVeryStrongSecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLong}")
     private String secretKey;
 
-    @Value("${jwt.expiration:86400000}")
+    @Value("${jwt.expiration:604800000}")
     private long jwtExpirationMs;
 
     private SecretKey getSigningKey() {

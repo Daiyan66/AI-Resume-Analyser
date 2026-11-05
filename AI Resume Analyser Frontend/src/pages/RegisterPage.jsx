@@ -21,7 +21,13 @@ const STEPS = [
 
 export const RegisterPage = () => {
   const navigate = useNavigate();
-  const { loginWithToken } = useAuth();
+  const { loginWithToken, isAuthenticated } = useAuth();
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/', { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [loading, setLoading] = useState(false);

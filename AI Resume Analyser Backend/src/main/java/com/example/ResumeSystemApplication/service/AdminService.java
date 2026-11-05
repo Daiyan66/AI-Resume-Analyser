@@ -12,6 +12,11 @@ public interface AdminService {
     List<CandidateDto> getCandidatesForJob(Long jobId);
     List<UserDto> getAllCandidates();
     List<ApplicationDto> getApplicationsByCandidate(Long candidateId);
+    List<RecruiterRequestDto> getAllRecruiterRequests();
+    void approveRecruiterRequest(Long id);
+    org.springframework.core.io.Resource getRecruiterRequestDocument(Long id);
+    void resendRecruiterRequest(Long id);
+    void deleteRecruiterRequest(Long id);
     UserDto createRecruiter(CreateRecruiterDto dto);
     UserDto updateUser(Long id, UserDto dto);
     void deleteUser(Long id);

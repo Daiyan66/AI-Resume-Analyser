@@ -19,7 +19,9 @@ import {
   Bell,
   MessageSquare,
   ExternalLink,
-  Check
+  Check,
+  Building2,
+  ChevronRight
 } from 'lucide-react';
 
 export const Layout = ({ children }) => {
@@ -138,8 +140,11 @@ export const Layout = ({ children }) => {
               {/* Admin Navigation */}
               {isAdmin && (
                 <>
-                  <Nav.Link as={Link} to="/admin/recruiters" active={location.pathname.startsWith('/admin/recruiters') || location.pathname === '/admin'} className="d-flex align-items-center">
+                  <Nav.Link as={Link} to="/admin/recruiters" active={location.pathname === '/admin/recruiters' || location.pathname === '/admin'} className="d-flex align-items-center">
                     <Briefcase size={18} className="me-1 text-primary" /> Recruiters
+                  </Nav.Link>
+                  <Nav.Link as={Link} to="/admin/recruiter-requests" active={location.pathname === '/admin/recruiter-requests'} className="d-flex align-items-center">
+                    <Building2 size={18} className="me-1 text-warning" /> Recruiter Requests
                   </Nav.Link>
                   <Nav.Link as={Link} to="/admin/candidates" active={location.pathname.startsWith('/admin/candidates')} className="d-flex align-items-center">
                     <Users size={18} className="me-1 text-success" /> Candidates
@@ -169,6 +174,7 @@ export const Layout = ({ children }) => {
                     <div className="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top-4">
                       <div className="fw-bold text-dark d-flex align-items-center gap-1">
                         <Bell size={16} className="text-primary" /> Notifications
+                        <span className="badge bg-light text-muted border ms-1" style={{ fontSize: '0.65rem' }}>Recent</span>
                       </div>
                       {unreadCount > 0 && (
                         <Button 
@@ -188,7 +194,7 @@ export const Layout = ({ children }) => {
                           No notifications yet.
                         </div>
                       ) : (
-                        notifications.map((n) => (
+                        notifications.slice(0, 3).map((n) => (
                           <div 
                             key={n.id}
                             className={`list-group-item list-group-item-action p-3 border-bottom ${!n.isRead ? 'bg-primary-subtle' : ''}`}
@@ -211,13 +217,34 @@ export const Layout = ({ children }) => {
                             </p>
                             <div className="d-flex justify-content-between align-items-center text-muted" style={{ fontSize: '0.7rem' }}>
                               <span>{new Date(n.createdAt).toLocaleDateString()} {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                              <span className="text-primary fw-semibold d-flex align-items-center gap-1">
-                                View <ExternalLink size={10} />
-                              </span>
+                              <div className="d-flex align-items-center gap-2">
+                                {isAdmin && (n.type === 'RECRUITER_REQUEST' || n.message?.includes('@')) && (
+                                  <a
+                                    href={`https://mail.google.com/mail/u/0/#search/${encodeURIComponent(n.message.match(/[\w.-]+@[\w.-]+\.\w+/)?.[0] || 'recruiter')}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="badge bg-danger-subtle text-danger border border-danger-subtle text-decoration-none d-inline-flex align-items-center gap-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                    title="Open in Gmail"
+                                  >
+                                    <span>Gmail</span>
+                                    <ExternalLink size={9} />
+                                  </a>
+                                )}
+                                <span className="text-primary fw-semibold d-flex align-items-center gap-1">
+                                  View <ExternalLink size={10} />
+                                </span>
+                              </div>
                             </div>
                           </div>
                         ))
                       )}
+                    </div>
+                    <div className="p-2 border-top text-center bg-light rounded-bottom-4">
+                      <Link to="/notifications" className="small fw-bold text-primary text-decoration-none d-flex align-items-center justify-content-center gap-1">
+                        <span>View All Notifications ({notifications.length})</span>
+                        <ChevronRight size={14} />
+                      </Link>
                     </div>
                   </Dropdown.Menu>
                 </Dropdown>

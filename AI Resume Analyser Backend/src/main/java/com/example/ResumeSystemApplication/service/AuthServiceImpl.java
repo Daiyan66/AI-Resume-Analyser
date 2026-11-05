@@ -12,6 +12,8 @@ import com.example.ResumeSystemApplication.model.User;
 import com.example.ResumeSystemApplication.repository.RecruiterInvitationRepository;
 import com.example.ResumeSystemApplication.repository.ResumeRepository;
 import com.example.ResumeSystemApplication.repository.RoleRepository;
+import com.example.ResumeSystemApplication.model.PasswordResetToken;
+import com.example.ResumeSystemApplication.repository.PasswordResetTokenRepository;
 import com.example.ResumeSystemApplication.model.Notification;
 import com.example.ResumeSystemApplication.repository.NotificationRepository;
 import com.example.ResumeSystemApplication.repository.UserRepository;
@@ -46,6 +48,7 @@ public class AuthServiceImpl implements AuthService {
     private final ResumeRepository resumeRepository;
     private final FileProcessingService fileProcessingService;
     private final NotificationRepository notificationRepository;
+    private final PasswordResetTokenRepository passwordResetTokenRepository;
 
     public AuthServiceImpl(
             UserRepository userRepository,
@@ -57,7 +60,8 @@ public class AuthServiceImpl implements AuthService {
             EmailService emailService,
             ResumeRepository resumeRepository,
             FileProcessingService fileProcessingService,
-            NotificationRepository notificationRepository
+            NotificationRepository notificationRepository,
+            PasswordResetTokenRepository passwordResetTokenRepository
     ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
@@ -69,6 +73,7 @@ public class AuthServiceImpl implements AuthService {
         this.resumeRepository = resumeRepository;
         this.fileProcessingService = fileProcessingService;
         this.notificationRepository = notificationRepository;
+        this.passwordResetTokenRepository = passwordResetTokenRepository;
     }
 
     @Override
@@ -225,10 +230,10 @@ public class AuthServiceImpl implements AuthService {
         invitation.setUsed(false);
         recruiterInvitationRepository.save(invitation);
 
-        // Send automated verification email with link & OTP
-        emailService.sendRecruiterVerificationLink(email, name, inviteToken, otp);
+        // Send automated verification email with link & OTP framed as an offer
+        emailService.sendRecruiterVerificationLink(email, invitation.getName(), invitation.getCompanyName(), inviteToken, otp);
 
-        // Notify Admins of recruiter verification request
+        // Notify Admins of recruiter verification request via both In-App Notification and Email
         try {
             List<User> admins = userRepository.findByRolesName("ROLE_ADMIN");
             for (User admin : admins) {
@@ -237,8 +242,27 @@ public class AuthServiceImpl implements AuthService {
                 notif.setTitle("Recruiter Verification Requested");
                 notif.setMessage(invitation.getName() + " (" + invitation.getCompanyName() + ") requested recruiter access (" + email + ")");
                 notif.setType("RECRUITER_REQUEST");
-                notif.setLink("/admin/recruiters");
+                notif.setLink("/admin/recruiter-requests");
                 notificationRepository.save(notif);
+
+                // Dispatch Email to Admin
+                if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
+                    try {
+                        emailService.sendAdminRecruiterRequestAlert(admin.getEmail(), invitation.getName(), invitation.getCompanyName(), email, otp);
+                    } catch (Exception exMail) {
+                        log.warn("Failed to dispatch admin alert email to {}: {}", admin.getEmail(), exMail.getMessage());
+                    }
+                }
+            }
+            // Also notify primary management email if not among admin users
+            String systemAdminEmail = "formusic7766@gmail.com";
+            boolean alreadyNotified = admins.stream().anyMatch(a -> systemAdminEmail.equalsIgnoreCase(a.getEmail()));
+            if (!alreadyNotified) {
+                try {
+                    emailService.sendAdminRecruiterRequestAlert(systemAdminEmail, invitation.getName(), invitation.getCompanyName(), email, otp);
+                } catch (Exception exSys) {
+                    log.warn("Failed to dispatch alert to system admin {}: {}", systemAdminEmail, exSys.getMessage());
+                }
             }
         } catch (Exception ex) {
             log.warn("Failed to notify admins of recruiter access request", ex);
@@ -272,18 +296,62 @@ public class AuthServiceImpl implements AuthService {
         res.put("email", invitation.getEmail());
         res.put("name", invitation.getName());
         res.put("companyName", invitation.getCompanyName());
+        res.put("companyWebsite", invitation.getCompanyWebsite());
+        res.put("designation", invitation.getDesignation());
+        res.put("phone", invitation.getPhone());
+        res.put("otpVerified", invitation.isOtpVerified());
+        res.put("status", invitation.getStatus());
         return res;
     }
 
     @Override
     @Transactional
-    public AuthResponse registerRecruiterWithTunnel(MultipartFile verificationDocument, Map<String, String> data) {
+    public Map<String, Object> verifyRecruiterOtp(String token, String otp) {
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Verification token is required");
+        }
+        if (otp == null || otp.trim().isBlank()) {
+            throw new IllegalArgumentException("OTP code is required");
+        }
+
+        RecruiterInvitation invitation = recruiterInvitationRepository.findByInviteTokenAndIsUsedFalse(token.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired recruiter invitation link."));
+
+        if (invitation.getExpiresAt().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("This invitation link has expired. Please request a new invite.");
+        }
+
+        if (!invitation.getOtp().trim().equals(otp.trim())) {
+            throw new IllegalArgumentException("Invalid OTP code. Please enter the exact 6-digit code received via email.");
+        }
+
+        invitation.setOtpVerified(true);
+        recruiterInvitationRepository.save(invitation);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("valid", true);
+        res.put("message", "OTP verified successfully!");
+        res.put("email", invitation.getEmail());
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> submitRecruiterApplication(MultipartFile verificationDocument, Map<String, String> rawData) {
+        Map<String, String> data = new HashMap<>(rawData != null ? rawData : Map.of());
+        if (data.containsKey("data")) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, String> parsed = mapper.readValue(data.get("data"), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                if (parsed != null) {
+                    data.putAll(parsed);
+                }
+            } catch (Exception ex) {
+                log.warn("Could not parse 'data' json parameter: {}", ex.getMessage());
+            }
+        }
+
         String token = data.get("token");
-        String enteredOtp = data.get("otp");
-        String username = data.get("username");
-        String password = data.get("password");
-        String firstName = data.get("firstName");
-        String lastName = data.get("lastName");
         String companyName = data.get("companyName");
         String companyWebsite = data.get("companyWebsite");
         String designation = data.get("designation");
@@ -292,6 +360,129 @@ public class AuthServiceImpl implements AuthService {
 
         if (token == null || token.isBlank()) {
             throw new IllegalArgumentException("Verification token is required");
+        }
+
+        RecruiterInvitation invitation = recruiterInvitationRepository.findByInviteTokenAndIsUsedFalse(token.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired recruiter invitation link."));
+
+        if (!invitation.isOtpVerified()) {
+            String otp = data.get("otp");
+            if (otp != null && invitation.getOtp().trim().equals(otp.trim())) {
+                invitation.setOtpVerified(true);
+            } else {
+                throw new IllegalArgumentException("Please complete 6-digit OTP verification before submitting.");
+            }
+        }
+
+        // Strict validation: Company Website URL
+        if (companyWebsite == null || companyWebsite.trim().isBlank()) {
+            throw new IllegalArgumentException("Company website URL is required.");
+        }
+        String cleanWebsite = companyWebsite.trim();
+        String websiteRegex = "^(https?:\\/\\/)?([a-zA-Z0-9]([a-zA-Z0-9\\-]*[a-zA-Z0-9])?\\.)+[a-zA-Z]{2,}(\\/.*)?$";
+        if (!cleanWebsite.matches(websiteRegex)) {
+            throw new IllegalArgumentException("Invalid company website URL. Please enter a valid address (e.g. https://example.com or example.com).");
+        }
+
+        // Strict validation: Contact Phone Number (at least 10 digits)
+        if (phone == null || phone.trim().isBlank()) {
+            throw new IllegalArgumentException("Contact phone number is required.");
+        }
+        String digitsOnly = phone.replaceAll("[^0-9]", "");
+        if (digitsOnly.length() < 10 || digitsOnly.length() > 15) {
+            throw new IllegalArgumentException("Invalid contact phone number. Please enter a valid number with 10 to 15 digits (e.g. +1 555-0199 or 9876543210).");
+        }
+
+        // Store formal verification document
+        String docPath = invitation.getVerificationDocPath();
+        if (verificationDocument != null && !verificationDocument.isEmpty()) {
+            try {
+                docPath = fileProcessingService.storeFile(verificationDocument);
+            } catch (Exception e) {
+                log.warn("Could not store formal verification document", e);
+            }
+        }
+        if (docPath == null || docPath.isBlank()) {
+            throw new IllegalArgumentException("Corporate verification proof document (Company ID or authorization document) is required.");
+        }
+
+        if (companyName != null && !companyName.isBlank()) {
+            invitation.setCompanyName(companyName.trim());
+        }
+        invitation.setCompanyWebsite(cleanWebsite);
+        invitation.setDesignation(designation != null && !designation.isBlank() ? designation.trim() : "Recruiter");
+        invitation.setPhone(phone.trim());
+        invitation.setHiringDomains(hiringDomains);
+        invitation.setVerificationDocPath(docPath);
+        invitation.setStatus("UNDER_REVIEW");
+        recruiterInvitationRepository.save(invitation);
+
+        // Notify Admins
+        try {
+            List<User> admins = userRepository.findByRolesName("ROLE_ADMIN");
+            for (User admin : admins) {
+                Notification notif = new Notification();
+                notif.setUser(admin);
+                notif.setTitle("Recruiter Profile Submitted for Review");
+                notif.setMessage(invitation.getName() + " (" + invitation.getCompanyName() + ") verified OTP and submitted corporate profile & document for review.");
+                notif.setType("RECRUITER_REQUEST");
+                notif.setLink("/admin/recruiter-requests");
+                notificationRepository.save(notif);
+
+                if (admin.getEmail() != null && !admin.getEmail().isBlank()) {
+                    try {
+                        emailService.sendAdminRecruiterReviewAlert(admin.getEmail(), invitation.getName(), invitation.getCompanyName(), invitation.getEmail());
+                    } catch (Exception ex) {
+                        log.warn("Failed to dispatch review alert to admin {}: {}", admin.getEmail(), ex.getMessage());
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to notify admins of submitted recruiter review", ex);
+        }
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("success", true);
+        res.put("message", "Your corporate profile and verification proof have been submitted to Management. Our administrative team will review your application and send your master password activation link via email.");
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public AuthResponse registerRecruiterWithTunnel(MultipartFile verificationDocument, Map<String, String> rawData) {
+        Map<String, String> data = new HashMap<>(rawData != null ? rawData : Map.of());
+        if (data.containsKey("data")) {
+            try {
+                com.fasterxml.jackson.databind.ObjectMapper mapper = new com.fasterxml.jackson.databind.ObjectMapper();
+                Map<String, String> parsed = mapper.readValue(data.get("data"), new com.fasterxml.jackson.core.type.TypeReference<Map<String, String>>() {});
+                if (parsed != null) {
+                    data.putAll(parsed);
+                }
+            } catch (Exception ex) {
+                log.warn("Could not parse 'data' json parameter: {}", ex.getMessage());
+            }
+        }
+
+        String token = data.get("token");
+        String enteredOtp = data.get("otp");
+        String username = data.get("username");
+        String password = data.get("password");
+        String firstName = data.get("firstName");
+        String lastName = data.get("lastName");
+        String name = data.get("name");
+        if ((firstName == null || firstName.isBlank()) && name != null && !name.isBlank()) {
+            String[] parts = name.trim().split("\\s+", 2);
+            firstName = parts[0];
+            lastName = parts.length > 1 ? parts[1] : "";
+        }
+        String companyName = data.get("companyName");
+        String companyWebsite = data.get("companyWebsite");
+        String designation = data.get("designation");
+        String hiringDomains = data.get("hiringDomains");
+        String phone = data.get("phone");
+
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Verification token is required. Please use the complete verification link sent to your email.");
         }
         if (enteredOtp == null || enteredOtp.isBlank()) {
             throw new IllegalArgumentException("OTP code is required");
@@ -456,5 +647,91 @@ public class AuthServiceImpl implements AuthService {
                 .updatedAt(user.getUpdatedAt())
                 .roles(user.getRoles().stream().map(Role::getName).collect(Collectors.toSet()))
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> forgotPassword(String email) {
+        if (email == null || email.isBlank()) {
+            throw new IllegalArgumentException("Email address is required.");
+        }
+
+        final String targetEmail = email.trim().toLowerCase();
+        User user = userRepository.findByEmail(targetEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("No account found registered with email: " + targetEmail));
+
+        // Delete any existing tokens for this user
+        try {
+            passwordResetTokenRepository.deleteByUserId(user.getId());
+        } catch (Exception ignored) {}
+
+        String resetToken = UUID.randomUUID().toString().replace("-", "");
+        PasswordResetToken tokenEntity = new PasswordResetToken();
+        tokenEntity.setToken(resetToken);
+        tokenEntity.setUser(user);
+        tokenEntity.setExpiryDate(LocalDateTime.now().plusHours(1));
+        passwordResetTokenRepository.save(tokenEntity);
+
+        // Dispatch Email
+        emailService.sendPasswordResetLink(user.getEmail(), user.getFirstName(), resetToken);
+
+        String resetUrl = "http://localhost:5173/reset-password?token=" + resetToken;
+        log.info(">>> PASSWORD RESET LINK GENERATED FOR [{}]: {}", targetEmail, resetUrl);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("message", "Password reset link has been dispatched to " + targetEmail);
+        res.put("email", targetEmail);
+        res.put("resetLink", resetUrl);
+        res.put("token", resetToken);
+        return res;
+    }
+
+    @Override
+    public Map<String, Object> verifyResetToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Reset token is required.");
+        }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired password reset link. Please request a new one."));
+
+        if (resetToken.isExpired()) {
+            throw new IllegalArgumentException("Password reset link has expired. Please request a new one.");
+        }
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("valid", true);
+        res.put("email", resetToken.getUser().getEmail());
+        res.put("name", resetToken.getUser().getFirstName());
+        return res;
+    }
+
+    @Override
+    @Transactional
+    public Map<String, Object> resetPassword(String token, String newPassword) {
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Reset token is required.");
+        }
+        if (newPassword == null || newPassword.length() < 6) {
+            throw new IllegalArgumentException("Password must be at least 6 characters.");
+        }
+
+        PasswordResetToken resetToken = passwordResetTokenRepository.findByToken(token.trim())
+                .orElseThrow(() -> new IllegalArgumentException("Invalid or expired password reset link. Please request a new one."));
+
+        if (resetToken.isExpired()) {
+            throw new IllegalArgumentException("Password reset link has expired. Please request a new one.");
+        }
+
+        User user = resetToken.getUser();
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        // Invalidate token
+        passwordResetTokenRepository.delete(resetToken);
+
+        Map<String, Object> res = new HashMap<>();
+        res.put("message", "Password has been successfully updated. You can now sign in with your new password.");
+        return res;
     }
 }
