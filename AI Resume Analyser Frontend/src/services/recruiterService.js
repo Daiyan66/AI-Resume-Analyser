@@ -65,8 +65,9 @@ export const recruiterService = {
     return res.data;
   },
 
-  askChatbot: async (query) => {
-    const res = await api.post('/chatbot/ask', { query });
-    return res.data.response;
+  askChatbot: async (input) => {
+    const payload = Array.isArray(input) ? { messages: input } : { query: input };
+    const res = await api.post('/chatbot/ask', payload);
+    return typeof res.data === 'string' ? res.data : (res.data.response || '');
   }
 };

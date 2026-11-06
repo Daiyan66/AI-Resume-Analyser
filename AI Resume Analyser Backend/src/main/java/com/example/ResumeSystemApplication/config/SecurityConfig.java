@@ -50,6 +50,7 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/api/auth/**",
                                 "/api/files/**",
+                                "/api/chatbot/**",
                                 "/api/recruiter/progress/**",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**"
@@ -57,7 +58,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/recruiter/**").hasAnyRole("RECRUITER", "ADMIN")
                         .requestMatchers("/api/candidate/**").hasAnyRole("CANDIDATE", "ADMIN")
-                        .requestMatchers("/api/chatbot/**").hasAnyRole("RECRUITER", "ADMIN", "CANDIDATE")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(sseAuthFilter, UsernamePasswordAuthenticationFilter.class)

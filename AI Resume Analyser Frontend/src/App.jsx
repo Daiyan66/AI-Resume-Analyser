@@ -21,10 +21,12 @@ import { AdminRecruiterRequests } from './pages/AdminRecruiterRequests';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
+import { ChatbotWidget } from './components/ChatbotWidget';
 
 function App() {
   return (
-    <Routes>
+    <>
+      <Routes>
       {/* Public Routes */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
@@ -182,6 +184,9 @@ function App() {
       {/* Catch-all redirect */}
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
+    {/* Global Floating AI Project & Job Assistant (Bottom-Right Corner) */}
+    <ChatbotWidget />
+  </>
   );
 }
 

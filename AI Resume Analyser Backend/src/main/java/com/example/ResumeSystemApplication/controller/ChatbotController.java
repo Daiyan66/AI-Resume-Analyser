@@ -1,29 +1,38 @@
 package com.example.ResumeSystemApplication.controller;
 
-import com.example.ResumeSystemApplication.service.AiScreeningService;
+import com.example.ResumeSystemApplication.service.OpenRouterChatbotService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api/chatbot")
 public class ChatbotController {
 
-    private final AiScreeningService aiScreeningService;
+    private final OpenRouterChatbotService chatbotService;
 
-    public ChatbotController(AiScreeningService aiScreeningService) {
-        this.aiScreeningService = aiScreeningService;
+    public ChatbotController(OpenRouterChatbotService chatbotService) {
+        this.chatbotService = chatbotService;
     }
 
     @PostMapping("/ask")
-    public ResponseEntity<Map<String, String>> askChatbot(@RequestBody Map<String, String> request) {
-        String query = request.get("query");
-        if (query == null || query.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("response", "Query cannot be empty."));
+    public ResponseEntity<Map<String, Object>> askChatbot(@RequestBody Map<String, Object> request) {
+        Object messagesObj = request.get("messages");
+        String query = (String) request.get("query");
+
+        Map<String, Object> result;
+        if (messagesObj instanceof List) {
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> history = (List<Map<String, String>>) messagesObj;
+            result = chatbotService.getChatbotResponse(history);
+        } else if (query != null && !query.isBlank()) {
+            result = chatbotService.getChatbotResponse(query);
+        } else {
+            return ResponseEntity.badRequest().body(Map.of("response", "Please provide a query or messages array."));
         }
 
-        String answer = aiScreeningService.generateChatbotResponse(query);
-        return ResponseEntity.ok(Map.of("response", answer));
+        return ResponseEntity.ok(result);
     }
 }

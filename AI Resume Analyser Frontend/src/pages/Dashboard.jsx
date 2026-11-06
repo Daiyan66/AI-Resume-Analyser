@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '../auth/AuthProvider';
 import { Layout } from '../components/Layout';
-import { ChatbotWidget } from '../components/ChatbotWidget';
 import api from '../api/axios';
 import { 
   Users, 
@@ -405,9 +404,6 @@ export const Dashboard = () => {
           </Row>
         </>
       )}
-
-      {/* Floating Recruiter AI Copilot for Recruiters & Admins */}
-      {(isRecruiter || isAdmin) && <ChatbotWidget />}
     </Layout>
   );
 };

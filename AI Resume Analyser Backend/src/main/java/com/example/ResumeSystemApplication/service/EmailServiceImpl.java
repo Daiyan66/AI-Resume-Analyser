@@ -28,10 +28,10 @@ public class EmailServiceImpl implements EmailService {
     @Value("${spring.mail.port:587}")
     private int mailPort;
 
-    @Value("${spring.mail.username:formusic7766@gmail.com}")
+    @Value("${spring.mail.username:}")
     private String fromEmail;
 
-    @Value("${spring.mail.password:bmro wxuc upao fzbe}")
+    @Value("${spring.mail.password:}")
     private String mailPassword;
 
     @Value("${mail.sender.name:ATS Recruitment Platform}")
@@ -44,8 +44,8 @@ public class EmailServiceImpl implements EmailService {
         JavaMailSenderImpl impl = new JavaMailSenderImpl();
         impl.setHost(mailHost != null && !mailHost.isBlank() ? mailHost : "smtp.gmail.com");
         impl.setPort(mailPort > 0 ? mailPort : 587);
-        impl.setUsername(fromEmail != null && !fromEmail.isBlank() ? fromEmail : "formusic7766@gmail.com");
-        impl.setPassword(mailPassword != null && !mailPassword.isBlank() ? mailPassword : "bmro wxuc upao fzbe");
+        impl.setUsername(fromEmail != null && !fromEmail.isBlank() ? fromEmail : "noreply@atsplatform.com");
+        impl.setPassword(mailPassword != null ? mailPassword : "");
 
         Properties props = impl.getJavaMailProperties();
         props.put("mail.smtp.auth", "true");
