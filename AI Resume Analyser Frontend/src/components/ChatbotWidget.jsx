@@ -122,7 +122,7 @@ export const ChatbotWidget = () => {
         ...prev,
         {
           role: 'assistant',
-          content: "I am Gena, strictly dedicated to assisting with this Next-Gen AI ATS platform, career openings, resume evaluations, and recruitment workflows.\n\nHow can I help you with your career or recruitment goals today?",
+          content: "⚠️ **Connection Notice**: Unable to reach Gena's server right now. Please verify the backend is running and try your question again.",
           suggestedQuestions: FREQUENT_QUESTIONS
         }
       ]);
