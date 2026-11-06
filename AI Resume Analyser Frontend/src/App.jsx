@@ -5,6 +5,7 @@ import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { LandingPage } from './pages/LandingPage';
 import { RecruiterOnboardPage } from './pages/RecruiterOnboardPage';
+import { RecruiterRequestPage } from './pages/RecruiterRequestPage';
 import { Dashboard } from './pages/Dashboard';
 import { Admin } from './pages/Admin';
 import { AddRecruiter } from './pages/AddRecruiter';
@@ -31,6 +32,8 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/recruiter-request" element={<RecruiterRequestPage />} />
+      <Route path="/recruiter/request" element={<RecruiterRequestPage />} />
       <Route path="/recruiter/onboard" element={<RecruiterOnboardPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />

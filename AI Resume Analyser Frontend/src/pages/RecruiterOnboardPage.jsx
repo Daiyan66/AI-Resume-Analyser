@@ -260,15 +260,24 @@ export const RecruiterOnboardPage = () => {
 
   if (tokenError) {
     return (
-      <div className="min-vh-100 d-flex align-items-center justify-content-center p-3">
-        <Card className="glass-card border-0 rounded-4 p-4 p-md-5 text-center shadow-lg" style={{ maxWidth: '520px' }}>
-          <div className="avatar-circle bg-danger-subtle text-danger mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
-            <AlertCircle size={32} />
+      <div className="min-vh-100 d-flex align-items-center justify-content-center p-3 bg-light-subtle">
+        <Card className="glass-card border-0 rounded-4 p-4 p-md-5 text-center shadow-lg bg-white" style={{ maxWidth: '540px' }}>
+          <div className="avatar-circle bg-warning-subtle text-warning mx-auto mb-3" style={{ width: '64px', height: '64px' }}>
+            <KeyRound size={32} />
           </div>
-          <h4 className="fw-bold text-dark mb-2">Invalid or Expired Link</h4>
-          <p className="text-muted small mb-4">{tokenError}</p>
-          <div className="d-flex gap-2 justify-content-center">
-            <Button as={Link} to="/" variant="primary" className="fw-bold px-4 rounded-3">
+          <h4 className="fw-bold text-dark mb-2">Recruiter Verification Required</h4>
+          <p className="text-muted small mb-4">
+            {tokenParam 
+              ? tokenError 
+              : "To protect candidate privacy and platform integrity, recruiter onboarding requires an authorized corporate invitation token."}
+          </p>
+
+          <div className="d-grid gap-2 mb-3">
+            <Button as={Link} to="/recruiter-request" variant="primary" size="lg" className="fw-bold rounded-3 shadow-sm d-flex align-items-center justify-content-center gap-2">
+              <span>Request Recruiter Access & Token</span>
+              <ArrowRight size={18} />
+            </Button>
+            <Button as={Link} to="/" variant="outline-secondary" className="rounded-3">
               Go to Landing Page
             </Button>
           </div>

@@ -40,7 +40,7 @@ public class OpenRouterChatbotService {
         STRICT DOMAIN GUARDRAILS (MANDATORY):
         1. YOU MUST STRICTLY ANSWER ONLY QUERIES RELATED TO:
            - This Project & Platform: How multimodal resume screening works, 4-pillar scoring architecture (35% Hard Skills, 25% Experience Depth & Seniority, 25% STAR Impact & Metrics, 15% Domain & Education Fit), anti-cheat heuristics (detecting keyword stuffing, invisible white text, prompt injection), batch resume uploads, candidate skill gap reports, and the recruiter corporate onboarding protocol.
-           - Recruiter Accounts & Onboarding: How to create a recruiter account, apply for corporate access via [Request Recruiter Access](/recruiter/onboard), 6-digit OTP verification, submitting corporate identification, and obtaining management audit approval to set a master password.
+           - Recruiter Accounts & Onboarding: How to create a recruiter account, apply for corporate access via [Request Recruiter Access](/recruiter-request), 6-digit OTP verification, submitting corporate identification, and obtaining management audit approval to set a master password.
            - Candidate Career & Job Guidance: Browsing jobs, candidate account registration via [Candidate Registration](/register), understanding skill match percentages, skill gap coaching reports, resume formatting tips for ATS, technical interview preparation, and defensible 1-to-5 interview rubrics.
            - Re-application Cooldown Policy: If rejected for an opening, a 3-month skill enhancement window applies. After 3 months, candidates automatically receive an email invitation to re-apply with their updated resume!
         
@@ -64,7 +64,8 @@ public class OpenRouterChatbotService {
              * Candidate Job Openings: [Explore Job Openings](/candidate/jobs)
              * Candidate Application Tracker: [Track Application Status](/candidate/status)
              * Skill Gap Coaching & Roadmaps: [Skill Gap Analysis](/candidate/skill-gap)
-             * Recruiter Onboarding & Verification: [Request Recruiter Access](/recruiter/onboard)
+             * Recruiter Account & Access Request: [Request Recruiter Access](/recruiter-request)
+             * Recruiter Token Onboarding: [Complete Onboarding](/recruiter/onboard)
              * Recruiter Post New Job: [Post a Job](/recruiter/upload-job)
              * Recruiter Bulk Resume Screening: [Upload & Screen Resumes](/recruiter/upload-resumes)
              * Recruiter Candidate Database: [Candidate Directory](/recruiter/candidates)
@@ -249,7 +250,7 @@ public class OpenRouterChatbotService {
                 "Where can I view my application status?"
             );
         } else if (lastQuery.contains("recruiter") || lastQuery.contains("corporate") || lastQuery.contains("register")) {
-            reply = "### 🏢 Enterprise Recruiter Verification\n\n1. Recruiters submit a corporate request on the landing page.\n2. Management sends an invitation token and 6-digit OTP.\n3. Recruiter verifies OTP and uploads official corporate credentials (Company ID or authorization).\n4. Admin audits the credentials and approves the request, emailing a secure link to set their master password.";
+            reply = "### 🏢 Enterprise Recruiter Verification\n\n1. Recruiters submit a corporate request on the [Request Recruiter Access](/recruiter-request) page.\n2. Management sends an invitation token and 6-digit OTP to their corporate email.\n3. Recruiter verifies OTP and uploads official corporate credentials (Company ID or authorization).\n4. Admin audits the credentials and approves the request, emailing a secure link to set their master password.";
             suggestions = List.of(
                 "What document proof is required for recruiters?",
                 "How does the corporate OTP verification work?",
