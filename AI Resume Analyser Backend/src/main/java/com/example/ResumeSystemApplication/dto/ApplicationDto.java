@@ -34,4 +34,8 @@ public class ApplicationDto {
     private Double impactScore;
     private String rawSkillGapJson;
     private LocalDateTime appliedAt;
+    private LocalDateTime rejectedAt;
+    private LocalDateTime reapplyEligibleAt;
+    private Boolean canReapply;
+    private Long daysUntilReapply;
 }

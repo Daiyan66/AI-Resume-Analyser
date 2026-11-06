@@ -571,7 +571,13 @@ public class EmailServiceImpl implements EmailService {
                         <p>Thank you for your interest in the <strong>%s</strong> position. While we were impressed with your qualifications, our hiring team has decided to proceed with other applicants whose experience aligns closer with our current project timeline.</p>
                         <p><strong>Recruiter Feedback:</strong> %s</p>
                         %s
-                        <p style="margin-top: 24px;">We encourage you to review the coaching insights above and explore future opportunities with our team.</p>
+                        <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 18px 20px; margin: 24px 0; font-size: 14px; color: #1e3a8a;">
+                            <strong style="display: block; margin-bottom: 6px; font-size: 15px;">⏳ 3-Month Skill Enhancement Window & Auto-Invitation:</strong>
+                            <p style="margin: 0; line-height: 1.6;">
+                                In accordance with our hiring protocols, a <strong>3-month cooldown period</strong> applies to this position to give you dedicated time to strengthen the skill gaps outlined above. Once your 3-month window elapses, our system will <strong>automatically send you an email invitation</strong> inviting you to re-apply with your updated resume!
+                            </p>
+                        </div>
+                        <p style="margin-top: 20px;">We encourage you to review the coaching insights above and explore future opportunities with our team.</p>
                         <br>
                         <p>Best regards,<br><strong>The Recruitment Team</strong></p>
                     </div>
@@ -615,6 +621,72 @@ public class EmailServiceImpl implements EmailService {
             </body>
             </html>
             """, candidateName, (int) matchScore, jobTitle, (int) matchScore);
+
+        sendHtmlEmail(toEmail, subject, htmlContent);
+    }
+
+    @Override
+    @Async
+    public void sendReapplyInvitationEmail(String toEmail, String candidateName, String jobTitle, String companyName, Long jobId) {
+        String subject = "🌟 3-Month Cooldown Concluded: You Are Eligible to Re-Apply for " + jobTitle;
+        String jobBoardUrl = "http://localhost:5173/candidate/jobs" + (jobId != null ? "?jobId=" + jobId : "");
+
+        String htmlContent = String.format("""
+            <!DOCTYPE html>
+            <html>
+            <head><meta charset="utf-8"></head>
+            <body style="margin: 0; padding: 24px; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+                <div style="max-width: 620px; margin: 0 auto; background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08); border: 1px solid #e2e8f0;">
+                    
+                    <!-- Header -->
+                    <div style="background: linear-gradient(135deg, #0f172a 0%%, #2563eb 50%%, #059669 100%%); padding: 40px 32px; text-align: center; color: #ffffff;">
+                        <span style="display: inline-block; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); border: 1px solid rgba(255, 255, 255, 0.35); color: #ffffff; font-size: 11px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase; padding: 6px 16px; border-radius: 9999px; margin-bottom: 14px;">
+                            ⭐ 3-MONTH COOLDOWN CONCLUDED
+                        </span>
+                        <h1 style="margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px;">Ready to Try Again?</h1>
+                        <p style="margin: 10px 0 0 0; color: #c7d2fe; font-size: 15px;">Opportunity to re-apply for %s at %s</p>
+                    </div>
+
+                    <!-- Body -->
+                    <div style="padding: 36px 32px; color: #1e293b; line-height: 1.65; font-size: 15px;">
+                        <p style="font-size: 16px; margin-top: 0;">Dear <strong>%s</strong>,</p>
+                        <p>We are delighted to let you know that your <strong>3-month skill enhancement cooldown period</strong> for the <strong>%s</strong> opening has officially concluded!</p>
+                        
+                        <p>In technology and recruitment, skills, projects, and domain mastery evolve quickly. If you have acquired new skills, completed hands-on projects, or updated your resume, our hiring team warmly welcomes you to submit your updated credentials.</p>
+
+                        <!-- Highlights Box -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 22px 24px; margin: 26px 0;">
+                            <h3 style="margin: 0 0 10px 0; font-size: 15px; color: #1e3a8a; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 800;">
+                                Recommended Next Steps:
+                            </h3>
+                            <ul style="margin: 0; padding-left: 20px; color: #475569; font-size: 14px; line-height: 1.6;">
+                                <li>Review the current job description and skill benchmarks.</li>
+                                <li>Ensure your latest certifications and portfolio projects are reflected on your resume.</li>
+                                <li>Submit your updated resume with instant AI fit and multi-pillar evaluation.</li>
+                            </ul>
+                        </div>
+
+                        <!-- CTA Button -->
+                        <div style="text-align: center; margin: 34px 0 26px 0;">
+                            <a href="%s" style="display: inline-block; background: linear-gradient(135deg, #2563eb 0%%, #059669 100%%); color: #ffffff; padding: 16px 38px; text-decoration: none; border-radius: 10px; font-weight: 800; font-size: 16px; box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.4); letter-spacing: 0.3px;">
+                                Submit Updated Application &rarr;
+                            </a>
+                        </div>
+
+                        <p style="text-align: center; margin: 0; font-size: 12px; color: #94a3b8;">
+                            If the button above does not open directly, copy and paste this link:<br>
+                            <span style="color: #2563eb; word-break: break-all;">%s</span>
+                        </p>
+                    </div>
+
+                    <!-- Footer -->
+                    <div style="background-color: #f8fafc; border-top: 1px solid #e2e8f0; padding: 18px 32px; text-align: center; font-size: 12px; color: #64748b;">
+                        Next-Gen AI ATS Platform &bull; Career Mobility & Re-application Services
+                    </div>
+                </div>
+            </body>
+            </html>
+            """, jobTitle, companyName, candidateName != null && !candidateName.isBlank() ? candidateName : "Candidate", jobTitle, jobBoardUrl, jobBoardUrl);
 
         sendHtmlEmail(toEmail, subject, htmlContent);
     }

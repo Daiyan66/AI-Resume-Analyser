@@ -13,4 +13,5 @@ public interface EmailService {
     void sendApplicationAccepted(String toEmail, String candidateName, String jobTitle);
     void sendApplicationRejected(String toEmail, String candidateName, String jobTitle, String feedback, AiEvaluationResponse.SkillGapCoachingReport coachingReport);
     void sendJobRecommendation(String toEmail, String candidateName, String jobTitle, double matchScore);
+    void sendReapplyInvitationEmail(String toEmail, String candidateName, String jobTitle, String companyName, Long jobId);
 }

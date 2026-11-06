@@ -12,6 +12,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -55,6 +57,11 @@ public class CandidateServiceImpl implements CandidateService {
 
     @Override
     public List<JobDto> getJobs(String query, String education, Integer maxExp) {
+        User candidate = null;
+        try {
+            candidate = authService.getCurrentUser();
+        } catch (Exception ignored) {}
+
         List<JobDescription> jobs;
         if ((query == null || query.isBlank()) && (education == null || education.isBlank()) && maxExp == null) {
             jobs = jobRepository.findAllByOrderByCreatedAtDesc();
@@ -62,7 +69,8 @@ public class CandidateServiceImpl implements CandidateService {
             jobs = jobRepository.searchJobs(query, education, maxExp);
         }
 
-        return jobs.stream().map(this::mapToJobDto).collect(Collectors.toList());
+        final User currentCandidate = candidate;
+        return jobs.stream().map(j -> mapToJobDto(j, currentCandidate)).collect(Collectors.toList());
     }
 
     @Override
@@ -72,7 +80,7 @@ public class CandidateServiceImpl implements CandidateService {
 
         List<JobDescription> allJobs = jobRepository.findAllByOrderByCreatedAtDesc();
         if (latestResume.isEmpty() || latestResume.get().getExtractedSkills() == null) {
-            return allJobs.stream().limit(5).map(this::mapToJobDto).collect(Collectors.toList());
+            return allJobs.stream().limit(5).map(j -> mapToJobDto(j, candidate)).collect(Collectors.toList());
         }
 
         String candidateSkills = latestResume.get().getExtractedSkills().toLowerCase();
@@ -91,10 +99,10 @@ public class CandidateServiceImpl implements CandidateService {
                 .collect(Collectors.toList());
 
         if (matched.isEmpty()) {
-            return allJobs.stream().limit(5).map(this::mapToJobDto).collect(Collectors.toList());
+            return allJobs.stream().limit(5).map(j -> mapToJobDto(j, candidate)).collect(Collectors.toList());
         }
 
-        return matched.stream().map(this::mapToJobDto).collect(Collectors.toList());
+        return matched.stream().map(j -> mapToJobDto(j, candidate)).collect(Collectors.toList());
     }
 
     @Override
@@ -107,6 +115,33 @@ public class CandidateServiceImpl implements CandidateService {
         User candidate = authService.getCurrentUser();
         JobDescription job = jobRepository.findById(jobId)
                 .orElseThrow(() -> new ResourceNotFoundException("Job posting not found with id: " + jobId));
+
+        // 1. Check if candidate already has an active application (PENDING or ACCEPTED)
+        List<Application> activeApps = applicationRepository.findActiveApplicationsForJobAndCandidate(job.getId(), candidate.getId());
+        if (!activeApps.isEmpty()) {
+            Application active = activeApps.get(0);
+            if (active.getStatus() == Application.ApplicationStatus.ACCEPTED) {
+                throw new IllegalStateException("You have already been shortlisted / accepted for this position.");
+            } else {
+                throw new IllegalStateException("Your application for this position is already under review.");
+            }
+        }
+
+        // 2. Check 3-month rejection cooldown
+        List<Application> rejectedApps = applicationRepository.findRejectedApplicationsForJobAndCandidate(job.getId(), candidate.getId());
+        for (Application rej : rejectedApps) {
+            if (rej.isUnderRejectionCooldown()) {
+                LocalDateTime eligibleAt = rej.getEffectiveReapplyEligibleAt();
+                long daysRemaining = Math.max(1L, java.time.Duration.between(LocalDateTime.now(), eligibleAt).toDays());
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+                String formattedDate = eligibleAt.format(formatter);
+                throw new IllegalStateException(
+                    "3-Month Re-application Cooldown Active: You were previously not selected for this position. " +
+                    "In accordance with our hiring policy, you may re-apply after " + formattedDate + 
+                    " (" + daysRemaining + " days remaining). An invitation email will be sent automatically once eligible."
+                );
+            }
+        }
 
         try {
             // 1. Store file
@@ -321,7 +356,7 @@ public class CandidateServiceImpl implements CandidateService {
         notificationRepository.markAllAsReadForUser(candidate.getId());
     }
 
-    private JobDto mapToJobDto(JobDescription job) {
+    private JobDto mapToJobDto(JobDescription job, User candidate) {
         String createdByName = "ATS Recruiter";
         Long createdById = null;
         try {
@@ -336,6 +371,44 @@ public class CandidateServiceImpl implements CandidateService {
             }
         } catch (Exception ignored) {}
 
+        String appliedStatus = null;
+        Boolean canApply = true;
+        LocalDateTime reapplyEligibleAt = null;
+        Long daysUntilReapply = null;
+        String cooldownReason = null;
+
+        if (candidate != null) {
+            // Check active applications (PENDING / ACCEPTED)
+            List<Application> activeApps = applicationRepository.findActiveApplicationsForJobAndCandidate(job.getId(), candidate.getId());
+            if (!activeApps.isEmpty()) {
+                Application active = activeApps.get(0);
+                appliedStatus = active.getStatus().name();
+                canApply = false;
+                cooldownReason = active.getStatus() == Application.ApplicationStatus.ACCEPTED
+                        ? "You have already been shortlisted for this position."
+                        : "Your application is currently under review.";
+            } else {
+                // Check rejected applications
+                List<Application> rejectedApps = applicationRepository.findRejectedApplicationsForJobAndCandidate(job.getId(), candidate.getId());
+                if (!rejectedApps.isEmpty()) {
+                    Application latestRejected = rejectedApps.get(0);
+                    if (latestRejected.isUnderRejectionCooldown()) {
+                        appliedStatus = "REJECTED";
+                        canApply = false;
+                        reapplyEligibleAt = latestRejected.getEffectiveReapplyEligibleAt();
+                        daysUntilReapply = Math.max(1L, java.time.Duration.between(LocalDateTime.now(), reapplyEligibleAt).toDays());
+                        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+                        cooldownReason = "3-month cooldown active until " + reapplyEligibleAt.format(formatter) + " (" + daysUntilReapply + " days remaining)";
+                    } else {
+                        appliedStatus = "REJECTED_COOLDOWN_EXPIRED";
+                        canApply = true;
+                        daysUntilReapply = 0L;
+                        cooldownReason = "3-month cooldown elapsed. You are eligible to re-apply with an updated resume!";
+                    }
+                }
+            }
+        }
+
         return JobDto.builder()
                 .id(job.getId())
                 .title(job.getTitle())
@@ -345,6 +418,11 @@ public class CandidateServiceImpl implements CandidateService {
                 .experienceRequired(job.getExperienceRequired())
                 .createdById(createdById)
                 .createdByName(createdByName)
+                .appliedStatus(appliedStatus)
+                .canApply(canApply)
+                .reapplyEligibleAt(reapplyEligibleAt)
+                .daysUntilReapply(daysUntilReapply)
+                .cooldownReason(cooldownReason)
                 .createdAt(job.getCreatedAt())
                 .updatedAt(job.getUpdatedAt())
                 .build();
@@ -390,6 +468,13 @@ public class CandidateServiceImpl implements CandidateService {
             }
         } catch (Exception ignored) {}
 
+        LocalDateTime eligibleAt = app.getEffectiveReapplyEligibleAt();
+        boolean underCooldown = app.isUnderRejectionCooldown();
+        Long daysRemaining = null;
+        if (eligibleAt != null && underCooldown) {
+            daysRemaining = Math.max(1L, java.time.Duration.between(LocalDateTime.now(), eligibleAt).toDays());
+        }
+
         return ApplicationDto.builder()
                 .id(app.getId())
                 .jobId(jobId)
@@ -409,6 +494,10 @@ public class CandidateServiceImpl implements CandidateService {
                 .impactScore(app.getImpactScore() != null ? app.getImpactScore() : 0.0)
                 .rawSkillGapJson(app.getRawSkillGapJson())
                 .appliedAt(app.getAppliedAt())
+                .rejectedAt(app.getRejectedAt())
+                .reapplyEligibleAt(eligibleAt)
+                .canReapply(app.getStatus() == Application.ApplicationStatus.REJECTED && !underCooldown)
+                .daysUntilReapply(daysRemaining)
                 .build();
     }
 }

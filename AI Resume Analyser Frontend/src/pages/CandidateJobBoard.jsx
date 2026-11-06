@@ -96,7 +96,7 @@ export const CandidateJobBoard = () => {
                     {job.description}
                   </p>
 
-                  <div className="mb-4">
+                  <div className="mb-3">
                     <div className="small fw-semibold text-muted mb-1">Target Skills:</div>
                     <div className="d-flex flex-wrap gap-1">
                       {job.skillsRequired?.split(',').map((skill, idx) => (
@@ -106,24 +106,114 @@ export const CandidateJobBoard = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Cooldown or Application Status Alert */}
+                  {job.appliedStatus === 'REJECTED' && (
+                    <div className="alert alert-warning py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3 border-warning-subtle">
+                      <Clock size={16} className="text-warning-emphasis flex-shrink-0" />
+                      <div>
+                        <strong>3-Month Skill Enhancement Cooldown:</strong> You were previously not selected. Eligible to re-apply after{' '}
+                        <strong>{job.reapplyEligibleAt ? new Date(job.reapplyEligibleAt).toLocaleDateString() : ''}</strong>{' '}
+                        ({job.daysUntilReapply} days remaining).
+                      </div>
+                    </div>
+                  )}
+
+                  {job.appliedStatus === 'REJECTED_COOLDOWN_EXPIRED' && (
+                    <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3 border-success-subtle">
+                      <Sparkles size={16} className="text-success flex-shrink-0" />
+                      <div>
+                        <strong>3-Month Cooldown Concluded!</strong> You are now eligible to re-apply for this opening with your updated resume.
+                      </div>
+                    </div>
+                  )}
+
+                  {job.appliedStatus === 'PENDING' && (
+                    <div className="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3 border-info-subtle">
+                      <Clock size={16} className="text-info-emphasis flex-shrink-0" />
+                      <div>
+                        <strong>Application Under Review:</strong> Your resume has been submitted and is currently being screened.
+                      </div>
+                    </div>
+                  )}
+
+                  {job.appliedStatus === 'ACCEPTED' && (
+                    <div className="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3 rounded-3 border-success-subtle">
+                      <CheckCircle size={16} className="text-success flex-shrink-0" />
+                      <div>
+                        <strong>Shortlisted:</strong> Congratulations! Your application has been shortlisted by the recruiter.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                <div className="pt-3 border-top d-flex justify-content-between align-items-center">
+                <div className="pt-3 border-top d-flex justify-content-between align-items-center flex-wrap gap-2">
                   <span className="text-muted small">By {job.createdByName}</span>
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="d-flex align-items-center gap-1 px-3"
-                    onClick={() => {
-                      setSelectedJob(job);
-                      setResumeFile(null);
-                      setApplyResult(null);
-                      setErrorMsg('');
-                    }}
-                  >
-                    <span>Apply with Resume</span>
-                    <ArrowRight size={14} />
-                  </Button>
+                  {job.canApply === false ? (
+                    job.appliedStatus === 'REJECTED' ? (
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        disabled
+                        className="d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill"
+                        title={job.cooldownReason}
+                      >
+                        <Clock size={14} />
+                        <span>Cooldown Active ({job.daysUntilReapply}d)</span>
+                      </Button>
+                    ) : job.appliedStatus === 'ACCEPTED' ? (
+                      <Button
+                        variant="outline-success"
+                        size="sm"
+                        disabled
+                        className="d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill"
+                      >
+                        <CheckCircle size={14} />
+                        <span>Shortlisted</span>
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        disabled
+                        className="d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill"
+                      >
+                        <Clock size={14} />
+                        <span>In Review</span>
+                      </Button>
+                    )
+                  ) : job.appliedStatus === 'REJECTED_COOLDOWN_EXPIRED' ? (
+                    <Button
+                      variant="success"
+                      size="sm"
+                      className="d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill fw-semibold shadow-sm"
+                      onClick={() => {
+                        setSelectedJob(job);
+                        setResumeFile(null);
+                        setApplyResult(null);
+                        setErrorMsg('');
+                      }}
+                    >
+                      <Sparkles size={14} />
+                      <span>Re-Apply with Resume</span>
+                      <ArrowRight size={14} />
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="d-flex align-items-center gap-1.5 px-3 py-1.5 rounded-pill fw-semibold"
+                      onClick={() => {
+                        setSelectedJob(job);
+                        setResumeFile(null);
+                        setApplyResult(null);
+                        setErrorMsg('');
+                      }}
+                    >
+                      <span>Apply with Resume</span>
+                      <ArrowRight size={14} />
+                    </Button>
+                  )}
                 </div>
               </Card>
             </Col>

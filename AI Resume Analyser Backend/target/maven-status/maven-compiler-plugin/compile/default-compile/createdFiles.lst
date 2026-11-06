@@ -35,6 +35,7 @@ com\example\ResumeSystemApplication\controller\ChatbotController.class
 com\example\ResumeSystemApplication\dto\ResumeDto$ResumeDtoBuilder.class
 com\example\ResumeSystemApplication\dto\AiEvaluationResponse$SkillGapCoachingReport.class
 com\example\ResumeSystemApplication\service\NotificationService.class
+com\example\ResumeSystemApplication\service\ReapplyCooldownService.class
 com\example\ResumeSystemApplication\dto\CandidateDto$CandidateDtoBuilder.class
 com\example\ResumeSystemApplication\dto\SkillGapAnalysisDto.class
 com\example\ResumeSystemApplication\model\Notification.class

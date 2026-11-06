@@ -21,6 +21,11 @@ public class JobDto {
     private Long createdById;
     private String createdByName;
     private Integer applicantCount;
+    private String appliedStatus;
+    private Boolean canApply;
+    private LocalDateTime reapplyEligibleAt;
+    private Long daysUntilReapply;
+    private String cooldownReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

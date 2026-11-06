@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Layout } from '../components/Layout';
 import { candidateService } from '../services/candidateService';
-import { FileText, Award, ArrowRight, Compass, MessageSquare } from 'lucide-react';
+import { FileText, Award, ArrowRight, Compass, MessageSquare, Clock, Sparkles } from 'lucide-react';
 
 export const CandidateStatus = () => {
   const { data: applications = [], isLoading } = useQuery({
@@ -85,6 +85,35 @@ export const CandidateStatus = () => {
                     </td>
                     <td>
                       <div>{getStatusBadge(app.status)}</div>
+                      {app.status === 'REJECTED' && (
+                        app.canReapply ? (
+                          <div className="mt-2 p-2 bg-success-subtle rounded small border border-success-subtle">
+                            <strong className="text-success d-flex align-items-center gap-1 mb-1">
+                              <Sparkles size={13} /> 3-Month Cooldown Concluded!
+                            </strong>
+                            <span className="text-secondary d-block mb-1" style={{ fontSize: '0.78rem' }}>
+                              You are now eligible to re-apply with an updated resume.
+                            </span>
+                            <Button as={Link} to="/candidate/jobs" variant="success" size="sm" className="py-0 px-2 fw-semibold" style={{ fontSize: '0.75rem' }}>
+                              Browse Jobs & Re-Apply
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="mt-2 p-2 bg-warning-subtle rounded small border border-warning-subtle">
+                            <strong className="text-warning-emphasis d-flex align-items-center gap-1 mb-1">
+                              <Clock size={13} /> 3-Month Enhancement Window
+                            </strong>
+                            <span className="text-secondary d-block" style={{ fontSize: '0.78rem' }}>
+                              Eligible to re-apply after{' '}
+                              <strong>{app.reapplyEligibleAt ? new Date(app.reapplyEligibleAt).toLocaleDateString() : '3 months'}</strong>{' '}
+                              ({app.daysUntilReapply != null ? `${app.daysUntilReapply} days` : 'calculating...'} remaining).
+                            </span>
+                            <span className="text-muted d-block mt-1" style={{ fontSize: '0.72rem' }}>
+                              You will automatically receive an invitation email once this window concludes.
+                            </span>
+                          </div>
+                        )
+                      )}
                       {app.recruiterFeedback && (
                         <div className="mt-2 p-2 bg-light rounded small border">
                           <strong className="text-primary d-flex align-items-center gap-1 mb-1" style={{ fontSize: '0.75rem' }}>

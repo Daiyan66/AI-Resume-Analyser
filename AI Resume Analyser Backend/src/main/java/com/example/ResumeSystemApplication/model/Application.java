@@ -69,6 +69,30 @@ public class Application {
     @Column(name = "applied_at", nullable = false)
     private LocalDateTime appliedAt;
 
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
+
+    @Column(name = "reapply_eligible_at")
+    private LocalDateTime reapplyEligibleAt;
+
+    @Column(name = "reapply_email_sent")
+    private Boolean reapplyEmailSent = false;
+
+    public LocalDateTime getEffectiveReapplyEligibleAt() {
+        if (this.reapplyEligibleAt != null) return this.reapplyEligibleAt;
+        if (this.rejectedAt != null) return this.rejectedAt.plusMonths(3);
+        if (this.status == ApplicationStatus.REJECTED && this.appliedAt != null) {
+            return this.appliedAt.plusMonths(3);
+        }
+        return null;
+    }
+
+    public boolean isUnderRejectionCooldown() {
+        if (this.status != ApplicationStatus.REJECTED) return false;
+        LocalDateTime eligible = getEffectiveReapplyEligibleAt();
+        return eligible != null && LocalDateTime.now().isBefore(eligible);
+    }
+
     @PrePersist
     protected void onCreate() {
         this.appliedAt = LocalDateTime.now();
@@ -77,6 +101,9 @@ public class Application {
         }
         if (this.applicationSource == null) {
             this.applicationSource = ApplicationSource.INDIVIDUAL_APPLY;
+        }
+        if (this.reapplyEmailSent == null) {
+            this.reapplyEmailSent = false;
         }
         if (this.matchScore == null) this.matchScore = 0.0;
         if (this.skillMatchScore == null) this.skillMatchScore = 0.0;

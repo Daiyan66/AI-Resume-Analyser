@@ -18,6 +18,29 @@ public interface ApplicationRepository extends JpaRepository<Application, Long> 
     List<Application> findByResumeCandidateIdOrderByAppliedAtDesc(Long candidateId);
     Optional<Application> findByJobIdAndResumeId(Long jobId, Long resumeId);
     Optional<Application> findTopByResumeCandidateIdOrderByAppliedAtDesc(Long candidateId);
+
+    @Query("SELECT a FROM Application a WHERE a.job.id = :jobId " +
+           "AND a.resume.candidate.id = :candidateId " +
+           "AND a.status = com.example.ResumeSystemApplication.model.Application.ApplicationStatus.REJECTED " +
+           "ORDER BY a.rejectedAt DESC, a.appliedAt DESC")
+    List<Application> findRejectedApplicationsForJobAndCandidate(@Param("jobId") Long jobId, @Param("candidateId") Long candidateId);
+
+    @Query("SELECT a FROM Application a WHERE a.job.id = :jobId " +
+           "AND a.resume.candidate.id = :candidateId " +
+           "AND a.status IN (com.example.ResumeSystemApplication.model.Application.ApplicationStatus.PENDING, com.example.ResumeSystemApplication.model.Application.ApplicationStatus.ACCEPTED)")
+    List<Application> findActiveApplicationsForJobAndCandidate(@Param("jobId") Long jobId, @Param("candidateId") Long candidateId);
+
+    @Query("SELECT a FROM Application a WHERE a.job.id = :jobId " +
+           "AND a.resume.candidate.id = :candidateId " +
+           "ORDER BY a.appliedAt DESC")
+    List<Application> findLatestByJobIdAndCandidateId(@Param("jobId") Long jobId, @Param("candidateId") Long candidateId);
+
+    @Query("SELECT a FROM Application a WHERE a.status = com.example.ResumeSystemApplication.model.Application.ApplicationStatus.REJECTED " +
+           "AND (a.reapplyEmailSent IS NULL OR a.reapplyEmailSent = false) " +
+           "AND ((a.reapplyEligibleAt IS NOT NULL AND a.reapplyEligibleAt <= :now) " +
+           "  OR (a.reapplyEligibleAt IS NULL AND a.rejectedAt IS NOT NULL AND a.rejectedAt <= :threeMonthsAgo) " +
+           "  OR (a.reapplyEligibleAt IS NULL AND a.rejectedAt IS NULL AND a.appliedAt <= :threeMonthsAgo))")
+    List<Application> findEligibleForReapplyEmail(@Param("now") LocalDateTime now, @Param("threeMonthsAgo") LocalDateTime threeMonthsAgo);
     
     long countByJobId(Long jobId);
     long countByStatus(Application.ApplicationStatus status);

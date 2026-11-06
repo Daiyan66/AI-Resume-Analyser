@@ -374,6 +374,9 @@ public class RecruiterServiceImpl implements RecruiterService {
         String feedbackContent = payload != null ? payload.getOrDefault("feedback", "Candidate does not meet requirements at this time.") : "Application reviewed.";
 
         app.setStatus(Application.ApplicationStatus.REJECTED);
+        app.setRejectedAt(LocalDateTime.now());
+        app.setReapplyEligibleAt(LocalDateTime.now().plusMonths(3));
+        app.setReapplyEmailSent(false);
         Application saved = applicationRepository.save(app);
 
         // Save Feedback
