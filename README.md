@@ -1,14 +1,21 @@
 # AI Resume Analyser
 
-This repository currently contains a legacy applicant tracking system with a Spring Boot API and a React/Vite frontend. It supports candidate applications, recruiter job postings and resume screening, and administrator oversight. We are preparing a staged rebuild in this repository; see the [Phase 2 product definition](docs/product-definition.md) and [current-state inventory](docs/current-state.md).
+This repository contains the legacy applicant tracking system and a new application being built beside it. The new foundation lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
 
 ## Repository layout
 
 | Path | Purpose |
 | --- | --- |
+| `apps/api/` | New Java 21 / Spring Boot API and PostgreSQL migrations |
+| `apps/web/` | New React / TypeScript interface |
+| `compose.yaml` | Local three-service test environment |
 | `AI Resume Analyser Backend/` | Java 21 / Spring Boot 3 API, MySQL persistence, document processing, email, and AI integrations |
 | `AI Resume Analyser Frontend/` | React 18 / Vite interface |
-| `docs/` | Product definition, screen wireframes, permissions and data model, AI rules, and current-state inventory |
+| `docs/` | Product definition, implementation guides, and legacy inventory |
+
+## Run the new foundation
+
+With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174). The page reports whether the new API and database are connected. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. For separate development servers and migration details, use the [foundation guide](docs/phase-3-foundation.md).
 
 ## Run the legacy application locally
 
