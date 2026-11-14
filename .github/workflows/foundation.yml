@@ -28,7 +28,7 @@ jobs:
       SMTP_HOST: localhost
       APP_PUBLIC_URL: http://localhost:5174
       MAIL_FROM: ats@example.test
-      DOCUMENT_DIR: ${{ runner.temp }}/ats-test-documents
+      DOCUMENT_DIR: /tmp/ats-test-documents
       SESSION_COOKIE_SECURE: "false"
     defaults:
       run:
