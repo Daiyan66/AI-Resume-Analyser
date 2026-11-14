@@ -1,6 +1,6 @@
 # AI Resume Analyser
 
-This repository currently contains a legacy applicant tracking system with a Spring Boot API and a React/Vite frontend. It supports candidate applications, recruiter job postings and resume screening, and administrator oversight. We are preparing a staged rebuild in this repository; see [the current-state inventory](docs/current-state.md).
+This repository currently contains a legacy applicant tracking system with a Spring Boot API and a React/Vite frontend. It supports candidate applications, recruiter job postings and resume screening, and administrator oversight. We are preparing a staged rebuild in this repository; see the [Phase 2 product definition](docs/product-definition.md) and [current-state inventory](docs/current-state.md).
 
 ## Repository layout
 
@@ -8,7 +8,7 @@ This repository currently contains a legacy applicant tracking system with a Spr
 | --- | --- |
 | `AI Resume Analyser Backend/` | Java 21 / Spring Boot 3 API, MySQL persistence, document processing, email, and AI integrations |
 | `AI Resume Analyser Frontend/` | React 18 / Vite interface |
-| `docs/` | Current-state inventory and rebuild notes |
+| `docs/` | Product definition, screen wireframes, permissions and data model, AI rules, and current-state inventory |
 
 ## Run the legacy application locally
 
