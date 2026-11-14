@@ -7,6 +7,7 @@ RUN mvn --batch-mode --no-transfer-progress -DskipTests package
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
+RUN mkdir -p /data/documents && chown -R 10001:10001 /data
 COPY --from=build /app/target/ats-api-0.1.0.jar app.jar
 USER 10001
 EXPOSE 8080

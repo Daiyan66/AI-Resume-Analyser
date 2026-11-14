@@ -1,8 +1,20 @@
 server:
   port: 8081
+  servlet:
+    session:
+      cookie:
+        secure: false
 
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5433/ats
     username: ats
     password: ats_local_only
+  mail:
+    host: localhost
+    port: 1025
+
+app:
+  public-url: http://localhost:5174
+  mail-from: ats@example.test
+  document-dir: ./data/documents
