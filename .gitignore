@@ -2,6 +2,8 @@
 **/application-local.properties
 **/*.local.properties
 **/.env
+**/.env.*
+!**/.env.example
 **/.env.local
 **/.env.*.local
 
