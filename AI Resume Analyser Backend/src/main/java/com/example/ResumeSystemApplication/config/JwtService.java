@@ -20,7 +20,7 @@ import java.util.stream.Collectors;
 @Service
 public class JwtService {
 
-    @Value("${jwt.secret:MyVeryStrongSecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLong}")
+    @Value("${jwt.secret}")
     private String secretKey;
 
     @Value("${jwt.expiration:604800000}")
