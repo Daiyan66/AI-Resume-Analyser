@@ -111,10 +111,16 @@ class CandidateFlowIntegrationTest {
                 .andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/candidate/applications/{id}/withdraw", applicationId).session(candidate).with(csrf()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.events.length()").value(2));
+        mvc.perform(get("/api/v1/organizations/{id}/policy", orgId).session(candidate))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/organizations/{id}/policy", orgId).session(admin).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("reapplyCooldownDays", 30,
+                        "retentionDays", 365, "aiEnabled", false))))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.reapplyCooldownDays").value(30));
         mvc.perform(post("/api/v1/candidate/applications").session(candidate).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("jobId", jobId, "answers", Map.of(questionId, "After withdrawal")))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isConflict());
     }
 
     @Test

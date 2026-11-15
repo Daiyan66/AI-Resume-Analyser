@@ -54,6 +54,7 @@ public class OrganizationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Organization slug is already in use");
         }
         jdbc.update("INSERT INTO memberships (organization_id, user_id, role) VALUES (?, ?, 'ADMIN')", orgId, owner);
+        jdbc.update("INSERT INTO organization_policies (organization_id) VALUES (?)", orgId);
         audit.record(owner, orgId, "organization.create", "organization", orgId);
         return new OrganizationMembership(orgId, slug, name.trim(), "ADMIN");
     }
@@ -162,6 +163,25 @@ public class OrganizationService {
                         rs.getString("action"), rs.getString("target_type"), rs.getObject("target_id", UUID.class),
                         rs.getTimestamp("created_at").toInstant()), organizationId);
     }
+
+    public Policy policy(UUID organizationId) {
+        requireAdmin(organizationId);
+        return jdbc.queryForObject("SELECT reapply_cooldown_days, retention_days, ai_enabled FROM organization_policies " +
+                        "WHERE organization_id = ?", (rs, row) -> new Policy(rs.getInt(1), rs.getInt(2), rs.getBoolean(3)),
+                organizationId);
+    }
+
+    @Transactional
+    public Policy updatePolicy(UUID organizationId, int reapplyCooldownDays, int retentionDays, boolean aiEnabled) {
+        requireAdmin(organizationId);
+        jdbc.update("UPDATE organization_policies SET reapply_cooldown_days = ?, retention_days = ?, ai_enabled = ?, " +
+                        "updated_at = CURRENT_TIMESTAMP WHERE organization_id = ?", reapplyCooldownDays, retentionDays,
+                aiEnabled, organizationId);
+        audit.record(identities.currentUserId(), organizationId, "organization.policy_update", "organization", organizationId);
+        return policy(organizationId);
+    }
+
+    public record Policy(int reapplyCooldownDays, int retentionDays, boolean aiEnabled) {}
 
     public record OrganizationMembership(UUID organizationId, String slug, String name, String role) {}
     public record Invitation(UUID id, String email, String role, Instant expiresAt) {}
