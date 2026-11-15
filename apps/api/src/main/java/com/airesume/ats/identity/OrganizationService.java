@@ -114,7 +114,10 @@ public class OrganizationService {
         if (invitation.accepted() || !invitation.expiresAt().isAfter(Instant.now())) {
             throw new ResponseStatusException(HttpStatus.GONE, "Invitation expired or already used");
         }
-        if (!invitation.email().equals(account.email())) throw new AccessDeniedException("Use the invited email address");
+        if (!invitation.email().equals(account.email())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "This invitation belongs to another email. Sign in with the invited account to accept it.");
+        }
         int updated = jdbc.update("UPDATE invitations SET accepted_at = CURRENT_TIMESTAMP WHERE id = ? AND accepted_at IS NULL",
                 invitation.id());
         if (updated != 1) throw new ResponseStatusException(HttpStatus.GONE, "Invitation already used");

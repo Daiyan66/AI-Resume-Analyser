@@ -249,8 +249,11 @@ function App() {
           <div className="workspace">
             <section className="panel" aria-labelledby="account-heading">
               <div className="section-heading"><h2 id="account-heading">Welcome, {account.displayName}</h2><span>{account.email}</span></div>
-              {inviteToken && <div className="invite-banner"><p>You have an organization invitation for this email.</p>
-                <button type="button" onClick={acceptInvitation} disabled={busy}>Accept invitation</button></div>}
+              {inviteToken && <div className="invite-banner">
+                <p>Invitations can only be accepted by the email they were sent to. You are signed in as {account.email}.</p>
+                <button type="button" onClick={acceptInvitation} disabled={busy}>Accept invitation</button>{' '}
+                <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out to switch account</button>
+              </div>}
               <h3>Your organizations</h3>
               {organizations.length === 0 ? <p>You have not joined an organization yet. You can create one below or accept an invitation.</p> : (
                 <label>Active organization<select value={selectedOrgId} onChange={(event) => setSelectedOrgId(event.target.value)}>

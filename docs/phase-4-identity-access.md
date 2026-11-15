@@ -9,7 +9,7 @@ This phase adds the first working account flow in the new `apps/` application. I
 3. Open `http://localhost:8025` to see the local verification email. Click its link, then sign in.
    If Mailpit was restarted and the email is gone, use **Resend verification email** on the sign-in page. The database keeps accounts when the local Mailpit inbox is cleared.
 4. Create an organization. You become its Admin. Invite a second email as Recruiter or Admin.
-5. Register and verify that second email in a separate browser profile, then open the invitation link in Mailpit and accept it.
+5. Register and verify that second email in a separate browser profile, then open the invitation link in that profile and accept it. If the Admin's browser opens the link, sign out and sign in with the invited account before accepting.
 6. Upload a PDF, DOCX, or TXT file under 10 MB in **Your private documents**. Only that account can list or download it.
 
 Mailpit captures development emails locally; it does not send them to the internet. To run separate development servers, start `docker compose up -d db mailpit`, then run `mvn spring-boot:run -Dspring-boot.run.profiles=local` in `apps/api` and `npm ci && npm run dev` in `apps/web`. Java 21, Maven 3.9+, Node 22+, and npm are required for this route.

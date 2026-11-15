@@ -138,7 +138,9 @@ class IdentityAccessIntegrationTest {
 
         mvc.perform(post("/api/v1/invitations/accept").session(owner).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("token", token))))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.error").value(
+                        "This invitation belongs to another email. Sign in with the invited account to accept it."));
         mvc.perform(post("/api/v1/invitations/accept").session(recruiter).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("token", token))))
                 .andExpect(status().isOk());
