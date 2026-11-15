@@ -51,7 +51,8 @@ public class SecurityConfig {
                 .httpBasic(basic -> basic.disable())
                 .authorizeHttpRequests(auth -> auth
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-                        .requestMatchers("/api/v1/system/status", "/api/v1/auth/csrf", "/api/v1/auth/session",
+                        .requestMatchers("/api/v1/system/status", "/api/v1/public/jobs", "/api/v1/public/jobs/*",
+                                "/api/v1/auth/csrf", "/api/v1/auth/session",
                                 "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/verify-email",
                                 "/api/v1/auth/resend-verification",
                                 "/actuator/health/**").permitAll()

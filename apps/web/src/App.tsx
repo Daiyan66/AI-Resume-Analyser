@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type Account, type AuditEvent, type Document, type Member, type Organization } from './api'
+import { CandidateWorkspace } from './CandidateWorkspace'
+import { JobPublisher } from './JobPublisher'
 import './App.css'
 
 type ApiStatus = 'checking' | 'ready' | 'unavailable'
@@ -21,6 +23,7 @@ function App() {
   const [members, setMembers] = useState<Member[]>([])
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
+  const [jobsVersion, setJobsVersion] = useState(0)
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [resendEmail, setResendEmail] = useState('')
   const [inviteToken, setInviteToken] = useState(new URLSearchParams(window.location.search).get('token'))
@@ -200,8 +203,8 @@ function App() {
           {account && <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out</button>}
         </header>
         <h1>A clearer hiring experience starts here.</h1>
-        <p className="intro">Phase 4 adds secure accounts, organization access, invitations, and private documents.
-          Hiring workflows arrive in the next phases.</p>
+        <p className="intro">Explore published jobs, build a candidate profile, apply, and track your status.
+          Organization members can publish a starter job for testing.</p>
         <section className="status-card" aria-labelledby="status-heading">
           <div>
             <h2 id="status-heading">System connection</h2>
@@ -302,6 +305,9 @@ function App() {
             </section>
           </div>
         )}
+        {selectedOrg && <JobPublisher organization={selectedOrg} onPublished={() => setJobsVersion((current) => current + 1)} />}
+        <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
+          onSignIn={() => document.getElementById('account-heading')?.scrollIntoView({ behavior: 'smooth' })} />
         <p className="note">The legacy application remains in its original folders during the rebuild.</p>
       </div>
     </main>
