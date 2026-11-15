@@ -1,7 +1,10 @@
 package com.airesume.ats.identity;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -21,6 +24,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.mock.web.MockMultipartFile;
@@ -40,8 +44,25 @@ class IdentityAccessIntegrationTest {
     @MockitoBean JavaMailSender mail;
 
     @Test
+    void emailFailureIsReportedAndRegistrationCanBeRetried() throws Exception {
+        String email = "mail-failure-" + UUID.randomUUID() + "@example.test";
+        doThrow(new MailSendException("SMTP unavailable")).when(mail).send(any(SimpleMailMessage.class));
+        try {
+            mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                    .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
+                    .andExpect(status().isServiceUnavailable());
+        } finally {
+            reset(mail);
+        }
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void sessionsCsrfAndOrganizationRolesAreEnforced() throws Exception {
         mvc.perform(get("/api/v1/me")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/auth/session")).andExpect(status().isNoContent());
         String firstEmail = "owner-" + UUID.randomUUID() + "@example.test";
         String secondEmail = "recruiter-" + UUID.randomUUID() + "@example.test";
         mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
@@ -52,6 +73,7 @@ class IdentityAccessIntegrationTest {
         register(secondEmail);
         MockHttpSession owner = login(firstEmail);
         MockHttpSession recruiter = login(secondEmail);
+        mvc.perform(get("/api/v1/auth/session").session(owner)).andExpect(status().isOk());
 
         String slug = "first-" + UUID.randomUUID();
         MvcResult created = mvc.perform(post("/api/v1/organizations").session(owner).with(csrf())

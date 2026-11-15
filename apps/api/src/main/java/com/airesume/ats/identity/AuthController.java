@@ -78,6 +78,14 @@ public class AuthController {
         return identities.currentAccount();
     }
 
+    @GetMapping("/auth/session")
+    public ResponseEntity<IdentityService.Account> session(Authentication authentication) {
+        if (authentication == null || !(authentication.getPrincipal() instanceof AppPrincipal principal)) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.ok(identities.account(principal.id()));
+    }
+
     public record RegisterRequest(@NotBlank @Email String email, @NotBlank @Size(max = 160) String displayName,
                                   @NotBlank @Size(min = 12, max = 128) String password) {}
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}

@@ -32,7 +32,8 @@ function App() {
 
   useEffect(() => {
     void getApiStatus().then(setStatus)
-    void api<Account>('/me').then(setAccount).catch(() => setAccount(null))
+    void api<Account | undefined>('/auth/session').then((current) => setAccount(current || null))
+      .catch(() => setAccount(null))
   }, [])
 
   useEffect(() => {
