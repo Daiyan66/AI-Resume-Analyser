@@ -305,7 +305,8 @@ function App() {
             </section>
           </div>
         )}
-        {selectedOrg && <JobPublisher organization={selectedOrg} onPublished={() => setJobsVersion((current) => current + 1)} />}
+        {selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
+          onPublished={() => setJobsVersion((current) => current + 1)} />}
         <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
           onSignIn={() => document.getElementById('account-heading')?.scrollIntoView({ behavior: 'smooth' })} />
         <p className="note">The legacy application remains in its original folders during the rebuild.</p>

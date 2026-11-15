@@ -67,6 +67,11 @@ public class CandidateService {
     public Application submit(UUID jobId, UUID documentId, Map<UUID, String> answers) {
         UUID candidateId = identities.currentUserId();
         JobService.Job job = jobs.publicJob(jobId);
+        List<String> jobStatuses = jdbc.query("SELECT status FROM jobs WHERE id = ? FOR SHARE",
+                (rs, row) -> rs.getString("status"), jobId);
+        if (jobStatuses.isEmpty() || !"PUBLISHED".equals(jobStatuses.getFirst())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This job is no longer accepting applications.");
+        }
         if (documentId != null) {
             Integer count = jdbc.queryForObject("SELECT count(*) FROM documents WHERE id = ? AND owner_user_id = ?",
                     Integer.class, documentId, candidateId);
@@ -133,11 +138,13 @@ public class CandidateService {
     @Transactional
     public Application withdraw(UUID id) {
         Application current = application(id);
-        if (!"SUBMITTED".equals(current.status())) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already withdrawn.");
+        if (List.of("WITHDRAWN", "HIRED", "NOT_SELECTED").contains(current.status())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already closed.");
         }
-        jdbc.update("UPDATE applications SET status = 'WITHDRAWN', withdrawn_at = CURRENT_TIMESTAMP " +
-                "WHERE id = ? AND candidate_user_id = ?", id, identities.currentUserId());
+        int changed = jdbc.update("UPDATE applications SET status = 'WITHDRAWN', withdrawn_at = CURRENT_TIMESTAMP " +
+                "WHERE id = ? AND candidate_user_id = ? AND status IN ('SUBMITTED', 'IN_REVIEW', 'INTERVIEW', 'OFFER')",
+                id, identities.currentUserId());
+        if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already closed.");
         addEvent(id, identities.currentUserId(), "WITHDRAWN", "You withdrew this application");
         UUID orgId = jdbc.queryForObject("SELECT organization_id FROM jobs WHERE id = ?", UUID.class, current.jobId());
         audit.record(identities.currentUserId(), orgId, "application.withdraw", "application", id);

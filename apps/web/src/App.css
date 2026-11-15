@@ -30,6 +30,9 @@ textarea { width: 100%; min-height: 6rem; resize: vertical; background: #071424;
 .job-detail { margin-top: 1.5rem; border-top: 1px solid #2a4058; padding-top: .5rem; }
 .preserve-lines { white-space: pre-wrap; }
 .pagination { display: flex; gap: 1rem; align-items: center; justify-content: space-between; margin-top: 1rem; }
+.action-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.criterion { border: 1px solid #2a4058; border-radius: 9px; padding: 1rem; margin: .8rem 0; }
+.review-detail { border-top: 1px solid #2a4058; margin-top: 1rem; padding-top: 1rem; }
 input::placeholder { color: #8398ac; }
 a { color: #70d6c6; }
 .workspace { margin-top: 1.5rem; }

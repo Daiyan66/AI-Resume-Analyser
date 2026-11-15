@@ -25,7 +25,7 @@ Submission requires a saved profile headline and summary. Required job questions
 
 ## Current boundary
 
-The small job publisher exists so candidate flows can be tested with real openings. The full recruiter editor, rubrics, applicant review, stage changes, and human decisions are Phase 6. Candidate status currently changes only for submission and withdrawal. A deletion request awaits a later admin review workflow; it is not an automatic deletion. The JSON export includes document metadata, not file bytes; files can be downloaded separately from **Your private documents**. Public hosting still needs the infrastructure and privacy controls described in the [Phase 4 guide](phase-4-identity-access.md).
+The Phase 6 recruiter workflow now expands the job editor, rubric, applicant review, stage changes, and human decisions. See the [Phase 6 guide](phase-6-recruiter-workflow.md). A deletion request awaits a later admin review workflow; it is not an automatic deletion. The JSON export includes document metadata, not file bytes; files can be downloaded separately from **Your private documents**. Public hosting still needs the infrastructure and privacy controls described in the [Phase 4 guide](phase-4-identity-access.md).
 
 ## Checks
 

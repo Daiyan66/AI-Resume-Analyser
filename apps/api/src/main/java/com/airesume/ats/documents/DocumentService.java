@@ -1,6 +1,7 @@
 package com.airesume.ats.documents;
 
 import com.airesume.ats.identity.IdentityService;
+import com.airesume.ats.identity.OrganizationService;
 import com.airesume.ats.security.AuditService;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -28,13 +29,16 @@ public class DocumentService {
     private final JdbcTemplate jdbc;
     private final IdentityService identities;
     private final AuditService audit;
+    private final OrganizationService organizations;
     private final Path storageRoot;
 
     public DocumentService(JdbcTemplate jdbc, IdentityService identities, AuditService audit,
+                           OrganizationService organizations,
                            @Value("${app.document-dir}") String documentDir) {
         this.jdbc = jdbc;
         this.identities = identities;
         this.audit = audit;
+        this.organizations = organizations;
         this.storageRoot = Path.of(documentDir).toAbsolutePath().normalize();
     }
 
@@ -107,6 +111,26 @@ public class DocumentService {
         return new Download(getMetadata(id, owner), new PathResource(path));
     }
 
+    public Download downloadForReview(UUID organizationId, UUID jobId, UUID applicationId) {
+        organizations.requireMember(organizationId);
+        List<ReviewFile> matches = jdbc.query("SELECT d.id, d.original_filename, d.media_type, d.byte_size, " +
+                        "d.created_at, d.storage_key FROM applications a JOIN jobs j ON j.id = a.job_id " +
+                        "JOIN documents d ON d.id = a.document_id WHERE a.id = ? AND a.job_id = ? " +
+                        "AND j.organization_id = ?", (rs, row) -> new ReviewFile(
+                new Document(rs.getObject("id", UUID.class), rs.getString("original_filename"),
+                        rs.getString("media_type"), rs.getLong("byte_size"),
+                        rs.getTimestamp("created_at").toInstant()), rs.getString("storage_key")),
+                applicationId, jobId, organizationId);
+        if (matches.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application document not found.");
+        ReviewFile file = matches.getFirst();
+        Path path = storageRoot.resolve(file.key()).normalize();
+        if (!path.startsWith(storageRoot) || !Files.isRegularFile(path)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document file not found.");
+        }
+        audit.record(identities.currentUserId(), organizationId, "document.review_download", "document", file.document().id());
+        return new Download(file.document(), new PathResource(path));
+    }
+
     private Document getMetadata(UUID id, UUID owner) {
         List<Document> results = jdbc.query("SELECT id, original_filename, media_type, byte_size, created_at " +
                         "FROM documents WHERE id = ? AND owner_user_id = ?", (rs, row) -> map(rs), id, owner);
@@ -121,4 +145,5 @@ public class DocumentService {
 
     public record Document(UUID id, String filename, String mediaType, long byteSize, Instant createdAt) {}
     public record Download(Document metadata, Resource resource) {}
+    private record ReviewFile(Document document, String key) {}
 }

@@ -83,8 +83,23 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
     })
   }
 
+  function refreshApplications() {
+    void run(async () => {
+      setApplications(await api<Page<CandidateApplication>>(`/candidate/applications?page=${applicationPage}&size=12`))
+      if (selectedApplication) {
+        setSelectedApplication(await api<CandidateApplication>(`/candidate/applications/${selectedApplication.id}`))
+      }
+      setNotice('Application statuses are up to date.')
+    })
+  }
+
   const activeApplication = applications.items.find((application) =>
-    application.jobId === selectedJob?.id && application.status === 'SUBMITTED')
+    application.jobId === selectedJob?.id && !['HIRED', 'NOT_SELECTED', 'WITHDRAWN'].includes(application.status))
+
+  function statusLabel(status: CandidateApplication['status']) {
+    return ({ SUBMITTED: 'Application received', IN_REVIEW: 'In review', INTERVIEW: 'Interview',
+      OFFER: 'Offer', HIRED: 'Hired', NOT_SELECTED: 'Not selected', WITHDRAWN: 'Withdrawn' })[status]
+  }
 
   return <div className="candidate-area">
     {error && <p className="alert error" role="alert">{error}</p>}
@@ -144,10 +159,11 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
       </section>
 
       <section className="panel" aria-labelledby="applications-heading">
-        <h2 id="applications-heading">My applications</h2>
+        <div className="section-heading"><h2 id="applications-heading">My applications</h2>
+          <button type="button" className="quiet" disabled={busy} onClick={refreshApplications}>Check for updates</button></div>
         {applications.items.length === 0 ? <p>No applications yet.</p> : <ul className="list">
           {applications.items.map((application) => <li key={application.id}>
-            <span><strong>{application.jobTitle}</strong> · {application.organizationName} · {application.status === 'SUBMITTED' ? 'Application received' : 'Withdrawn'}</span>
+            <span><strong>{application.jobTitle}</strong> · {application.organizationName} · {statusLabel(application.status)}</span>
             <button type="button" className="quiet" onClick={() => setSelectedApplication(application)}>View</button>
           </li>)}
         </ul>}
@@ -159,7 +175,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
             onClick={() => setApplicationPage(applicationPage + 1)}>Next</button>
         </div>}
         {selectedApplication && <div className="job-detail">
-          <h3>{selectedApplication.jobTitle} · {selectedApplication.status === 'SUBMITTED' ? 'Application received' : 'Withdrawn'}</h3>
+          <h3>{selectedApplication.jobTitle} · {statusLabel(selectedApplication.status)}</h3>
           <ol>{selectedApplication.events.map((event) => <li key={event.id}>{event.message} · {new Date(event.createdAt).toLocaleString()}</li>)}</ol>
           <h4>Submitted profile</h4><p>{selectedApplication.profileSnapshot.displayName} · {selectedApplication.profileSnapshot.email}</p>
           {Object.entries(selectedApplication.profileSnapshot.profile).map(([field, value]) =>
@@ -169,7 +185,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
           {Object.entries(selectedApplication.answers).length === 0 ? <p>No questions.</p> :
             <ul>{Object.entries(selectedApplication.answers).map(([id, answer]) =>
               <li key={id}><strong>{answer.prompt}</strong>: {answer.answer || 'No answer'}</li>)}</ul>}
-          {selectedApplication.status === 'SUBMITTED' && <button type="button" className="quiet" disabled={busy}
+          {!['HIRED', 'NOT_SELECTED', 'WITHDRAWN'].includes(selectedApplication.status) && <button type="button" className="quiet" disabled={busy}
             onClick={() => withdraw(selectedApplication)}>Withdraw application</button>}
         </div>}
       </section>
