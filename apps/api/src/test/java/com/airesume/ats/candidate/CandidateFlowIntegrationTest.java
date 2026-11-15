@@ -117,6 +117,19 @@ class CandidateFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("reapplyCooldownDays", 30,
                         "retentionDays", 365, "aiEnabled", false))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.reapplyCooldownDays").value(30));
+        mvc.perform(post("/api/v1/organizations/{id}/ai/job-draft", orgId).session(admin).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("title", "Engineer", "facts", "Java role"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/organizations/{id}/policy", orgId).session(admin).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("reapplyCooldownDays", 30,
+                        "retentionDays", 365, "aiEnabled", true))))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/organizations/{id}/ai/job-draft", orgId).session(candidate).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("title", "Engineer", "facts", "Java role"))))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/organizations/{id}/ai/job-draft", orgId).session(admin).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("title", "Engineer", "facts", "Java role"))))
+                .andExpect(status().isServiceUnavailable());
         mvc.perform(post("/api/v1/candidate/applications").session(candidate).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("jobId", jobId, "answers", Map.of(questionId, "After withdrawal")))))

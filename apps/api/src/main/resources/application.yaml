@@ -32,6 +32,10 @@ app:
   public-url: ${APP_PUBLIC_URL}
   mail-from: ${MAIL_FROM}
   document-dir: ${DOCUMENT_DIR}
+  ai:
+    api-key: ${AI_API_KEY:}
+    model: ${AI_MODEL:}
+    endpoint: ${AI_ENDPOINT:https://openrouter.ai/api/v1/chat/completions}
 
 management:
   endpoint:

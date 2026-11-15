@@ -14,6 +14,8 @@ export function JobPublisher({ organization, onPublished }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [draftSuggestion, setDraftSuggestion] = useState('')
+  const [draftModel, setDraftModel] = useState('')
 
   useEffect(() => {
     void api<Page<Job>>(`/organizations/${organization.organizationId}/jobs?page=${page}&size=12`)
@@ -88,6 +90,30 @@ export function JobPublisher({ organization, onPublished }: Props) {
     setNotice('Edit the draft below, then save it before publishing.')
   }
 
+  function suggest(event: React.MouseEvent<HTMLButtonElement>) {
+    const form = event.currentTarget.form
+    if (!form) return
+    const fields = new FormData(form)
+    const title = String(fields.get('title') || '').trim()
+    const facts = [fields.get('description'), fields.get('requirements')].map(String).join('\n').trim()
+    void run(async () => {
+      if (!title || !facts) throw new Error('Enter a title and factual role details before requesting a draft.')
+      const result = await api<{ text: string; model: string }>(`/organizations/${organization.organizationId}/ai/job-draft`, {
+        method: 'POST', body: JSON.stringify({ title, facts }),
+      })
+      setDraftSuggestion(result.text)
+      setDraftModel(result.model)
+      setNotice('Draft ready. Review every claim before using or publishing it.')
+    })
+  }
+
+  function useSuggestion(event: React.MouseEvent<HTMLButtonElement>) {
+    const description = event.currentTarget.form?.elements.namedItem('description') as HTMLTextAreaElement | null
+    if (description) description.value = draftSuggestion
+    setDraftSuggestion('')
+    setNotice('AI text copied into the editable description. Check it against your original facts.')
+  }
+
   return <section className="panel" aria-labelledby="publish-heading">
     <h2 id="publish-heading">Jobs for {organization.name}</h2>
     <p>Draft jobs, set review criteria, publish openings, and review applicants. Published job text and criteria stay fixed for submitted applications.</p>
@@ -124,6 +150,14 @@ export function JobPublisher({ organization, onPublished }: Props) {
       </div>
       <label>Role description<textarea name="description" required maxLength={20000} defaultValue={editing?.description} /></label>
       <label>Requirements<textarea name="requirements" required maxLength={10000} defaultValue={editing?.requirements} /></label>
+      <div className="criterion">
+        <h4>Optional AI drafting</h4>
+        <p>An Admin must enable AI and configure a provider. The title, description, and requirements above are sent to that provider when you choose this action. No candidate data is sent.</p>
+        <button type="button" className="quiet" disabled={busy} onClick={suggest}>Suggest job description</button>
+        {draftSuggestion && <div><p>Suggested by {draftModel}. This text has not been published.</p>
+          <p className="preserve-lines">{draftSuggestion}</p>
+          <button type="button" className="quiet" onClick={useSuggestion}>Use as editable description</button></div>}
+      </div>
       <label>Screening questions (optional, one per line, up to 10)<textarea name="questions" defaultValue={editing?.questions.map((question) => question.prompt).join('\n')} /></label>
       <h4>Review criteria</h4>
       <p>Use specific requirements to guide human assessment. Add required and preferred criteria before publishing.</p>
