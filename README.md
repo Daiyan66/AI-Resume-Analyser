@@ -1,6 +1,6 @@
 # AI Resume Analyser
 
-This repository contains the legacy applicant tracking system and a new application being built beside it. The new foundation lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
+This repository contains the legacy applicant tracking system and a new application being built beside it. The new application lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 4 identity guide](docs/phase-4-identity-access.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
 
 ## Repository layout
 
@@ -8,14 +8,14 @@ This repository contains the legacy applicant tracking system and a new applicat
 | --- | --- |
 | `apps/api/` | New Java 21 / Spring Boot API and PostgreSQL migrations |
 | `apps/web/` | New React / TypeScript interface |
-| `compose.yaml` | Local three-service test environment |
+| `compose.yaml` | Local web, API, database, and email test environment |
 | `AI Resume Analyser Backend/` | Java 21 / Spring Boot 3 API, MySQL persistence, document processing, email, and AI integrations |
 | `AI Resume Analyser Frontend/` | React 18 / Vite interface |
 | `docs/` | Product definition, implementation guides, and legacy inventory |
 
-## Run the new foundation
+## Run the new application
 
-With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174). The page reports whether the new API and database are connected. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. For separate development servers and migration details, use the [foundation guide](docs/phase-3-foundation.md).
+With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174) to register, verify your email, and sign in. Local emails appear in [Mailpit at localhost:8025](http://localhost:8025); no email leaves your PC. You can create an organization, invite members, and upload private documents. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. For separate development servers and identity details, use the [Phase 4 guide](docs/phase-4-identity-access.md).
 
 ## Run the legacy application locally
 

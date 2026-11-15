@@ -25,6 +25,11 @@ jobs:
       DATABASE_URL: jdbc:postgresql://localhost:5432/ats_test
       DATABASE_USER: ats_test
       DATABASE_PASSWORD: ats_test_only
+      SMTP_HOST: localhost
+      APP_PUBLIC_URL: http://localhost:5174
+      MAIL_FROM: ats@example.test
+      DOCUMENT_DIR: /tmp/ats-test-documents
+      SESSION_COOKIE_SECURE: "false"
     defaults:
       run:
         working-directory: apps/api

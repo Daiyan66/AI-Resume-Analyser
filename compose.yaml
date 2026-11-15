@@ -21,11 +21,27 @@ services:
       DATABASE_URL: jdbc:postgresql://db:5432/ats
       DATABASE_USER: ats
       DATABASE_PASSWORD: ats_local_only
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
+      APP_PUBLIC_URL: http://localhost:5174
+      MAIL_FROM: ats@example.test
+      DOCUMENT_DIR: /data/documents
+      SESSION_COOKIE_SECURE: "false"
     ports:
       - "127.0.0.1:8081:8080"
+    volumes:
+      - ats-private-documents:/data/documents
     depends_on:
       db:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
 
   web:
     build: ./apps/web
@@ -36,3 +52,4 @@ services:
 
 volumes:
   ats-postgres-data:
+  ats-private-documents:
