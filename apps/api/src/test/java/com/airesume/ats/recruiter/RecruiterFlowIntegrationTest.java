@@ -122,6 +122,17 @@ class RecruiterFlowIntegrationTest {
                 .andExpect(jsonPath("$.status").value("NOT_SELECTED"))
                 .andExpect(jsonPath("$.events.length()").value(3)).andReturn();
         assertThat(candidateView.getResponse().getContentAsString()).doesNotContain("Private decision reason");
+        MvcResult inbox = mvc.perform(get("/api/v1/candidate/notifications").session(candidate.session()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].message").value("Your application status changed to Not selected."))
+                .andReturn();
+        String notificationId = json.readTree(inbox.getResponse().getContentAsString()).path("items").get(0)
+                .path("id").asText();
+        mvc.perform(post("/api/v1/candidate/notifications/{id}/read", notificationId)
+                .session(outsider.session()).with(csrf())).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/candidate/notifications/{id}/read", notificationId)
+                .session(candidate.session()).with(csrf())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.read").value(true));
 
         String secondApplicationId = id(mvc.perform(post("/api/v1/candidate/applications")
                 .session(candidate.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON)

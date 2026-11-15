@@ -97,6 +97,7 @@ public class RecruiterService {
             default -> "Offer"; };
         jdbc.update("INSERT INTO application_events (id, application_id, actor_user_id, status, message) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, target, label);
+        notifyCandidate(applicationId, "Your application status changed to " + label + ".");
         audit.record(actor, organizationId, "application.stage_" + target.toLowerCase(), "application", applicationId);
         return detail(organizationId, jobId, applicationId);
     }
@@ -123,6 +124,8 @@ public class RecruiterService {
         jdbc.update("INSERT INTO application_events (id, application_id, actor_user_id, status, message) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, outcome,
                 "HIRED".equals(outcome) ? "Hired" : "Not selected");
+        notifyCandidate(applicationId, "Your application status changed to " +
+                ("HIRED".equals(outcome) ? "Hired" : "Not selected") + ".");
         audit.record(actor, organizationId, "application.decision_" + outcome.toLowerCase(), "application", applicationId);
         return detail(organizationId, jobId, applicationId);
     }
@@ -132,6 +135,13 @@ public class RecruiterService {
                 (rs, row) -> rs.getString("status"), applicationId, jobId);
         if (statuses.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found.");
         return statuses.getFirst();
+    }
+
+    private void notifyCandidate(UUID applicationId, String message) {
+        UUID recipient = jdbc.queryForObject("SELECT candidate_user_id FROM applications WHERE id = ?", UUID.class,
+                applicationId);
+        jdbc.update("INSERT INTO candidate_notifications (id, recipient_user_id, application_id, message) " +
+                "VALUES (?, ?, ?, ?)", UUID.randomUUID(), recipient, applicationId, message);
     }
 
     private Review reviewById(UUID id) {

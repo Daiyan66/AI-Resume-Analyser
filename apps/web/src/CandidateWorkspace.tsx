@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Account, type CandidateApplication, type CandidateProfile, type DataRequest,
+import { api, type Account, type CandidateApplication, type CandidateNotification, type CandidateProfile, type DataRequest,
   type Document, type Job, type Page } from './api'
 
 const emptyProfile: CandidateProfile = { headline: '', location: '', phone: '', summary: '', skills: '',
@@ -15,6 +15,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
   const [applicationPage, setApplicationPage] = useState(0)
   const [selectedApplication, setSelectedApplication] = useState<CandidateApplication | null>(null)
   const [requests, setRequests] = useState<DataRequest[]>([])
+  const [notifications, setNotifications] = useState<Page<CandidateNotification>>({ items: [], page: 0, size: 12, total: 0 })
   const [answers, setAnswers] = useState<Record<string, string>>({})
   const [documentId, setDocumentId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -30,9 +31,11 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
     if (!account) return
     void Promise.all([api<CandidateProfile>('/candidate/profile'),
       api<Page<CandidateApplication>>(`/candidate/applications?page=${applicationPage}&size=12`),
-      api<DataRequest[]>('/candidate/deletion-requests')])
-      .then(([nextProfile, nextApplications, nextRequests]) => {
+      api<DataRequest[]>('/candidate/deletion-requests'),
+      api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12')])
+      .then(([nextProfile, nextApplications, nextRequests, nextNotifications]) => {
         setProfile(nextProfile); setApplications(nextApplications); setRequests(nextRequests)
+        setNotifications(nextNotifications)
       }).catch((cause: unknown) => setError(message(cause)))
   }, [account, applicationPage])
 
@@ -86,10 +89,18 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
   function refreshApplications() {
     void run(async () => {
       setApplications(await api<Page<CandidateApplication>>(`/candidate/applications?page=${applicationPage}&size=12`))
+      setNotifications(await api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12'))
       if (selectedApplication) {
         setSelectedApplication(await api<CandidateApplication>(`/candidate/applications/${selectedApplication.id}`))
       }
       setNotice('Application statuses are up to date.')
+    })
+  }
+
+  function markNotificationRead(id: string) {
+    void run(async () => {
+      await api(`/candidate/notifications/${id}/read`, { method: 'POST' })
+      setNotifications(await api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12'))
     })
   }
 
@@ -104,6 +115,16 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
   return <div className="candidate-area">
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
+    {account && <section className="panel" aria-labelledby="notifications-heading">
+      <h2 id="notifications-heading">Updates</h2>
+      <p>Hiring status updates appear here. Choose Check for updates in My applications to refresh this list.</p>
+      {notifications.items.length === 0 ? <p>No updates yet.</p> : <ul className="list">
+        {notifications.items.map((item) => <li key={item.id}>
+          <span>{item.read ? '' : '● '}{item.message} · {new Date(item.createdAt).toLocaleString()}</span>
+          {!item.read && <button type="button" className="quiet" onClick={() => markNotificationRead(item.id)}>Mark read</button>}
+        </li>)}
+      </ul>}
+    </section>}
     <section className="panel" aria-labelledby="jobs-heading">
       <h2 id="jobs-heading">Find jobs</h2>
       <p>Published openings are visible to everyone. Your applications are private.</p>
