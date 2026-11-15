@@ -232,7 +232,10 @@ function App() {
               {mode === 'register' && <label>Display name<input name="displayName" maxLength={160} required autoComplete="name" /></label>}
               <label>Email<input name="email" type="email" required autoComplete="email" /></label>
               <label>Password<input name="password" type="password" minLength={mode === 'register' ? 12 : undefined}
-                required autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></label>
+                maxLength={mode === 'register' ? 128 : undefined} required
+                aria-describedby={mode === 'register' ? 'password-hint' : undefined}
+                autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
+                {mode === 'register' && <small id="password-hint">Use 12 to 128 characters.</small>}</label>
               <button type="submit" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
             </form>
             {mode === 'login' && <form onSubmit={resendVerification}>

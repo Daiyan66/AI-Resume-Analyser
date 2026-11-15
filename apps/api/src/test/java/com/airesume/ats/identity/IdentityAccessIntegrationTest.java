@@ -46,6 +46,15 @@ class IdentityAccessIntegrationTest {
     @MockitoBean JavaMailSender mail;
 
     @Test
+    void shortPasswordExplainsTheRequirement() throws Exception {
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", "short-" + UUID.randomUUID() + "@example.test",
+                        "displayName", "Test User", "password", "short"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Password must be 12 to 128 characters."));
+    }
+
+    @Test
     void emailFailureIsReportedAndRegistrationCanBeRetried() throws Exception {
         String email = "mail-failure-" + UUID.randomUUID() + "@example.test";
         doThrow(new MailSendException("SMTP unavailable")).when(mail).send(any(SimpleMailMessage.class));

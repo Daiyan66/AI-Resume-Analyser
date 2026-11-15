@@ -5,7 +5,7 @@ This phase adds the first working account flow in the new `apps/` application. I
 ## Try it on your PC
 
 1. Start Docker Desktop, then run `docker compose up --build` from the repository root.
-2. Open `http://localhost:5174`, choose **Create an account**, and enter your details.
+2. Open `http://localhost:5174`, choose **Create an account**, and enter your details. Passwords must be 12 to 128 characters; the form and API show this requirement.
 3. Open `http://localhost:8025` to see the local verification email. Click its link, then sign in.
    If Mailpit was restarted and the email is gone, use **Resend verification email** on the sign-in page. The database keeps accounts when the local Mailpit inbox is cleared.
 4. Create an organization. You become its Admin. Invite a second email as Recruiter or Admin.

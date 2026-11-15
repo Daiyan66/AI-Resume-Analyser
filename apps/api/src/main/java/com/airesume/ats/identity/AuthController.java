@@ -92,8 +92,12 @@ public class AuthController {
         return ResponseEntity.ok(identities.account(principal.id()));
     }
 
-    public record RegisterRequest(@NotBlank @Email String email, @NotBlank @Size(max = 160) String displayName,
-                                  @NotBlank @Size(min = 12, max = 128) String password) {}
+    public record RegisterRequest(
+            @NotBlank(message = "Email is required.") @Email(message = "Enter a valid email address.") String email,
+            @NotBlank(message = "Display name is required.")
+            @Size(max = 160, message = "Display name must be at most 160 characters.") String displayName,
+            @NotBlank(message = "Password is required.")
+            @Size(min = 12, max = 128, message = "Password must be 12 to 128 characters.") String password) {}
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     public record VerifyEmailRequest(@NotBlank String token) {}
     public record ResendVerificationRequest(@NotBlank @Email String email) {}
