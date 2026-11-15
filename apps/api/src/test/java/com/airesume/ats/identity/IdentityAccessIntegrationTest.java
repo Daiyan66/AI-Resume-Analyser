@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -66,6 +67,10 @@ class IdentityAccessIntegrationTest {
         mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
                 .andExpect(status().isCreated());
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("An account with this email already exists"));
         mvc.perform(post("/api/v1/auth/resend-verification").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("email", email)))).andExpect(status().isAccepted());
         ArgumentCaptor<SimpleMailMessage> emails = ArgumentCaptor.forClass(SimpleMailMessage.class);

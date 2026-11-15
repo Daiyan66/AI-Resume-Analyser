@@ -6,9 +6,16 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.mail.MailException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
-public class MailFailureHandler {
+public class ApiErrorHandler {
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> expectedFailure(ResponseStatusException exception) {
+        return ResponseEntity.status(exception.getStatusCode())
+                .body(Map.of("error", exception.getReason() == null ? "Request failed" : exception.getReason()));
+    }
+
     @ExceptionHandler(MailException.class)
     public ResponseEntity<Map<String, String>> mailUnavailable() {
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
