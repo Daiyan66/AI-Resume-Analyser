@@ -3,6 +3,20 @@ export type Organization = { organizationId: string; slug: string; name: string;
 export type Member = { id: string; email: string; displayName: string; role: string; status: string }
 export type Document = { id: string; filename: string; mediaType: string; byteSize: number; createdAt: string }
 export type AuditEvent = { id: string; action: string; targetType: string; createdAt: string }
+export type Page<T> = { items: T[]; page: number; size: number; total: number }
+export type JobQuestion = { id: string; prompt: string; required: boolean }
+export type Job = { id: string; organizationId: string; organizationName: string; title: string; location: string;
+  workType: 'REMOTE' | 'HYBRID' | 'ONSITE'; salaryMin: number | null; salaryMax: number | null;
+  currency: string | null; description: string; requirements: string; status: string;
+  publishedAt: string | null; questions: JobQuestion[] }
+export type CandidateProfile = { headline: string; location: string; phone: string; summary: string;
+  skills: string; experience: string; education: string }
+export type CandidateApplication = { id: string; jobId: string; jobTitle: string; organizationName: string;
+  status: 'SUBMITTED' | 'WITHDRAWN'; documentId: string | null;
+  profileSnapshot: { displayName: string; email: string; profile: CandidateProfile };
+  answers: Record<string, { prompt: string; answer: string }>; submittedAt: string;
+  events: { id: string; status: string; message: string; createdAt: string }[] }
+export type DataRequest = { id: string; status: string; createdAt: string }
 
 async function csrfToken(): Promise<string> {
   const response = await fetch('/api/v1/auth/csrf', { credentials: 'same-origin', cache: 'no-store' })
