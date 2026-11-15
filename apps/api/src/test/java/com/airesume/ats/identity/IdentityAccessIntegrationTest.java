@@ -5,6 +5,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -57,6 +58,29 @@ class IdentityAccessIntegrationTest {
         mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
                 .andExpect(status().isCreated());
+    }
+
+    @Test
+    void verificationEmailCanBeResentAfterInboxIsCleared() throws Exception {
+        String email = "resend-" + UUID.randomUUID() + "@example.test";
+        mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))
+                .andExpect(status().isCreated());
+        mvc.perform(post("/api/v1/auth/resend-verification").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email)))).andExpect(status().isAccepted());
+        ArgumentCaptor<SimpleMailMessage> emails = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mail, times(2)).send(emails.capture());
+        String oldToken = emails.getAllValues().get(0).getText().split("/\\?verify=")[1].split("\\s")[0];
+        String newToken = emails.getAllValues().get(1).getText().split("/\\?verify=")[1].split("\\s")[0];
+        mvc.perform(post("/api/v1/auth/verify-email").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("token", oldToken)))).andExpect(status().isGone());
+        mvc.perform(post("/api/v1/auth/verify-email").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("token", newToken)))).andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/auth/resend-verification").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email)))).andExpect(status().isAccepted());
+        mvc.perform(post("/api/v1/auth/resend-verification").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", "missing@example.test")))).andExpect(status().isAccepted());
+        verify(mail, times(2)).send(any(SimpleMailMessage.class));
     }
 
     @Test

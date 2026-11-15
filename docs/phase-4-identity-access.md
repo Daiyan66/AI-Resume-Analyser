@@ -7,6 +7,7 @@ This phase adds the first working account flow in the new `apps/` application. I
 1. Start Docker Desktop, then run `docker compose up --build` from the repository root.
 2. Open `http://localhost:5174`, choose **Create an account**, and enter your details.
 3. Open `http://localhost:8025` to see the local verification email. Click its link, then sign in.
+   If Mailpit was restarted and the email is gone, use **Resend verification email** on the sign-in page. The database keeps accounts when the local Mailpit inbox is cleared.
 4. Create an organization. You become its Admin. Invite a second email as Recruiter or Admin.
 5. Register and verify that second email in a separate browser profile, then open the invitation link in Mailpit and accept it.
 6. Upload a PDF, DOCX, or TXT file under 10 MB in **Your private documents**. Only that account can list or download it.
@@ -26,7 +27,7 @@ These are foundation permissions. Jobs, applications, candidate profiles, review
 ## Access design
 
 - Passwords use BCrypt hashes. Sign in uses an HTTP only, SameSite=Lax session cookie. State changing requests require a CSRF token.
-- Email verification and invitation links have random, single use tokens stored as SHA-256 hashes. Verification expires after 24 hours; invitations expire after 7 days.
+- Email verification and invitation links have random, single use tokens stored as SHA-256 hashes. Verification expires after 24 hours; invitations expire after 7 days. Sending a new verification email invalidates previous links.
 - Each organization request checks active membership in PostgreSQL. Admin actions require an active Admin membership. Revoking a membership takes effect on the next request.
 - Documents are kept outside the public web directory in a private container volume. Downloads check the owner in PostgreSQL and are served as attachments. The API records account, membership, and document access events.
 - Flyway migrations `V2` and `V3` add identity, membership, invitation, document, audit, and email verification tables.

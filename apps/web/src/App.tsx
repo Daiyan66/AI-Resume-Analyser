@@ -22,6 +22,7 @@ function App() {
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [resendEmail, setResendEmail] = useState('')
   const [inviteToken, setInviteToken] = useState(new URLSearchParams(window.location.search).get('token'))
   const [verifyToken, setVerifyToken] = useState(new URLSearchParams(window.location.search).get('verify'))
   const [busy, setBusy] = useState(false)
@@ -92,6 +93,7 @@ function App() {
     void run(async () => {
       if (mode === 'register') {
         await api<Account>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) })
+        setResendEmail(email)
         setMode('login')
         setNotice('Account created. Open the verification email in Mailpit at localhost:8025, then sign in.')
         return
@@ -99,6 +101,14 @@ function App() {
       const signedIn = await api<Account>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       setAccount(signedIn)
       setNotice(`Signed in as ${signedIn.displayName}`)
+    })
+  }
+
+  function resendVerification(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    void run(async () => {
+      await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: resendEmail }) })
+      setNotice('If this account is waiting for verification, a new email was sent. Check Mailpit at localhost:8025.')
     })
   }
 
@@ -225,6 +235,12 @@ function App() {
                 required autoComplete={mode === 'register' ? 'new-password' : 'current-password'} /></label>
               <button type="submit" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
             </form>
+            {mode === 'login' && <form onSubmit={resendVerification}>
+              <h3>Need a new verification email?</h3>
+              <label>Account email<input type="email" required value={resendEmail}
+                onChange={(event) => setResendEmail(event.target.value)} /></label>
+              <button type="submit" className="quiet" disabled={busy}>Resend verification email</button>
+            </form>}
           </section>
         ) : (
           <div className="workspace">

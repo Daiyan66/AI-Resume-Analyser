@@ -54,6 +54,12 @@ public class AuthController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/auth/resend-verification")
+    public ResponseEntity<Void> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        identities.resendVerification(request.email());
+        return ResponseEntity.accepted().build();
+    }
+
     @PostMapping("/auth/login")
     public IdentityService.Account login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest,
                                          HttpServletResponse servletResponse) {
@@ -90,4 +96,5 @@ public class AuthController {
                                   @NotBlank @Size(min = 12, max = 128) String password) {}
     public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {}
     public record VerifyEmailRequest(@NotBlank String token) {}
+    public record ResendVerificationRequest(@NotBlank @Email String email) {}
 }

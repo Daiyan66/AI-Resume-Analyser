@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers("/api/v1/system/status", "/api/v1/auth/csrf", "/api/v1/auth/session",
                                 "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/verify-email",
+                                "/api/v1/auth/resend-verification",
                                 "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors

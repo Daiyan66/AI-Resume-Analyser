@@ -67,18 +67,35 @@ public class IdentityService implements UserDetailsService {
         } catch (DuplicateKeyException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with this email already exists");
         }
+        sendVerificationEmail(id, normalizeEmail(email));
+        audit.record(id, null, "account.register", "user", id);
+        return account(id);
+    }
+
+    @Transactional
+    public void resendVerification(String email) {
+        String normalized = normalizeEmail(email);
+        List<UUID> ids = jdbc.query("SELECT id FROM users WHERE lower(email) = ? AND email_verified_at IS NULL FOR UPDATE",
+                (rs, row) -> rs.getObject("id", UUID.class), normalized);
+        if (ids.isEmpty()) return;
+        UUID id = ids.getFirst();
+        jdbc.update("UPDATE email_verification_tokens SET used_at = CURRENT_TIMESTAMP " +
+                "WHERE user_id = ? AND used_at IS NULL", id);
+        sendVerificationEmail(id, normalized);
+        audit.record(id, null, "account.resend_verification", "user", id);
+    }
+
+    private void sendVerificationEmail(UUID id, String email) {
         String token = TokenCodec.newToken();
         jdbc.update("INSERT INTO email_verification_tokens (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)",
                 UUID.randomUUID(), id, TokenCodec.hash(token), Timestamp.from(Instant.now().plus(24, ChronoUnit.HOURS)));
         SimpleMailMessage message = new SimpleMailMessage();
         message.setFrom(mailFrom);
-        message.setTo(normalizeEmail(email));
+        message.setTo(email);
         message.setSubject("Verify your AI Resume Analyser email");
         message.setText("Open this link to verify your account:\n" + publicUrl + "/?verify=" + token +
                 "\n\nThis link expires in 24 hours.");
         mail.send(message);
-        audit.record(id, null, "account.register", "user", id);
-        return account(id);
     }
 
     @Transactional
