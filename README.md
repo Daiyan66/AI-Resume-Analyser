@@ -1,6 +1,6 @@
 # AI Resume Analyser
 
-This repository contains the legacy applicant tracking system and a new application being built beside it. The new application lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 5 candidate guide](docs/phase-5-candidate-flow.md), [Phase 4 identity guide](docs/phase-4-identity-access.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
+This repository contains the legacy applicant tracking system and a new application being built beside it. The new application lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 6 recruiter guide](docs/phase-6-recruiter-workflow.md), [Phase 5 candidate guide](docs/phase-5-candidate-flow.md), [Phase 4 identity guide](docs/phase-4-identity-access.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
 
 ## Repository layout
 
@@ -15,7 +15,7 @@ This repository contains the legacy applicant tracking system and a new applicat
 
 ## Run the new application
 
-With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174) to register, verify your email, and sign in. Local emails appear in [Mailpit at localhost:8025](http://localhost:8025); no email leaves your PC. Organization members can publish a starter job; candidates can create a profile, apply, track status, withdraw, and request a data export or deletion review. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. See the [Phase 5 guide](docs/phase-5-candidate-flow.md) for a test walkthrough.
+With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174) to register, verify your email, and sign in. Local emails appear in [Mailpit at localhost:8025](http://localhost:8025); no email leaves your PC. Organization members can publish jobs, review applicants, move hiring stages, and record decisions. Candidates can create a profile, apply, track status, withdraw, and request a data export or deletion review. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. See the [Phase 6 guide](docs/phase-6-recruiter-workflow.md) for a test walkthrough.
 
 ## Run the legacy application locally
 

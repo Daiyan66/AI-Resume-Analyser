@@ -13,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -51,7 +52,28 @@ public class JobController {
         return jobs.publish(organizationId, jobId);
     }
 
+    @GetMapping("/organizations/{organizationId}/jobs/{jobId}")
+    public JobService.Job privateJob(@PathVariable UUID organizationId, @PathVariable UUID jobId) {
+        return jobs.privateJob(organizationId, jobId);
+    }
+
+    @PutMapping("/organizations/{organizationId}/jobs/{jobId}")
+    public JobService.Job updateDraft(@PathVariable UUID organizationId, @PathVariable UUID jobId,
+                                      @Valid @RequestBody CreateJob request) {
+        return jobs.updateDraft(organizationId, jobId, request);
+    }
+
+    @PostMapping("/organizations/{organizationId}/jobs/{jobId}/status")
+    public JobService.Job changeStatus(@PathVariable UUID organizationId, @PathVariable UUID jobId,
+                                       @Valid @RequestBody JobStatusRequest request) {
+        return jobs.changeStatus(organizationId, jobId, request.status());
+    }
+
     public record QuestionInput(@NotBlank @Size(max = 500) String prompt, boolean required) {}
+    public record CriterionInput(@NotBlank @Size(max = 500) String description,
+                                 @NotBlank @Pattern(regexp = "REQUIRED|PREFERRED") String importance,
+                                 @Size(max = 1000) String guidance) {}
+    public record JobStatusRequest(@NotBlank @Pattern(regexp = "PUBLISHED|PAUSED|CLOSED") String status) {}
     public record CreateJob(@NotBlank @Size(max = 160) String title,
                             @NotBlank @Size(max = 160) String location,
                             @NotBlank @Pattern(regexp = "REMOTE|HYBRID|ONSITE") String workType,
@@ -59,7 +81,11 @@ public class JobController {
                             @Pattern(regexp = "[A-Z]{3}") String currency,
                             @NotBlank @Size(max = 20000) String description,
                             @NotBlank @Size(max = 10000) String requirements,
-                            @Size(max = 10) List<@Valid QuestionInput> questions) {
-        public CreateJob { if (questions == null) questions = List.of(); }
+                            @Size(max = 10) List<@Valid QuestionInput> questions,
+                            @Size(max = 20) List<@Valid CriterionInput> criteria) {
+        public CreateJob {
+            if (questions == null) questions = List.of();
+            if (criteria == null) criteria = List.of();
+        }
     }
 }
