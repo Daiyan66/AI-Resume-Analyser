@@ -29,6 +29,7 @@ export type CandidateApplication = { id: string; jobId: string; jobTitle: string
   answers: Record<string, { prompt: string; answer: string }>; submittedAt: string;
   events: { id: string; status: string; message: string; createdAt: string }[] }
 export type DataRequest = { id: string; status: string; createdAt: string }
+export type CandidateNotification = { id: string; applicationId: string; message: string; createdAt: string; read: boolean }
 
 async function csrfToken(): Promise<string> {
   const response = await fetch('/api/v1/auth/csrf', { credentials: 'same-origin', cache: 'no-store' })
