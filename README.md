@@ -1,6 +1,6 @@
 # AI Resume Analyser
 
-This repository contains the legacy applicant tracking system and a new application being built beside it. The new application lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 7 admin guide](docs/phase-7-admin-workspace.md), [Phase 6 recruiter guide](docs/phase-6-recruiter-workflow.md), [Phase 5 candidate guide](docs/phase-5-candidate-flow.md), [Phase 4 identity guide](docs/phase-4-identity-access.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
+This repository contains the legacy applicant tracking system and a new application being built beside it. The new application lives in `apps/`. See the [Phase 2 product definition](docs/product-definition.md), [Phase 8 AI drafting guide](docs/phase-8-ai-assistance.md), [Phase 7 admin guide](docs/phase-7-admin-workspace.md), [Phase 6 recruiter guide](docs/phase-6-recruiter-workflow.md), [Phase 5 candidate guide](docs/phase-5-candidate-flow.md), [Phase 4 identity guide](docs/phase-4-identity-access.md), [Phase 3 foundation guide](docs/phase-3-foundation.md), and [legacy inventory](docs/current-state.md).
 
 ## Repository layout
 

@@ -26,6 +26,8 @@ services:
       APP_PUBLIC_URL: http://localhost:5174
       MAIL_FROM: ats@example.test
       DOCUMENT_DIR: /data/documents
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-}
       SESSION_COOKIE_SECURE: "false"
     ports:
       - "127.0.0.1:8081:8080"
