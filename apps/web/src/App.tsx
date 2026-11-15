@@ -1,10 +1,17 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Account, type AuditEvent, type Document, type Member, type Organization } from './api'
+import { api, type Account, type AuditEvent, type Document, type Member, type Organization,
+  type OrganizationPolicy } from './api'
 import { CandidateWorkspace } from './CandidateWorkspace'
 import { JobPublisher } from './JobPublisher'
 import './App.css'
 
 type ApiStatus = 'checking' | 'ready' | 'unavailable'
+type View = 'home' | 'candidate' | 'recruiter' | 'admin' | 'documents'
+
+function currentView(): View {
+  const value = window.location.hash.slice(1)
+  return ['home', 'candidate', 'recruiter', 'admin', 'documents'].includes(value) ? value as View : 'home'
+}
 
 async function getApiStatus(): Promise<ApiStatus> {
   try {
@@ -17,11 +24,13 @@ async function getApiStatus(): Promise<ApiStatus> {
 
 function App() {
   const [status, setStatus] = useState<ApiStatus>('checking')
+  const [view, setView] = useState<View>(currentView)
   const [account, setAccount] = useState<Account | null>(null)
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [members, setMembers] = useState<Member[]>([])
   const [audit, setAudit] = useState<AuditEvent[]>([])
+  const [policy, setPolicy] = useState<OrganizationPolicy | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [jobsVersion, setJobsVersion] = useState(0)
   const [mode, setMode] = useState<'login' | 'register'>('login')
@@ -33,6 +42,12 @@ function App() {
   const [notice, setNotice] = useState('')
 
   const selectedOrg = organizations.find((org) => org.organizationId === selectedOrgId)
+
+  useEffect(() => {
+    const updateView = () => setView(currentView())
+    window.addEventListener('hashchange', updateView)
+    return () => window.removeEventListener('hashchange', updateView)
+  }, [])
 
   useEffect(() => {
     void getApiStatus().then(setStatus)
@@ -68,9 +83,11 @@ function App() {
     void Promise.all([
       api<Member[]>(`/organizations/${selectedOrgId}/members`),
       api<AuditEvent[]>(`/organizations/${selectedOrgId}/audit`),
-    ]).then(([nextMembers, nextAudit]) => {
+      api<OrganizationPolicy>(`/organizations/${selectedOrgId}/policy`),
+    ]).then(([nextMembers, nextAudit, nextPolicy]) => {
       setMembers(nextMembers)
       setAudit(nextAudit)
+      setPolicy(nextPolicy)
     }).catch((cause: unknown) => setError(message(cause)))
   }, [selectedOrgId, selectedOrg?.role])
 
@@ -183,6 +200,19 @@ function App() {
     })
   }
 
+  function savePolicy(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!selectedOrg) return
+    const fields = new FormData(event.currentTarget)
+    void run(async () => {
+      setPolicy(await api<OrganizationPolicy>(`/organizations/${selectedOrg.organizationId}/policy`, {
+        method: 'PUT', body: JSON.stringify({ reapplyCooldownDays: Number(fields.get('reapplyCooldownDays')),
+          retentionDays: Number(fields.get('retentionDays')), aiEnabled: fields.get('aiEnabled') === 'on' }),
+      }))
+      setNotice('Organization policy saved. The reapplication rule takes effect now.')
+    })
+  }
+
   function signOut() {
     void run(async () => {
       await api('/auth/logout', { method: 'POST' })
@@ -199,12 +229,21 @@ function App() {
     <main className="page">
       <div className="shell">
         <header className="topbar">
-          <span className="eyebrow">AI Resume Analyser · rebuild</span>
+          <span className="eyebrow">AI Resume Analyser</span>
           {account && <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out</button>}
         </header>
-        <h1>A clearer hiring experience starts here.</h1>
-        <p className="intro">Explore published jobs, build a candidate profile, apply, and track your status.
-          Organization members can publish a starter job for testing.</p>
+        <nav className="main-nav" aria-label="Main navigation">
+          {([['home', 'Overview'], ['candidate', 'Find jobs & applications'],
+            ...(selectedOrg ? [['recruiter', 'Recruiter workspace']] : []),
+            ...(selectedOrg?.role === 'ADMIN' ? [['admin', 'Admin workspace']] : []),
+            ...(account ? [['documents', 'My documents']] : [])] as [View, string][]).map(([target, label]) =>
+            <a key={target} href={`#${target}`} aria-current={view === target ? 'page' : undefined}>{label}</a>)}
+        </nav>
+        {view === 'home' && <><h1>A clearer hiring experience starts here.</h1>
+          <p className="intro">Find jobs, apply, and track progress. Hiring teams have their own workspace for reviewing applications.</p></>}
+        {view !== 'home' && <h1>{({ candidate: 'Find jobs & applications', recruiter: 'Recruiter workspace',
+          admin: 'Admin workspace', documents: 'My documents' } as Record<string, string>)[view]}</h1>}
+        {view === 'home' &&
         <section className="status-card" aria-labelledby="status-heading">
           <div>
             <h2 id="status-heading">System connection</h2>
@@ -216,7 +255,7 @@ function App() {
           </div>
           <button type="button" onClick={() => { setStatus('checking'); void getApiStatus().then(setStatus) }}
             disabled={status === 'checking'}>Check again</button>
-        </section>
+        </section>}
 
         {error && <p className="alert error" role="alert">{error}</p>}
         {notice && <p className="alert success" role="status">{notice}</p>}
@@ -250,6 +289,7 @@ function App() {
           </section>
         ) : (
           <div className="workspace">
+            {view === 'home' &&
             <section className="panel" aria-labelledby="account-heading">
               <div className="section-heading"><h2 id="account-heading">Welcome, {account.displayName}</h2><span>{account.email}</span></div>
               {inviteToken && <div className="invite-banner">
@@ -270,10 +310,22 @@ function App() {
                 <label>URL slug<input name="slug" placeholder="example-hiring-team" pattern="[a-z0-9]+(-[a-z0-9]+)*" required maxLength={80} /></label>
                 <button type="submit" disabled={busy}>Create organization</button>
               </form>
-            </section>
+            </section>}
 
-            {selectedOrg?.role === 'ADMIN' && <section className="panel" aria-labelledby="members-heading">
+            {view === 'admin' && selectedOrg?.role === 'ADMIN' && <section className="panel" aria-labelledby="members-heading">
               <h2 id="members-heading">Manage {selectedOrg.name}</h2>
+              {policy && <form key={selectedOrg.organizationId} onSubmit={savePolicy}>
+                <h3>Organization policy</h3>
+                <div className="field-grid">
+                  <label>Days before a candidate can reapply to the same job<input name="reapplyCooldownDays"
+                    type="number" min="0" max="365" required defaultValue={policy.reapplyCooldownDays} /></label>
+                  <label>Retention review period (days)<input name="retentionDays" type="number" min="30" max="3650"
+                    required defaultValue={policy.retentionDays} /></label>
+                </div>
+                <label><input name="aiEnabled" type="checkbox" defaultChecked={policy.aiEnabled} /> Allow AI assistance for this organization</label>
+                <p>The retention period is a policy record. Deletion requests still require human review; data is never erased automatically.</p>
+                <button type="submit" disabled={busy}>Save policy</button>
+              </form>}
               <form className="inline-form" onSubmit={inviteMember}>
                 <label>Invite email<input name="email" type="email" required /></label>
                 <label>Role<select name="role"><option value="RECRUITER">Recruiter</option><option value="ADMIN">Admin</option></select></label>
@@ -291,7 +343,7 @@ function App() {
               </li>)}</ul>
             </section>}
 
-            <section className="panel" aria-labelledby="documents-heading">
+            {view === 'documents' && <section className="panel" aria-labelledby="documents-heading">
               <h2 id="documents-heading">Your private documents</h2>
               <p>Documents here belong to your account. Organization members cannot download them from this page.</p>
               <form className="inline-form" onSubmit={uploadDocument}>
@@ -302,14 +354,13 @@ function App() {
                 <span>{document.filename} · {(document.byteSize / 1024).toFixed(1)} KB</span>
                 <a href={`/api/v1/documents/${document.id}`}>Download</a>
               </li>)}</ul>
-            </section>
+            </section>}
           </div>
         )}
-        {selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
+        {view === 'recruiter' && selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
           onPublished={() => setJobsVersion((current) => current + 1)} />}
-        <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
-          onSignIn={() => document.getElementById('account-heading')?.scrollIntoView({ behavior: 'smooth' })} />
-        <p className="note">The legacy application remains in its original folders during the rebuild.</p>
+        {view === 'candidate' && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
+          onSignIn={() => { window.location.hash = 'home' }} />}
       </div>
     </main>
   )

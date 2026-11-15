@@ -1,5 +1,6 @@
 export type Account = { id: string; email: string; displayName: string; emailVerified: boolean }
 export type Organization = { organizationId: string; slug: string; name: string; role: 'ADMIN' | 'RECRUITER' }
+export type OrganizationPolicy = { reapplyCooldownDays: number; retentionDays: number; aiEnabled: boolean }
 export type Member = { id: string; email: string; displayName: string; role: string; status: string }
 export type Document = { id: string; filename: string; mediaType: string; byteSize: number; createdAt: string }
 export type AuditEvent = { id: string; action: string; targetType: string; createdAt: string }

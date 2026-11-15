@@ -72,6 +72,19 @@ public class CandidateService {
         if (jobStatuses.isEmpty() || !"PUBLISHED".equals(jobStatuses.getFirst())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "This job is no longer accepting applications.");
         }
+        Integer cooldown = jdbc.queryForObject("SELECT reapply_cooldown_days FROM organization_policies " +
+                "WHERE organization_id = ?", Integer.class, job.organizationId());
+        if (cooldown != null && cooldown > 0) {
+            Integer recentClosure = jdbc.queryForObject("SELECT count(*) FROM applications a JOIN application_events e " +
+                    "ON e.application_id = a.id WHERE a.job_id = ? AND a.candidate_user_id = ? " +
+                    "AND e.status IN ('HIRED', 'NOT_SELECTED', 'WITHDRAWN') " +
+                    "AND e.created_at > CURRENT_TIMESTAMP - (? * INTERVAL '1 day')", Integer.class,
+                    jobId, candidateId, cooldown);
+            if (recentClosure != null && recentClosure > 0) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "This organization requires " + cooldown + " days before reapplying to this job.");
+            }
+        }
         if (documentId != null) {
             Integer count = jdbc.queryForObject("SELECT count(*) FROM documents WHERE id = ? AND owner_user_id = ?",
                     Integer.class, documentId, candidateId);
