@@ -60,7 +60,7 @@ function App() {
     void api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token: verifyToken }) })
       .then(() => {
         setVerifyToken(null)
-        window.history.replaceState({}, '', '/')
+        window.history.replaceState({}, '', '/connected')
         setNotice('Email verified. You can sign in now.')
       })
       .catch((cause: unknown) => setError(message(cause)))
@@ -171,7 +171,7 @@ function App() {
         method: 'POST', body: JSON.stringify({ token: inviteToken }),
       })
       setInviteToken(null)
-      window.history.replaceState({}, '', '/')
+      window.history.replaceState({}, '', '/connected')
       setOrganizations((current) => [...current.filter((org) => org.organizationId !== joined.organizationId), joined])
       setSelectedOrgId(joined.organizationId)
       setNotice(`You joined ${joined.name} as ${joined.role}.`)

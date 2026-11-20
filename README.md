@@ -13,9 +13,13 @@ This repository contains the legacy applicant tracking system and a new applicat
 | `AI Resume Analyser Frontend/` | React 18 / Vite interface |
 | `docs/` | Product definition, implementation guides, and legacy inventory |
 
+## Review the platform frontend
+
+The main web address opens the React preview with fictional data and separate public, candidate, recruiter, and admin screens. Use the [frontend preview guide](docs/frontend-preview.md) for startup and a review checklist. When running Docker Compose, the previous API-connected interface remains at [localhost:5174/connected](http://localhost:5174/connected).
+
 ## Run the new application
 
-With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174](http://localhost:5174) to register, verify your email, and sign in. Local emails appear in [Mailpit at localhost:8025](http://localhost:8025); no email leaves your PC. Organization members can publish jobs, review applicants, move hiring stages, and record decisions. Candidates can create a profile, apply, track status, withdraw, and request a data export or deletion review. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. See the [Phase 6 guide](docs/phase-6-recruiter-workflow.md) for a test walkthrough.
+With Docker Desktop running, use `docker compose up --build` from the repository root. Open [http://localhost:5174/connected](http://localhost:5174/connected) to register, verify your email, and sign in. Local emails appear in [Mailpit at localhost:8025](http://localhost:8025); no email leaves your PC. Organization members can publish jobs, review applicants, move hiring stages, and record decisions. Candidates can create a profile, apply, track status, withdraw, and request a data export or deletion review. The API status endpoint is [http://localhost:8081/api/v1/system/status](http://localhost:8081/api/v1/system/status). Local database credentials in `compose.yaml` are for this test environment only. See the [Phase 6 guide](docs/phase-6-recruiter-workflow.md) for a test walkthrough.
 
 ## Run the legacy application locally
 

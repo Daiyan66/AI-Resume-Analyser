@@ -1,0 +1,2108 @@
+[
+  {
+    "id": "home",
+    "title": "Platform home",
+    "desc": "For candidates, recruiters and administrators",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "Find roles and follow applications",
+      "Post openings and review evidence",
+      "Manage organization access"
+    ],
+    "actions": [
+      {
+        "name": "Find jobs",
+        "to": "jobs"
+      },
+      {
+        "name": "Sign in",
+        "to": "login"
+      },
+      {
+        "name": "Create account",
+        "to": "register"
+      },
+      {
+        "name": "Request recruiter access",
+        "to": "access"
+      },
+      {
+        "name": "How it works",
+        "to": "how"
+      },
+      {
+        "name": "Privacy",
+        "to": "privacy"
+      },
+      {
+        "name": "Help",
+        "to": "help"
+      },
+      {
+        "name": "Open Gena",
+        "to": "assistant"
+      }
+    ]
+  },
+  {
+    "id": "how",
+    "title": "How it works",
+    "desc": "Public product tour",
+    "area": "Public",
+    "status": "Proposed",
+    "fields": [
+      "Candidate journey",
+      "Recruiter workflow",
+      "Human hiring decisions"
+    ],
+    "actions": [
+      {
+        "name": "Find jobs",
+        "to": "jobs"
+      },
+      {
+        "name": "Request access",
+        "to": "access"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "jobs",
+    "title": "Public job board",
+    "desc": "Browse published openings",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "?Search role or skill",
+      "?Location",
+      "?Work arrangement",
+      "#Software Engineer / Remote",
+      "#Product Designer / Hybrid"
+    ],
+    "actions": [
+      {
+        "name": "Search & filter",
+        "to": null
+      },
+      {
+        "name": "Clear filters",
+        "to": null
+      },
+      {
+        "name": "View job",
+        "to": "job"
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "job",
+    "title": "Public job detail",
+    "desc": "Review the role before applying",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "#Organization / Location / Salary / Work arrangement",
+      "Role description",
+      "Required and preferred criteria",
+      "Screening questions and hiring process"
+    ],
+    "actions": [
+      {
+        "name": "Apply",
+        "to": "apply"
+      },
+      {
+        "name": "Open Gena",
+        "to": "assistant"
+      },
+      {
+        "name": "Sign in to apply",
+        "to": "login"
+      },
+      {
+        "name": "Back to jobs",
+        "to": "jobs"
+      }
+    ]
+  },
+  {
+    "id": "login",
+    "title": "Sign in",
+    "desc": "Route users to their authorized workspace",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "?Email or legacy username",
+      "?Password",
+      "Invalid credentials or unverified email shown inline"
+    ],
+    "actions": [
+      {
+        "name": "Sign in as candidate",
+        "to": "cdash"
+      },
+      {
+        "name": "Sign in as recruiter",
+        "to": "rdash"
+      },
+      {
+        "name": "Sign in as admin",
+        "to": "adash"
+      },
+      {
+        "name": "Create account",
+        "to": "register"
+      },
+      {
+        "name": "Forgot password",
+        "to": "forgot"
+      },
+      {
+        "name": "Resend verification",
+        "to": "verify"
+      },
+      {
+        "name": "Request access",
+        "to": "access"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "register",
+    "title": "Create an account",
+    "desc": "Candidate identity and verification",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "?Display name",
+      "?Email",
+      "?Password (12–128 characters)",
+      "?Confirm password"
+    ],
+    "actions": [
+      {
+        "name": "Create account",
+        "to": "verify"
+      },
+      {
+        "name": "Extended profile setup",
+        "to": "profilelegacy"
+      },
+      {
+        "name": "Sign in",
+        "to": "login"
+      },
+      {
+        "name": "Recruiter access",
+        "to": "access"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "verify",
+    "title": "Verify email",
+    "desc": "Confirm your account and continue",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "#Check your inbox",
+      "Expired or used link state",
+      "?Account email"
+    ],
+    "actions": [
+      {
+        "name": "Open verification link",
+        "to": null
+      },
+      {
+        "name": "Resend verification email",
+        "to": null
+      },
+      {
+        "name": "Continue to sign in",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "forgot",
+    "title": "Forgot password",
+    "desc": "Request a reset email",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "?Registered email",
+      "#If the account exists, check your inbox"
+    ],
+    "actions": [
+      {
+        "name": "Send reset link",
+        "to": null
+      },
+      {
+        "name": "Open reset link",
+        "to": "reset"
+      },
+      {
+        "name": "Back to sign in",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "reset",
+    "title": "Reset password",
+    "desc": "Set a replacement password",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "?New password",
+      "?Confirm new password",
+      "Invalid or expired reset link"
+    ],
+    "actions": [
+      {
+        "name": "Save new password",
+        "to": "login"
+      },
+      {
+        "name": "Request new link",
+        "to": "forgot"
+      },
+      {
+        "name": "Cancel",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "access",
+    "title": "Request recruiter access",
+    "desc": "Corporate verification request",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "?Full name",
+      "?Work email",
+      "?Company / organization",
+      "#Invitation dispatched with token and OTP"
+    ],
+    "actions": [
+      {
+        "name": "Send verification link & OTP",
+        "to": null
+      },
+      {
+        "name": "Continue onboarding",
+        "to": "otp"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "otp",
+    "title": "Recruiter onboarding · Verify",
+    "desc": "Invitation, OTP, and corporate document",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "?Invitation token",
+      "?6-digit code",
+      "?Corporate verification document",
+      "Invalid token or OTP state"
+    ],
+    "actions": [
+      {
+        "name": "Verify code",
+        "to": null
+      },
+      {
+        "name": "Upload / change document",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": "company"
+      },
+      {
+        "name": "Request access",
+        "to": "access"
+      }
+    ]
+  },
+  {
+    "id": "company",
+    "title": "Recruiter onboarding · Company",
+    "desc": "Recruiter and organization details",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "?Company name",
+      "?Company website",
+      "?Designation",
+      "?Phone",
+      "?Hiring disciplines"
+    ],
+    "actions": [
+      {
+        "name": "Previous",
+        "to": "otp"
+      },
+      {
+        "name": "Review & submit",
+        "to": "onreview"
+      }
+    ]
+  },
+  {
+    "id": "onreview",
+    "title": "Recruiter onboarding · Review",
+    "desc": "Check verification data before submission",
+    "area": "Public",
+    "status": "Legacy flow",
+    "fields": [
+      "#Verified email and company",
+      "#Corporate document and contact details",
+      "#Pending / under review / approved"
+    ],
+    "actions": [
+      {
+        "name": "Edit details",
+        "to": "company"
+      },
+      {
+        "name": "Submit for approval",
+        "to": null
+      },
+      {
+        "name": "Return home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "invite",
+    "title": "Accept organization invitation",
+    "desc": "Join using the invited email",
+    "area": "Public",
+    "status": "Built or adapted",
+    "fields": [
+      "#Organization and role",
+      "#Invited email",
+      "Expired, mismatched or already used invitation"
+    ],
+    "actions": [
+      {
+        "name": "Sign in to accept",
+        "to": "login"
+      },
+      {
+        "name": "Accept invitation",
+        "to": "rdash"
+      },
+      {
+        "name": "Switch account",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "privacy",
+    "title": "Privacy policy",
+    "desc": "Data and AI use",
+    "area": "Public",
+    "status": "Proposed",
+    "fields": [
+      "What is collected",
+      "Who can see application information",
+      "Retention and access rights",
+      "AI provider disclosure"
+    ],
+    "actions": [
+      {
+        "name": "Back home",
+        "to": "home"
+      },
+      {
+        "name": "Candidate data controls",
+        "to": "data"
+      },
+      {
+        "name": "Contact help",
+        "to": "help"
+      }
+    ]
+  },
+  {
+    "id": "help",
+    "title": "Help centre",
+    "desc": "Support and common questions",
+    "area": "Public",
+    "status": "Proposed",
+    "fields": [
+      "#Accounts and verification",
+      "#Applications and recruiter access",
+      "?Support message"
+    ],
+    "actions": [
+      {
+        "name": "Send request",
+        "to": null
+      },
+      {
+        "name": "Reset password",
+        "to": "forgot"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  },
+  {
+    "id": "cdash",
+    "title": "Candidate dashboard",
+    "desc": "Recommended roles, recent applications and next actions",
+    "area": "Candidate",
+    "status": "Proposed",
+    "fields": [
+      "#Profile completion / Applications / Unread updates",
+      "#Suggested openings and latest status",
+      "AI assistance and recommendations preference"
+    ],
+    "actions": [
+      {
+        "name": "Complete profile",
+        "to": "profile"
+      },
+      {
+        "name": "Explore openings",
+        "to": "jobs"
+      },
+      {
+        "name": "View all applications",
+        "to": "apps"
+      },
+      {
+        "name": "Open updates",
+        "to": "updates"
+      },
+      {
+        "name": "Coaching report",
+        "to": "coaching"
+      },
+      {
+        "name": "Your data",
+        "to": "data"
+      },
+      {
+        "name": "Account settings",
+        "to": "account"
+      }
+    ]
+  },
+  {
+    "id": "profile",
+    "title": "Candidate profile",
+    "desc": "Keep reusable information up to date",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "?Display name (account)",
+      "?Headline and summary",
+      "?Phone and location",
+      "?Skills and experience",
+      "?Education",
+      "?Portfolio / GitHub / LinkedIn",
+      "?Job recommendations preference"
+    ],
+    "actions": [
+      {
+        "name": "Save profile",
+        "to": null
+      },
+      {
+        "name": "Manage documents",
+        "to": "docs"
+      },
+      {
+        "name": "Back to dashboard",
+        "to": "cdash"
+      }
+    ]
+  },
+  {
+    "id": "profilelegacy",
+    "title": "Registration · Extended profile",
+    "desc": "Legacy candidate onboarding details",
+    "area": "Candidate",
+    "status": "Legacy flow",
+    "fields": [
+      "?Highest degree",
+      "?Field of study",
+      "?University and graduation year",
+      "?Years of experience",
+      "?Current title and company",
+      "?Technical skills",
+      "?Portfolio URL",
+      "?Optional résumé"
+    ],
+    "actions": [
+      {
+        "name": "Upload / replace résumé",
+        "to": null
+      },
+      {
+        "name": "Previous",
+        "to": "register"
+      },
+      {
+        "name": "Next step",
+        "to": "profilelegacyreview"
+      }
+    ]
+  },
+  {
+    "id": "profilelegacyreview",
+    "title": "Registration · Review profile",
+    "desc": "Legacy final registration step",
+    "area": "Candidate",
+    "status": "Legacy flow",
+    "fields": [
+      "#Identity / Education / Experience / Skills",
+      "#Résumé and consent"
+    ],
+    "actions": [
+      {
+        "name": "Previous",
+        "to": "profilelegacy"
+      },
+      {
+        "name": "Complete registration",
+        "to": "verify"
+      },
+      {
+        "name": "Sign in",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "docs",
+    "title": "My documents",
+    "desc": "Private résumé library",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "?Choose PDF, DOCX or TXT",
+      "#Resume.pdf / File size / Upload date",
+      "Upload progress, type and size errors"
+    ],
+    "actions": [
+      {
+        "name": "Upload document",
+        "to": null
+      },
+      {
+        "name": "Preview / download",
+        "to": null
+      },
+      {
+        "name": "Replace document",
+        "to": null
+      },
+      {
+        "name": "Remove document",
+        "to": null
+      },
+      {
+        "name": "Open application",
+        "to": "apply"
+      }
+    ]
+  },
+  {
+    "id": "apply",
+    "title": "Apply to a job",
+    "desc": "Complete the submission before sending",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "#Job and organization",
+      "?Select or upload résumé",
+      "?Required screening answers",
+      "#Profile snapshot and sharing notice"
+    ],
+    "actions": [
+      {
+        "name": "Edit profile",
+        "to": "profile"
+      },
+      {
+        "name": "Manage documents",
+        "to": "docs"
+      },
+      {
+        "name": "Review application",
+        "to": "applyreview"
+      },
+      {
+        "name": "Cancel",
+        "to": "job"
+      }
+    ]
+  },
+  {
+    "id": "applyreview",
+    "title": "Review application",
+    "desc": "Confirm the exact information being submitted",
+    "area": "Candidate",
+    "status": "Proposed",
+    "fields": [
+      "#Submitted profile snapshot",
+      "#Screening answers and attached document",
+      "#AI processing and privacy notice",
+      "Duplicate, cooldown, or closed-job feedback"
+    ],
+    "actions": [
+      {
+        "name": "Edit answers",
+        "to": "apply"
+      },
+      {
+        "name": "Submit application",
+        "to": "receipt"
+      },
+      {
+        "name": "Cancel",
+        "to": "job"
+      }
+    ]
+  },
+  {
+    "id": "receipt",
+    "title": "Application received",
+    "desc": "Submission confirmation and next steps",
+    "area": "Candidate",
+    "status": "Proposed",
+    "fields": [
+      "#Received / Organization / Submitted date",
+      "#Track status from My applications"
+    ],
+    "actions": [
+      {
+        "name": "View application",
+        "to": "app"
+      },
+      {
+        "name": "View coaching",
+        "to": "coaching"
+      },
+      {
+        "name": "Continue browsing",
+        "to": "jobs"
+      }
+    ]
+  },
+  {
+    "id": "apps",
+    "title": "My applications",
+    "desc": "Track applications and their outcomes",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "?Filter by status",
+      "#Submitted / In review / Interview / Offer",
+      "#Hired / Not selected / Withdrawn",
+      "#Reapplication waiting period"
+    ],
+    "actions": [
+      {
+        "name": "Check for updates",
+        "to": null
+      },
+      {
+        "name": "View application",
+        "to": "app"
+      },
+      {
+        "name": "Browse openings",
+        "to": "jobs"
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "app",
+    "title": "Application detail",
+    "desc": "Candidate-visible timeline and submitted material",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "#Status history and latest update",
+      "#Interview details or offer if available",
+      "#Submitted profile, answers and attachment",
+      "#Reapply eligibility"
+    ],
+    "actions": [
+      {
+        "name": "Withdraw application",
+        "to": "withdraw"
+      },
+      {
+        "name": "Open coaching report",
+        "to": "coaching"
+      },
+      {
+        "name": "Browse & reapply",
+        "to": "job"
+      },
+      {
+        "name": "View updates",
+        "to": "updates"
+      },
+      {
+        "name": "Back to applications",
+        "to": "apps"
+      }
+    ]
+  },
+  {
+    "id": "withdraw",
+    "title": "Confirm withdrawal",
+    "desc": "Explain who is notified and what is retained",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "#Role / Organization / Current status",
+      "#Your submission remains in your history"
+    ],
+    "actions": [
+      {
+        "name": "Confirm withdrawal",
+        "to": "app"
+      },
+      {
+        "name": "Cancel",
+        "to": "app"
+      }
+    ]
+  },
+  {
+    "id": "updates",
+    "title": "Notifications centre",
+    "desc": "Private hiring updates and account activity",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "?All / Unread / Read",
+      "#Application stage update / Unread",
+      "#Decision outcome / Read",
+      "Delivery and retry indicators where available"
+    ],
+    "actions": [
+      {
+        "name": "Mark as read",
+        "to": null
+      },
+      {
+        "name": "Mark all as read",
+        "to": null
+      },
+      {
+        "name": "Refresh",
+        "to": null
+      },
+      {
+        "name": "Open related application",
+        "to": "app"
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "coaching",
+    "title": "Skill gap coaching",
+    "desc": "Private suggestions with cited résumé passages",
+    "area": "Candidate",
+    "status": "Legacy flow",
+    "fields": [
+      "#Application and job",
+      "#Skills found / Areas to improve",
+      "#Training and interview preparation",
+      "#Unavailable or no active application state"
+    ],
+    "actions": [
+      {
+        "name": "Choose application",
+        "to": "apps"
+      },
+      {
+        "name": "Explore learning resource",
+        "to": null
+      },
+      {
+        "name": "Browse jobs",
+        "to": "jobs"
+      },
+      {
+        "name": "Back to applications",
+        "to": "apps"
+      }
+    ]
+  },
+  {
+    "id": "data",
+    "title": "Your data",
+    "desc": "Export and request review of personal data",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "#Account, profile, applications and document metadata",
+      "#Request status and retention explanation"
+    ],
+    "actions": [
+      {
+        "name": "Download my data",
+        "to": null
+      },
+      {
+        "name": "Request deletion review",
+        "to": "dataconfirm"
+      },
+      {
+        "name": "Back to profile",
+        "to": "profile"
+      }
+    ]
+  },
+  {
+    "id": "dataconfirm",
+    "title": "Confirm deletion review request",
+    "desc": "Explain review and eligibility",
+    "area": "Candidate",
+    "status": "Built or adapted",
+    "fields": [
+      "#Request does not immediately remove submitted hiring records",
+      "#Pending / Completed / Rejected"
+    ],
+    "actions": [
+      {
+        "name": "Submit request",
+        "to": "data"
+      },
+      {
+        "name": "Cancel",
+        "to": "data"
+      }
+    ]
+  },
+  {
+    "id": "rdash",
+    "title": "Recruiter dashboard",
+    "desc": "Active jobs, reviews and recent hiring activity",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "#Open jobs / Pending reviews / Applicants / New résumés",
+      "#Recent submissions and actions"
+    ],
+    "actions": [
+      {
+        "name": "Create opening",
+        "to": "jobedit"
+      },
+      {
+        "name": "Batch screen résumés",
+        "to": "batch"
+      },
+      {
+        "name": "Review applicants",
+        "to": "pipeline"
+      },
+      {
+        "name": "Manage jobs",
+        "to": "rjobs"
+      },
+      {
+        "name": "Open updates",
+        "to": "updates"
+      },
+      {
+        "name": "Account settings",
+        "to": "account"
+      }
+    ]
+  },
+  {
+    "id": "rjobs",
+    "title": "Manage jobs",
+    "desc": "Draft, published, paused, closed and archived openings",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "?Search / Status",
+      "#Software Engineer / Published",
+      "#Product Designer / Draft",
+      "#Platform Engineer / Paused"
+    ],
+    "actions": [
+      {
+        "name": "Create job",
+        "to": "jobedit"
+      },
+      {
+        "name": "Import job spec",
+        "to": "jobimport"
+      },
+      {
+        "name": "Edit draft",
+        "to": "jobedit"
+      },
+      {
+        "name": "Open job",
+        "to": "rjob"
+      },
+      {
+        "name": "Open applicants",
+        "to": "pipeline"
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "rjob",
+    "title": "Recruiter job detail",
+    "desc": "Manage listing, rubric and status",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "#Job details and publication state",
+      "#Criteria and questions",
+      "#Job URL and stage counts"
+    ],
+    "actions": [
+      {
+        "name": "Edit draft",
+        "to": "jobedit"
+      },
+      {
+        "name": "Publish",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Pause",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Resume",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Close",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Archive",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Share job",
+        "to": null
+      },
+      {
+        "name": "View applicants",
+        "to": "pipeline"
+      },
+      {
+        "name": "Open funnel",
+        "to": "funnel"
+      }
+    ]
+  },
+  {
+    "id": "jobedit",
+    "title": "Create / edit a job",
+    "desc": "Write the job, screening questions and rubric",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "?Title, location, work arrangement",
+      "?Salary range and currency",
+      "?Role description and requirements",
+      "?Screening question and required toggle",
+      "?Rubric criterion, required/preferred and guidance",
+      "?Legacy skills, degree and years of experience"
+    ],
+    "actions": [
+      {
+        "name": "Add / remove question",
+        "to": null
+      },
+      {
+        "name": "Add / remove criterion",
+        "to": null
+      },
+      {
+        "name": "Suggest description",
+        "to": "aidraft"
+      },
+      {
+        "name": "Save draft",
+        "to": "rjobs"
+      },
+      {
+        "name": "Publish",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Cancel",
+        "to": "rjobs"
+      }
+    ]
+  },
+  {
+    "id": "aidraft",
+    "title": "AI job draft preview",
+    "desc": "Recruiter facts and editable provider output",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "?Job facts",
+      "#Generated draft and provider attribution",
+      "#Disabled / unconfigured / failure states"
+    ],
+    "actions": [
+      {
+        "name": "Suggest description",
+        "to": null
+      },
+      {
+        "name": "Retry",
+        "to": null
+      },
+      {
+        "name": "Use as editable description",
+        "to": "jobedit"
+      },
+      {
+        "name": "Discard",
+        "to": "jobedit"
+      }
+    ]
+  },
+  {
+    "id": "jobimport",
+    "title": "Import a job description",
+    "desc": "Legacy document extraction and approval",
+    "area": "Recruiter",
+    "status": "Legacy flow",
+    "fields": [
+      "?Upload specification",
+      "#Extracted title, skills, education and experience",
+      "#Preview before publishing"
+    ],
+    "actions": [
+      {
+        "name": "Choose / remove file",
+        "to": null
+      },
+      {
+        "name": "Extract document",
+        "to": null
+      },
+      {
+        "name": "Edit extracted draft",
+        "to": "jobedit"
+      },
+      {
+        "name": "Publish",
+        "to": "jobconfirm"
+      },
+      {
+        "name": "Create another",
+        "to": "jobedit"
+      },
+      {
+        "name": "Batch screen",
+        "to": "batch"
+      }
+    ]
+  },
+  {
+    "id": "jobconfirm",
+    "title": "Confirm job status change",
+    "desc": "Review the effect on applicants",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "#Publish / Pause / Resume / Close / Archive",
+      "#Public visibility and application availability"
+    ],
+    "actions": [
+      {
+        "name": "Confirm change",
+        "to": "rjob"
+      },
+      {
+        "name": "Cancel",
+        "to": "rjob"
+      }
+    ]
+  },
+  {
+    "id": "pipeline",
+    "title": "Applicant pipeline",
+    "desc": "Find, filter and review candidate submissions",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "?Search or select job",
+      "?Stage / Date / Reviewer / Criterion",
+      "?All / Direct applicants / Batch uploaded",
+      "#Applicant / Stage / Review progress / Last update"
+    ],
+    "actions": [
+      {
+        "name": "Review application",
+        "to": "review"
+      },
+      {
+        "name": "Batch upload",
+        "to": "batch"
+      },
+      {
+        "name": "View job",
+        "to": "rjob"
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "review",
+    "title": "Application review",
+    "desc": "Original documents, evidence and human assessment",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "#Candidate profile snapshot / Answers / Stage history",
+      "#Résumé preview or download",
+      "#Cited evidence, missing evidence and extraction status",
+      "?Criterion rating and evidence note"
+    ],
+    "actions": [
+      {
+        "name": "Open résumé / download",
+        "to": null
+      },
+      {
+        "name": "Record assessment",
+        "to": null
+      },
+      {
+        "name": "Move stage",
+        "to": "stage"
+      },
+      {
+        "name": "Schedule interview",
+        "to": "interview"
+      },
+      {
+        "name": "Final decision",
+        "to": "decision"
+      },
+      {
+        "name": "Report AI error",
+        "to": null
+      },
+      {
+        "name": "Back to pipeline",
+        "to": "pipeline"
+      }
+    ]
+  },
+  {
+    "id": "stage",
+    "title": "Move application stage",
+    "desc": "Record a candidate-visible progression",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "#Submitted → In review → Interview → Offer",
+      "?Preview candidate update",
+      "#Invalid or already changed stage feedback"
+    ],
+    "actions": [
+      {
+        "name": "Confirm move",
+        "to": "review"
+      },
+      {
+        "name": "Cancel",
+        "to": "review"
+      }
+    ]
+  },
+  {
+    "id": "interview",
+    "title": "Interview details",
+    "desc": "Share interview information and prepare scorecards",
+    "area": "Recruiter",
+    "status": "Proposed",
+    "fields": [
+      "?Date, time and timezone",
+      "?Location or meeting link",
+      "?Candidate message",
+      "?Scorecard and rubric questions"
+    ],
+    "actions": [
+      {
+        "name": "Draft questions",
+        "to": null
+      },
+      {
+        "name": "Send invitation",
+        "to": "review"
+      },
+      {
+        "name": "Cancel",
+        "to": "review"
+      }
+    ]
+  },
+  {
+    "id": "decision",
+    "title": "Record final decision",
+    "desc": "Human decision after rubric assessments",
+    "area": "Recruiter",
+    "status": "Built or adapted",
+    "fields": [
+      "?Hired / Not selected",
+      "?Private reason and recruiter notes",
+      "?Candidate message preview",
+      "#All criteria must be assessed"
+    ],
+    "actions": [
+      {
+        "name": "Record decision",
+        "to": "review"
+      },
+      {
+        "name": "Cancel",
+        "to": "review"
+      }
+    ]
+  },
+  {
+    "id": "batch",
+    "title": "Batch résumé upload",
+    "desc": "Review permissions and select a target job",
+    "area": "Recruiter",
+    "status": "Legacy flow",
+    "fields": [
+      "?Target job",
+      "?Add résumé files (PDF / DOCX)",
+      "#Queue / Upload / Processing / Failed"
+    ],
+    "actions": [
+      {
+        "name": "Choose files",
+        "to": null
+      },
+      {
+        "name": "Remove file",
+        "to": null
+      },
+      {
+        "name": "Clear all",
+        "to": null
+      },
+      {
+        "name": "Start screening",
+        "to": null
+      },
+      {
+        "name": "Retry failed",
+        "to": null
+      },
+      {
+        "name": "View results",
+        "to": "results"
+      }
+    ]
+  },
+  {
+    "id": "results",
+    "title": "Screening results",
+    "desc": "Review uploaded applicants and résumé evidence",
+    "area": "Recruiter",
+    "status": "Legacy flow",
+    "fields": [
+      "?Job / Source / Status",
+      "#Candidate / Processing status / Evidence",
+      "#Historical score shown only as legacy data"
+    ],
+    "actions": [
+      {
+        "name": "More details",
+        "to": "review"
+      },
+      {
+        "name": "Open / download résumé",
+        "to": null
+      },
+      {
+        "name": "Shortlist",
+        "to": "stage"
+      },
+      {
+        "name": "Reject with feedback",
+        "to": "decision"
+      },
+      {
+        "name": "Back to batch",
+        "to": "batch"
+      }
+    ]
+  },
+  {
+    "id": "funnel",
+    "title": "Hiring activity report",
+    "desc": "Applications by stage and review completion",
+    "area": "Recruiter",
+    "status": "Proposed",
+    "fields": [
+      "?Job and date range",
+      "#Applied / In review / Interview / Offer / Hired",
+      "#Time to first review and candidate update"
+    ],
+    "actions": [
+      {
+        "name": "Apply filters",
+        "to": null
+      },
+      {
+        "name": "Export report",
+        "to": null
+      },
+      {
+        "name": "Open applicants",
+        "to": "pipeline"
+      }
+    ]
+  },
+  {
+    "id": "adash",
+    "title": "Admin dashboard",
+    "desc": "Organization activity, access and follow-up",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "#Active jobs / Members / Pending reviews / Delivery failures",
+      "#Recent audit and verification activity",
+      "?Active organization"
+    ],
+    "actions": [
+      {
+        "name": "Members",
+        "to": "members"
+      },
+      {
+        "name": "Policies",
+        "to": "policy"
+      },
+      {
+        "name": "Recruiter requests",
+        "to": "requests"
+      },
+      {
+        "name": "Candidate directory",
+        "to": "directory"
+      },
+      {
+        "name": "User management",
+        "to": "users"
+      },
+      {
+        "name": "Audit",
+        "to": "audit"
+      },
+      {
+        "name": "Data requests",
+        "to": "requestsdata"
+      },
+      {
+        "name": "Delivery",
+        "to": "delivery"
+      },
+      {
+        "name": "Migration",
+        "to": "migration"
+      },
+      {
+        "name": "Switch organization",
+        "to": "org"
+      },
+      {
+        "name": "Account settings",
+        "to": "account"
+      }
+    ]
+  },
+  {
+    "id": "org",
+    "title": "Organizations",
+    "desc": "Select or create an organization",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "?Active organization",
+      "?Organization name",
+      "?URL slug",
+      "#Invitation and role status"
+    ],
+    "actions": [
+      {
+        "name": "Switch organization",
+        "to": "adash"
+      },
+      {
+        "name": "Create organization",
+        "to": "adash"
+      },
+      {
+        "name": "Accept invitation",
+        "to": "invite"
+      },
+      {
+        "name": "Back to overview",
+        "to": "adash"
+      }
+    ]
+  },
+  {
+    "id": "members",
+    "title": "Members and invitations",
+    "desc": "Manage access scoped to the organization",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "?Search / Role / Access status",
+      "#Name / Email / Admin or Recruiter / State",
+      "#Pending invitation / Expiry"
+    ],
+    "actions": [
+      {
+        "name": "Invite member",
+        "to": "memberinvite"
+      },
+      {
+        "name": "Revoke access",
+        "to": "revoke"
+      },
+      {
+        "name": "Review recruiter jobs",
+        "to": "recruiters"
+      },
+      {
+        "name": "Switch organization",
+        "to": "org"
+      }
+    ]
+  },
+  {
+    "id": "memberinvite",
+    "title": "Invite a team member",
+    "desc": "Send an organization invitation",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "?Full name (legacy provision)",
+      "?Work email",
+      "?Company / division",
+      "?Recruiter or Admin"
+    ],
+    "actions": [
+      {
+        "name": "Send invitation",
+        "to": "members"
+      },
+      {
+        "name": "Cancel",
+        "to": "members"
+      }
+    ]
+  },
+  {
+    "id": "revoke",
+    "title": "Confirm member revocation",
+    "desc": "Remove organization access and retain audit history",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "#Member and organization",
+      "#Pending work and effect of removal"
+    ],
+    "actions": [
+      {
+        "name": "Revoke access",
+        "to": "members"
+      },
+      {
+        "name": "Cancel",
+        "to": "members"
+      }
+    ]
+  },
+  {
+    "id": "policy",
+    "title": "Organization policies",
+    "desc": "Configure hiring defaults",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "?Reapplication waiting period",
+      "?Retention review period",
+      "?Candidate-visible status wording",
+      "?AI assistance toggle"
+    ],
+    "actions": [
+      {
+        "name": "Save policy",
+        "to": null
+      },
+      {
+        "name": "Review audit",
+        "to": "audit"
+      },
+      {
+        "name": "Cancel",
+        "to": "adash"
+      }
+    ]
+  },
+  {
+    "id": "audit",
+    "title": "Audit activity",
+    "desc": "Inspect organization events and document access",
+    "area": "Admin",
+    "status": "Built or adapted",
+    "fields": [
+      "?Actor / Action / Record / Date",
+      "#Membership change / Policy update / Review download",
+      "#Timestamp / Actor / Outcome"
+    ],
+    "actions": [
+      {
+        "name": "Filter",
+        "to": null
+      },
+      {
+        "name": "Export audit",
+        "to": null
+      },
+      {
+        "name": "Previous",
+        "to": null
+      },
+      {
+        "name": "Next",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "requests",
+    "title": "Recruiter verification requests",
+    "desc": "Legacy approval and corporate document review",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "?All / Ready for review / Pending / Approved",
+      "#Name / Company / Email / Received",
+      "#Verification state and expiry"
+    ],
+    "actions": [
+      {
+        "name": "Inspect request",
+        "to": "request"
+      },
+      {
+        "name": "Copy OTP",
+        "to": null
+      },
+      {
+        "name": "Copy link",
+        "to": null
+      },
+      {
+        "name": "Resend invitation",
+        "to": null
+      },
+      {
+        "name": "Delete request",
+        "to": "request"
+      }
+    ]
+  },
+  {
+    "id": "request",
+    "title": "Verification request detail",
+    "desc": "Review the company, document and access decision",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "#Contact details and submitted corporate document",
+      "#OTP / Token / Review status",
+      "?Approval or rejection note"
+    ],
+    "actions": [
+      {
+        "name": "View / download document",
+        "to": null
+      },
+      {
+        "name": "Approve",
+        "to": "requests"
+      },
+      {
+        "name": "Reject",
+        "to": "requests"
+      },
+      {
+        "name": "Resend",
+        "to": null
+      },
+      {
+        "name": "Delete",
+        "to": null
+      },
+      {
+        "name": "Cancel",
+        "to": "requests"
+      }
+    ]
+  },
+  {
+    "id": "recruiters",
+    "title": "Recruiter and job directory",
+    "desc": "Inspect recruiter ownership and hiring activity",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "?Search recruiter",
+      "#Recruiter / Company / Jobs / Applicants",
+      "#Recruiter jobs and application drilldown"
+    ],
+    "actions": [
+      {
+        "name": "Inspect jobs",
+        "to": "rjobs"
+      },
+      {
+        "name": "View candidates",
+        "to": "pipeline"
+      },
+      {
+        "name": "Remove recruiter",
+        "to": "revoke"
+      },
+      {
+        "name": "Switch recruiter",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "directory",
+    "title": "Candidate directory",
+    "desc": "View candidate and permitted application history",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "?Search name, email or skill",
+      "#Candidate / Status / Applications",
+      "#Selected candidate history by job"
+    ],
+    "actions": [
+      {
+        "name": "View applications",
+        "to": "pipeline"
+      },
+      {
+        "name": "Switch candidate",
+        "to": null
+      },
+      {
+        "name": "Back to overview",
+        "to": "adash"
+      }
+    ]
+  },
+  {
+    "id": "users",
+    "title": "User management",
+    "desc": "Legacy platform administration",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "?All accounts / Recruiters / Candidates",
+      "#Username / Name / Email / Role",
+      "#Platform scope and audit notice"
+    ],
+    "actions": [
+      {
+        "name": "Provision recruiter",
+        "to": "memberinvite"
+      },
+      {
+        "name": "Edit user",
+        "to": "useredit"
+      },
+      {
+        "name": "Delete user",
+        "to": "useredit"
+      },
+      {
+        "name": "Filter",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "useredit",
+    "title": "Edit or remove user",
+    "desc": "Review platform account changes",
+    "area": "Admin",
+    "status": "Legacy flow",
+    "fields": [
+      "?First name and last name",
+      "?Platform role",
+      "#Account deletion confirmation"
+    ],
+    "actions": [
+      {
+        "name": "Save changes",
+        "to": "users"
+      },
+      {
+        "name": "Confirm deletion",
+        "to": "users"
+      },
+      {
+        "name": "Cancel",
+        "to": "users"
+      }
+    ]
+  },
+  {
+    "id": "requestsdata",
+    "title": "Candidate data requests",
+    "desc": "Review retention obligations and request outcomes",
+    "area": "Admin",
+    "status": "Proposed",
+    "fields": [
+      "?Pending / Completed / Rejected",
+      "#Requester / Request date / Organization",
+      "?Review note"
+    ],
+    "actions": [
+      {
+        "name": "Review request",
+        "to": null
+      },
+      {
+        "name": "Approve eligible deletion",
+        "to": null
+      },
+      {
+        "name": "Reject with reason",
+        "to": null
+      },
+      {
+        "name": "Open audit",
+        "to": "audit"
+      }
+    ]
+  },
+  {
+    "id": "delivery",
+    "title": "Delivery and system health",
+    "desc": "Review notifications and operating signals",
+    "area": "Admin",
+    "status": "Proposed",
+    "fields": [
+      "#API / Database / Mail status",
+      "#In-app and email delivery / Retry status",
+      "#Recent failures"
+    ],
+    "actions": [
+      {
+        "name": "Check again",
+        "to": null
+      },
+      {
+        "name": "Retry delivery",
+        "to": null
+      },
+      {
+        "name": "Open audit",
+        "to": "audit"
+      }
+    ]
+  },
+  {
+    "id": "migration",
+    "title": "Migration and launch",
+    "desc": "Preflight, reconciliation and rollback readiness",
+    "area": "Admin",
+    "status": "Proposed",
+    "fields": [
+      "#Legacy export and file inventory",
+      "#Duplicate records, missing files and mapping blockers",
+      "#Staging import, pilot and cutover status"
+    ],
+    "actions": [
+      {
+        "name": "Run read-only preflight",
+        "to": null
+      },
+      {
+        "name": "Review mapping",
+        "to": null
+      },
+      {
+        "name": "Download reconciliation",
+        "to": null
+      },
+      {
+        "name": "Open audit",
+        "to": "audit"
+      }
+    ]
+  },
+  {
+    "id": "assistant",
+    "title": "Gena assistant",
+    "desc": "Project questions, job discovery and career guidance",
+    "area": "Shared",
+    "status": "Legacy flow",
+    "fields": [
+      "#Suggested prompts",
+      "?Ask a question",
+      "#Answer plus job links or sources",
+      "#Offline or failed response"
+    ],
+    "actions": [
+      {
+        "name": "Send",
+        "to": null
+      },
+      {
+        "name": "Use suggestion",
+        "to": null
+      },
+      {
+        "name": "Open matching jobs",
+        "to": "jobs"
+      },
+      {
+        "name": "Minimize",
+        "to": "home"
+      },
+      {
+        "name": "Retry",
+        "to": null
+      }
+    ]
+  },
+  {
+    "id": "account",
+    "title": "Account and workspace settings",
+    "desc": "Identity, organization switch and sessions",
+    "area": "Shared",
+    "status": "Built or adapted",
+    "fields": [
+      "#Verified email / Display name",
+      "?Active organization",
+      "#Candidate, recruiter or admin workspace"
+    ],
+    "actions": [
+      {
+        "name": "Open candidate dashboard",
+        "to": "cdash"
+      },
+      {
+        "name": "Open recruiter dashboard",
+        "to": "rdash"
+      },
+      {
+        "name": "Open admin dashboard",
+        "to": "adash"
+      },
+      {
+        "name": "Manage organizations",
+        "to": "org"
+      },
+      {
+        "name": "Sign out",
+        "to": "login"
+      }
+    ]
+  },
+  {
+    "id": "states",
+    "title": "Loading, empty and error states",
+    "desc": "Patterns for jobs, approvals, uploads and notifications",
+    "area": "Shared",
+    "status": "Built or adapted",
+    "fields": [
+      "#Loading / Empty / No results",
+      "#Validation / Offline / Forbidden / Not found",
+      "#Upload pending / Success / Failure",
+      "#Session expired / Verification required"
+    ],
+    "actions": [
+      {
+        "name": "Retry",
+        "to": null
+      },
+      {
+        "name": "Clear filters",
+        "to": null
+      },
+      {
+        "name": "Sign in",
+        "to": "login"
+      },
+      {
+        "name": "Go home",
+        "to": "home"
+      },
+      {
+        "name": "Contact support",
+        "to": "help"
+      }
+    ]
+  },
+  {
+    "id": "mobile",
+    "title": "Mobile navigation and lists",
+    "desc": "Responsive shell for all supported roles",
+    "area": "Shared",
+    "status": "Built or adapted",
+    "fields": [
+      "#Compact header / Menu / Unread indicator",
+      "#Tables become labeled cards",
+      "#Primary action and pagination remain visible"
+    ],
+    "actions": [
+      {
+        "name": "Open menu",
+        "to": null
+      },
+      {
+        "name": "Find jobs",
+        "to": "jobs"
+      },
+      {
+        "name": "Applications",
+        "to": "apps"
+      },
+      {
+        "name": "Workspace",
+        "to": "account"
+      },
+      {
+        "name": "Notifications",
+        "to": "updates"
+      }
+    ]
+  },
+  {
+    "id": "operations",
+    "title": "System connection",
+    "desc": "Local development and operational status",
+    "area": "Shared",
+    "status": "Built or adapted",
+    "fields": [
+      "#API and database available / unavailable",
+      "#Mail verification through local inbox",
+      "#Migration and deployment links"
+    ],
+    "actions": [
+      {
+        "name": "Check again",
+        "to": null
+      },
+      {
+        "name": "Open migration",
+        "to": "migration"
+      },
+      {
+        "name": "Open mobile shell",
+        "to": "mobile"
+      },
+      {
+        "name": "View error patterns",
+        "to": "states"
+      },
+      {
+        "name": "Back home",
+        "to": "home"
+      }
+    ]
+  }
+]
