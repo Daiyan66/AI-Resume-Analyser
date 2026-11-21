@@ -42,5 +42,13 @@
 .live-dashboard-card {display:flex;flex-direction:column;align-items:flex-start}
 .live-dashboard-card .pv-button {margin-top:auto}
 .live-welcome-candidate {background:#172f66}
-.live-welcome-recruiter {background:#15554e}
-.live-welcome-admin {background:#45326a}
+.live-sidebar-name {padding-bottom:15px}
+.live-recruiter-heading,.live-admin-heading {display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.live-recruiter-heading {border-inline-start:4px solid #15554e}
+.live-admin-heading {border-inline-start:4px solid #45326a}
+.live-dashboard-cards .pv-stat strong {font-size:clamp(20px,3vw,32px)}
+.live-app .pv-chart div {grid-template-columns:105px 1fr 30px}
+.live-app .pv-chart div span {text-transform:capitalize}
+@media(max-width:680px) {
+  .live-sidebar-name {display:flex;padding-bottom:6px}
+}

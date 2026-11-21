@@ -35,6 +35,8 @@ app:
   public-url: ${APP_PUBLIC_URL}
   mail-from: ${MAIL_FROM}
   document-dir: ${DOCUMENT_DIR}
+  organizations:
+    bootstrap-admin-emails: ${ORGANIZATION_BOOTSTRAP_ADMIN_EMAILS:}
   notifications:
     email-enabled: ${APPLICATION_EMAIL_ENABLED:false}
   ai:

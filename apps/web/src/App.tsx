@@ -5,7 +5,7 @@ import { CandidateWorkspace } from './CandidateWorkspace'
 import { JobPublisher } from './JobPublisher'
 import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
-import { currentView, isCandidateSection, isCandidateView, viewTitles, workspaceMenus, workspaceNames,
+import { currentView, firstName, isCandidateSection, isCandidateView, viewTitles, workspaceMenus, workspaceNames,
   type View, type WorkspaceRole } from './workspaceNavigation'
 import { WorkspaceDashboard } from './WorkspaceDashboard'
 
@@ -14,6 +14,7 @@ function App() {
   const [view, setView] = useState<View>(currentView)
   const [account, setAccount] = useState<Account | null>(null)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [canCreateOrganizations, setCanCreateOrganizations] = useState(false)
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState('')
   const [members, setMembers] = useState<Member[]>([])
@@ -35,8 +36,9 @@ function App() {
   const allowed = view === 'recruiter' ? !!organizationRole :
     ['admin', 'policy', 'audit'].includes(view) ? organizationRole === 'ADMIN' : true
   const activeView = !allowed ? 'home' : inviteToken && account ? 'organizations' : view
-  const role: WorkspaceRole = isCandidateView(activeView) ? 'CANDIDATE' : organizationRole ?? 'CANDIDATE'
-  const menu = workspaceMenus[role]
+  const role: WorkspaceRole = isCandidateView(activeView) ? 'CANDIDATE' : organizationRole ?? (canCreateOrganizations ? 'ADMIN' : 'CANDIDATE')
+  const menu = role === 'ADMIN' && !selectedOrg ? ['home', 'organizations'] as View[] : workspaceMenus[role]
+  const mayShowOrganizationForm = role === 'ADMIN' && canCreateOrganizations
   const dashboardView = activeView === 'home' || activeView === 'candidate-home'
   const activeMenuView = dashboardView && role === 'CANDIDATE' ? 'candidate-home' : activeView
 
@@ -77,9 +79,10 @@ function App() {
   useEffect(() => {
     if (!account) return
     let active = true
-    void Promise.all([api<{ account: Account; organizations: Organization[] }>('/me/workspaces'), api<Document[]>('/documents')])
+    void Promise.all([api<{ account: Account; organizations: Organization[]; canCreateOrganizations: boolean }>('/me/workspaces'), api<Document[]>('/documents')])
       .then(([workspace, docs]) => {
         if (!active) return
+        setCanCreateOrganizations(workspace.canCreateOrganizations)
         const orgs = workspace.organizations
         setOrganizations(orgs)
         setDocuments(docs)
@@ -137,7 +140,7 @@ function App() {
       const signedIn = await api<Account>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
       setWorkspaceLoading(true)
       setAccount(signedIn)
-      setNotice(`Signed in as ${signedIn.displayName}`)
+
     })
   }
 
@@ -244,7 +247,7 @@ function App() {
       setAudit([])
       setView('home')
       if (!inviteToken) window.history.replaceState({}, '', '/connected')
-      setNotice('Signed out.')
+      setCanCreateOrganizations(false)
     })
   }
 
@@ -285,24 +288,21 @@ function App() {
   }
 
   return (
-    <ConnectedLayout actions={account ? <button type="button" className="pv-button" onClick={signOut} disabled={busy}>Sign out</button> : <a className="pv-button" href="/connected">Sign in</a>}>
+    <ConnectedLayout workspace={!!account} actions={!account && <a className="pv-button" href="/connected">Sign in</a>}>
       <div className="pv-body">
         <aside className="pv-sidebar">
-          <div className="pv-org"><span className="pv-symbol" aria-hidden="true">
-            {(role !== 'CANDIDATE' ? selectedOrg?.name.slice(0,2) : account?.displayName.slice(0,2))?.toUpperCase() ?? 'AI'}
-          </span><div><strong>{role !== 'CANDIDATE' ? selectedOrg?.name : account?.displayName ?? 'Public job board'}</strong>
-            <small>{workspaceNames[role]} workspace</small></div>
-          </div>
+          <div className="pv-org live-sidebar-name"><strong>{account ? firstName(account.displayName) : 'Public job board'}</strong></div>
           <nav aria-label="Workspace navigation">
             {(account ? menu : ['candidate'] as View[]).map(target =>
               <a className="pv-nav-item" key={target} href={`#${target}`} aria-current={activeMenuView === target ? 'page' : undefined}>
-                {target === 'home' || target === 'candidate-home' ? 'Overview' : viewTitles[target]}
+                {target === 'home' || target === 'candidate-home' ? 'Dashboard' : target === 'updates' ? 'Notifications' : target === 'profile' ? 'Profile' : viewTitles[target]}
               </a>)}
           </nav>
-          {account && organizationRole && <div className="pv-sidebar-bottom">
-            <a className="pv-nav-item" href={role === 'CANDIDATE' ? '#home' : '#candidate-home'}>
+          {account && <div className="pv-sidebar-bottom">
+            {(organizationRole || canCreateOrganizations) && <a className="pv-nav-item" href={role === 'CANDIDATE' ? '#home' : '#candidate-home'}>
               {role === 'CANDIDATE' ? 'Switch to hiring workspace' : 'Switch to candidate workspace'}
-            </a>
+            </a>}
+            <button type="button" className="pv-button" onClick={signOut} disabled={busy}>Sign out</button>
           </div>}
         </aside>
         <main className="pv-main">
@@ -312,8 +312,8 @@ function App() {
           {error && <p className="alert error" role="alert">{error}</p>}
           {notice && <p className="alert success" role="status">{notice}</p>}
           {!allowed && <p className="alert error" role="alert">This workspace page is unavailable for your active organization role.</p>}
-          {account && dashboardView && <WorkspaceDashboard role={role} name={account.displayName}
-            organization={role === 'CANDIDATE' ? undefined : selectedOrg} />}
+          {account && dashboardView && <WorkspaceDashboard role={role} accountId={account.id} name={account.displayName} members={members}
+            audit={audit} organization={role === 'CANDIDATE' ? undefined : selectedOrg} />}
           {account && <div className="live-workspace">
             {activeView === 'organizations' &&
             <section className="panel" aria-labelledby="account-heading">
@@ -324,18 +324,18 @@ function App() {
                 <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out to switch account</button>
               </div>}
               <h3>Your organizations</h3>
-              {organizations.length === 0 ? <p>You have not joined an organization yet. You can create one below or accept an invitation.</p> : (
+              {organizations.length === 0 ? <p>You have not joined an organization yet. If a hiring team has invited you, open the invitation from your email.</p> : (
                 <label>Active organization<select value={selectedOrgId} onChange={(event) => {setSelectedOrgId(event.target.value);setMembers([]);setAudit([]);setPolicy(null)}}>
                   {organizations.map((org) => <option key={org.organizationId} value={org.organizationId}>
                     {org.name} · {org.role}
                   </option>)}
                 </select></label>
               )}
-              <form className="inline-form" onSubmit={createOrganization}>
+              {mayShowOrganizationForm && <form className="inline-form" onSubmit={createOrganization}>
                 <label>Organization name<input name="name" placeholder="Example Hiring Team" required maxLength={200} /></label>
                 <label>URL slug<input name="slug" placeholder="example-hiring-team" pattern="[a-z0-9]+(-[a-z0-9]+)*" required maxLength={80} /></label>
                 <button type="submit" disabled={busy}>Create organization</button>
-              </form>
+              </form>}
             </section>}
 
             {activeView === 'policy' && selectedOrg?.role === 'ADMIN' && <section className="panel">

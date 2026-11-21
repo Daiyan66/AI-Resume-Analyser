@@ -41,6 +41,13 @@ import org.springframework.test.web.servlet.MvcResult;
 class IdentityAccessIntegrationTest {
     private static final String PASSWORD = "A-Strong-Test-Password-123";
 
+    private static final String BOOTSTRAP_EMAIL = "bootstrap-" + UUID.randomUUID() + "@example.test";
+
+    @org.springframework.test.context.DynamicPropertySource
+    static void bootstrapAdmin(org.springframework.test.context.DynamicPropertyRegistry properties) {
+        properties.add("app.organizations.bootstrap-admin-emails", () -> BOOTSTRAP_EMAIL);
+    }
+
     @Autowired MockMvc mvc;
     @Autowired ObjectMapper json;
     @MockitoBean JavaMailSender mail;
@@ -101,7 +108,7 @@ class IdentityAccessIntegrationTest {
     void sessionsCsrfAndOrganizationRolesAreEnforced() throws Exception {
         mvc.perform(get("/api/v1/me")).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/v1/auth/session")).andExpect(status().isNoContent());
-        String firstEmail = "owner-" + UUID.randomUUID() + "@example.test";
+        String firstEmail = BOOTSTRAP_EMAIL;
         String secondEmail = "recruiter-" + UUID.randomUUID() + "@example.test";
         mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("email", firstEmail, "displayName", "Owner", "password", PASSWORD))))
@@ -113,6 +120,10 @@ class IdentityAccessIntegrationTest {
         MockHttpSession recruiter = login(secondEmail);
         mvc.perform(get("/api/v1/auth/session").session(owner)).andExpect(status().isOk());
 
+        mvc.perform(get("/api/v1/me/workspaces").session(owner)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.canCreateOrganizations").value(true));
+        mvc.perform(get("/api/v1/me/workspaces").session(recruiter)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.canCreateOrganizations").value(false));
         String slug = "first-" + UUID.randomUUID();
         MvcResult created = mvc.perform(post("/api/v1/organizations").session(owner).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("slug", slug, "name", "First Hiring Team"))))
@@ -122,7 +133,7 @@ class IdentityAccessIntegrationTest {
         String otherSlug = "other-" + UUID.randomUUID();
         mvc.perform(post("/api/v1/organizations").session(recruiter).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("slug", otherSlug, "name", "Other Team"))))
-                .andExpect(status().isCreated());
+                .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/organizations/{id}/members", firstOrgId).session(recruiter))
                 .andExpect(status().isForbidden());
 
@@ -147,6 +158,9 @@ class IdentityAccessIntegrationTest {
         mvc.perform(post("/api/v1/invitations/accept").session(recruiter).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("token", token))))
                 .andExpect(status().isGone());
+        mvc.perform(post("/api/v1/organizations").session(recruiter).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("slug", otherSlug, "name", "Other Team"))))
+                .andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/organizations/{id}/invitations", firstOrgId).session(recruiter).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("email", firstEmail, "role", "ADMIN"))))
                 .andExpect(status().isForbidden());

@@ -8,7 +8,8 @@ Use the session cookie from sign-in and send `X-XSRF-TOKEN` from `GET /auth/csrf
 | --- | --- | --- |
 | POST | `/auth/password-reset/request` | Public. Accepts `{email}`, returns 202, and sends a reset link for a verified account. Resend is limited to once per minute per account. |
 | POST | `/auth/password-reset/confirm` | Public. Accepts `{token,password}`. The 30-minute token can be used once. Existing sessions are invalidated after a successful reset. |
-| GET | `/me/workspaces` | Signed-in account. Returns the account and active organization roles. |
+| GET | `/me/workspaces` | Signed-in account. Returns the account, active organization roles, and the `canCreateOrganizations` permission. |
+| POST | `/organizations` | Active organization admin or a verified account configured to set up the first organization. Creates the organization and its initial admin membership. |
 | GET | `/public/jobs?q=&workType=&page=&size=` | Public. Search published listings and filter by REMOTE, HYBRID, or ONSITE. |
 | DELETE | `/documents/{documentId}` | Owner only. Remove a document that is eligible for removal. Documents attached to applications or pending verification requests stay available. |
 | GET | `/documents/{documentId}/text` | Owner only. Read extracted text before copying any information into a profile. |
@@ -39,11 +40,22 @@ Use the session cookie from sign-in and send `X-XSRF-TOKEN` from `GET /auth/csrf
 | GET | `/organizations/{org}/notification-deliveries` | Admin. Inspect application email state and attempt count. |
 | POST | `/organizations/{org}/notification-deliveries/{notification}/retry` | Admin. Requeue a failed delivery. |
 
+## Set up the first organization
+
+Existing organization admins can create organizations from **Organizations**. To set up a fresh database, configure a verified account in `ORGANIZATION_BOOTSTRAP_ADMIN_EMAILS` before starting Compose, or add the variable to your existing local `.env` file. For example:
+
+```powershell
+$env:ORGANIZATION_BOOTSTRAP_ADMIN_EMAILS = "panel-admin@example.test"
+docker compose up --build
+```
+
+Register with that same address, verify it in Mailpit, and sign in. The Admin dashboard offers **Set up organization**. Candidates and recruiters without admin access receive a 403 response if they attempt to create an organization through the API.
+
 ## How to verify locally
 
 1. Run `docker compose up --build` and open <http://localhost:5174/connected>. Register a fictional account and verify it using Mailpit at <http://localhost:8025>.
 2. Use **Forgot your password?** in the connected app. Open the reset link in Mailpit, set a new password, and sign in. Check that the old password and reset link no longer work.
-3. Create an organization and a job as admin, publish it, then apply from another account. Advance the application and inspect the candidate inbox and Mailpit. Application emails are enabled for Compose and disabled by default elsewhere.
+3. Follow the admin setup above if needed. Create an organization and a job as admin, publish it, then apply from another account. Advance the application and inspect the candidate inbox and Mailpit. Application emails are enabled for Compose and disabled by default elsewhere.
 4. Run `mvn verify` in `apps/api` against a test PostgreSQL database. The integration suite checks authorization, reset tokens, file extraction, interviews, delivery retry and admin workflows.
 
 ## Integration boundaries

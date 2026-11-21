@@ -110,11 +110,12 @@ public class AuthController {
 
     @GetMapping("/me/workspaces")
     public Workspaces workspaces() {
-        return new Workspaces(identities.currentAccount(), organizations.myOrganizations());
+        var account = identities.currentAccount();
+        return new Workspaces(account, organizations.myOrganizations(), organizations.canCreateOrganizations(account));
     }
 
     public record Workspaces(IdentityService.Account account,
-                             java.util.List<OrganizationService.OrganizationMembership> organizations) {}
+                             java.util.List<OrganizationService.OrganizationMembership> organizations, boolean canCreateOrganizations) {}
     public record PasswordResetRequest(@NotBlank @Size(max = 128) String token,
                                        @NotBlank @Size(min = 12, max = 72) String password) {}
 

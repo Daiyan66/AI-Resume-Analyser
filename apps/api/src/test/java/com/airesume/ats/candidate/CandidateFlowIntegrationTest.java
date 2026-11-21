@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -41,6 +42,7 @@ class CandidateFlowIntegrationTest {
         MockHttpSession admin = account("admin");
         MockHttpSession candidate = account("candidate");
         MockHttpSession other = account("other");
+        OrganizationTestAccess.provisionExistingAdmin(jdbc, admin);
         String orgId = id(mvc.perform(post("/api/v1/organizations").session(admin).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("name", "Candidate Flow Test", "slug", "candidate-" + UUID.randomUUID()))))

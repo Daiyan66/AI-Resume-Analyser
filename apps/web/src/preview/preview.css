@@ -154,3 +154,6 @@
 @media(min-width:681px) and (max-width:900px) {
   .pv-app {--pv-sidebar-width:178px}
 }
+@media(min-width:681px) {
+  .pv-app.live-app-workspace {--pv-header-height:0px}
+}

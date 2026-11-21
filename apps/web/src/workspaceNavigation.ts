@@ -25,7 +25,11 @@ export const workspaceNames: Record<WorkspaceRole, string> = {
   CANDIDATE: 'Candidate', RECRUITER: 'Recruiter', ADMIN: 'Admin',
 }
 export const workspaceMenus: Record<WorkspaceRole, View[]> = {
-  CANDIDATE: ['candidate-home', 'candidate', 'applications', 'updates', 'profile', 'documents', 'privacy', 'organizations'],
+  CANDIDATE: ['candidate-home', 'profile', 'updates', 'candidate', 'applications', 'documents', 'privacy'],
   RECRUITER: ['home', 'recruiter', 'organizations'],
   ADMIN: ['home', 'admin', 'policy', 'audit', 'recruiter', 'organizations'],
+}
+
+export function firstName(name: string) {
+  return name.trim().split(/\s+/)[0] || 'there'
 }

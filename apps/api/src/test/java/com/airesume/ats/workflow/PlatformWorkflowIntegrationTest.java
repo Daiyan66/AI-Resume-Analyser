@@ -9,6 +9,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
@@ -191,6 +192,7 @@ class PlatformWorkflowIntegrationTest {
     }
 
     private String createOrg(MockHttpSession admin, String slug) throws Exception {
+        OrganizationTestAccess.provisionExistingAdmin(jdbc, admin);
         return "/api/v1/organizations/" + id(mvc.perform(payload(post("/api/v1/organizations"), admin,
                 Map.of("slug", slug, "name", "Workflow test organization"))).andExpect(status().isCreated()).andReturn(), "organizationId");
     }

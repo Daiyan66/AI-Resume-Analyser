@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react'
 import './App.css'
 
-export function ConnectedLayout({ children, actions }: { children: ReactNode; actions?: ReactNode }) {
-  return <div className="pv-app live-app">
-    <header className="pv-header">
+export function ConnectedLayout({ children, actions, workspace = false }: { children: ReactNode; actions?: ReactNode; workspace?: boolean }) {
+  return <div className={workspace ? "pv-app live-app live-app-workspace" : "pv-app live-app"}>
+    {!workspace && <header className="pv-header">
       <div className="pv-top">
         <a href="/" className="pv-brand"><span className="pv-mark" aria-hidden="true">A<span>.</span></span>AI Resume Analyser</a>
         <nav aria-label="Account navigation">
@@ -11,12 +11,12 @@ export function ConnectedLayout({ children, actions }: { children: ReactNode; ac
           {actions}
         </nav>
       </div>
-    </header>
+    </header>}
     {children}
-    <footer className="pv-footer">
+    {!workspace && <footer className="pv-footer">
       <span>AI Resume Analyser</span>
       <nav aria-label="Footer"><a href="/#how-it-works">About the platform</a></nav>
-    </footer>
+    </footer>}
   </div>
 }
 
