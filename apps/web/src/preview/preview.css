@@ -141,3 +141,16 @@
   .pv-table td::before {content:attr(data-label);font-size:12px;font-weight:750;color:var(--pv-muted)}
   .pv-table td>.pv-button {justify-self:start}
 }
+@media(min-width:681px) {
+  .pv-app {--pv-sidebar-width:224px;--pv-header-height:73px}
+  .pv-app:has(> .pv-body > .pv-sidebar) > .pv-header {position:sticky;top:0;z-index:3}
+  .pv-body:has(> .pv-sidebar) {padding-inline-start:var(--pv-sidebar-width)}
+  .pv-app:has(> .pv-body > .pv-sidebar) > .pv-footer {margin-inline-start:var(--pv-sidebar-width)}
+  .pv-body > .pv-sidebar {
+    position:fixed;inset-block:var(--pv-header-height) 0;inset-inline-start:0;
+    width:var(--pv-sidebar-width);overflow-y:auto;z-index:2;overscroll-behavior:contain
+  }
+}
+@media(min-width:681px) and (max-width:900px) {
+  .pv-app {--pv-sidebar-width:178px}
+}
