@@ -1,13 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type Account, type CandidateApplication, type CandidateNotification, type CandidateProfile, type DataRequest,
   type Document, type Job, type Page } from './api'
+import type { CandidateSection } from './workspaceNavigation'
 
 const emptyProfile: CandidateProfile = { headline: '', location: '', phone: '', summary: '', skills: '',
   experience: '', education: '' }
 
-type Props = { account: Account | null; documents: Document[]; jobsVersion: number; onSignIn: () => void }
+type Props = { account: Account | null; documents: Document[]; jobsVersion: number; section: CandidateSection; onSignIn: () => void }
 
-export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }: Props) {
+export function CandidateWorkspace({ account, documents, jobsVersion, section, onSignIn }: Props) {
   const [jobs, setJobs] = useState<Page<Job>>({ items: [], page: 0, size: 12, total: 0 })
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [profile, setProfile] = useState<CandidateProfile>(emptyProfile)
@@ -64,6 +65,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
       setApplicationPage(0)
       setApplications(await api<Page<CandidateApplication>>('/candidate/applications?page=0&size=12'))
       setNotice(`Application submitted to ${selectedJob.organizationName}. Your status is Application received.`)
+      window.location.hash = 'applications'
     })
   }
 
@@ -72,7 +74,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
     void run(async () => {
       const updated = await api<CandidateApplication>(`/candidate/applications/${application.id}/withdraw`, { method: 'POST' })
       setSelectedApplication(updated)
-      setApplications(await api<Page<CandidateApplication>>('/candidate/applications?page=0&size=12'))
+      setApplications(await api<Page<CandidateApplication>>(`/candidate/applications?page=${applicationPage}&size=12`))
       setNotice('Application withdrawn. Your status history was kept.')
     })
   }
@@ -115,9 +117,10 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
   return <div className="candidate-area">
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
-    {account && <section className="panel" aria-labelledby="notifications-heading">
+    {account && section === 'updates' && <section className="panel" aria-labelledby="notifications-heading">
       <h2 id="notifications-heading">Updates</h2>
-      <p>Hiring status updates appear here. Choose Check for updates in My applications to refresh this list.</p>
+      <p>Hiring status updates appear here.</p>
+      <button type="button" className="quiet" disabled={busy} onClick={refreshApplications}>Check for updates</button>
       {notifications.items.length === 0 ? <p>No updates yet.</p> : <ul className="list">
         {notifications.items.map((item) => <li key={item.id}>
           <span>{item.read ? '' : '● '}{item.message} · {new Date(item.createdAt).toLocaleString()}</span>
@@ -125,10 +128,10 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
         </li>)}
       </ul>}
     </section>}
-    <section className="panel" aria-labelledby="jobs-heading">
+    {section === 'candidate' && <section className="panel" aria-labelledby="jobs-heading">
       <h2 id="jobs-heading">Find jobs</h2>
       <p>Published openings are visible to everyone. Your applications are private.</p>
-      {jobs.items.length === 0 ? <p>No jobs have been published yet. Organization members can publish a starter job below.</p> :
+      {jobs.items.length === 0 ? <p>No jobs have been published yet.</p> :
         <ul className="list">{jobs.items.map((job) => <li key={job.id}>
           <span><strong>{job.title}</strong> · {job.organizationName} · {job.location} · {job.workType.toLowerCase()}</span>
           <button type="button" className="quiet" onClick={() => { setSelectedJob(job); setAnswers({}); setDocumentId('') }}>View job</button>
@@ -146,9 +149,9 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
         <h4>About the role</h4><p className="preserve-lines">{selectedJob.description}</p>
         <h4>Requirements</h4><p className="preserve-lines">{selectedJob.requirements}</p>
         {!account ? <button type="button" onClick={onSignIn}>Sign in to apply</button> : activeApplication ?
-          <p>You already applied to this job. See My applications below.</p> :
+          <p>You already applied to this job. See <a href="#applications">My applications</a>.</p> :
           <form onSubmit={submitApplication}>
-            <p>Your current profile is copied into this application when you submit. Save a headline and summary first.</p>
+            <p>Your current profile is copied into this application when you submit. Save a headline and summary in your <a href="#profile">candidate profile</a> first.</p>
             {selectedJob.questions.map((question) => <label key={question.id}>{question.prompt}
               <textarea required={question.required} maxLength={2000} value={answers[question.id] || ''}
                 onChange={(event) => setAnswers({ ...answers, [question.id]: event.target.value })} /></label>)}
@@ -159,10 +162,10 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
             <button type="submit" disabled={busy}>Submit application</button>
           </form>}
       </div>}
-    </section>
+    </section>}
 
     {account && <>
-      <section className="panel" aria-labelledby="profile-heading">
+      {section === 'profile' && <section className="panel" aria-labelledby="profile-heading">
         <h2 id="profile-heading">Candidate profile</h2>
         <p>Keep reusable information here. Add a headline and summary before applying. Each application keeps a snapshot of the profile you submitted.</p>
         <form onSubmit={saveProfile}>
@@ -177,9 +180,9 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
               onChange={(event) => setProfile({ ...profile, [field]: event.target.value })} /></label>)}
           <button type="submit" disabled={busy}>Save profile</button>
         </form>
-      </section>
+      </section>}
 
-      <section className="panel" aria-labelledby="applications-heading">
+      {section === 'applications' && <section className="panel" aria-labelledby="applications-heading">
         <div className="section-heading"><h2 id="applications-heading">My applications</h2>
           <button type="button" className="quiet" disabled={busy} onClick={refreshApplications}>Check for updates</button></div>
         {applications.items.length === 0 ? <p>No applications yet.</p> : <ul className="list">
@@ -209,9 +212,9 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
           {!['HIRED', 'NOT_SELECTED', 'WITHDRAWN'].includes(selectedApplication.status) && <button type="button" className="quiet" disabled={busy}
             onClick={() => withdraw(selectedApplication)}>Withdraw application</button>}
         </div>}
-      </section>
+      </section>}
 
-      <section className="panel" aria-labelledby="data-heading">
+      {section === 'privacy' && <section className="panel" aria-labelledby="data-heading">
         <h2 id="data-heading">Your data</h2>
         <p>Download a JSON copy of your account, profile, document list, and applications.</p>
         <a href="/api/v1/candidate/export" download="candidate-data.json">Download my data</a>
@@ -219,7 +222,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, onSignIn }
         <button type="button" className="quiet" disabled={busy || requests.some((request) => request.status === 'PENDING')}
           onClick={requestDeletion}>Request deletion review</button>
         {requests.map((request) => <p key={request.id}>Request {new Date(request.createdAt).toLocaleDateString()}: {request.status.toLowerCase()}</p>)}
-      </section>
+      </section>}
     </>}
   </div>
 }

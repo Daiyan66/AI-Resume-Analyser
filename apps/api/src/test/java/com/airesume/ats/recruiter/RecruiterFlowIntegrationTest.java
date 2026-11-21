@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -43,6 +44,7 @@ class RecruiterFlowIntegrationTest {
         Account owner = account("owner");
         Account candidate = account("candidate");
         Account outsider = account("outsider");
+        OrganizationTestAccess.provisionExistingAdmin(jdbc, owner.session());
         String organizationId = id(mvc.perform(post("/api/v1/organizations").session(owner.session()).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("name", "Recruiter Test",
                         "slug", "recruiter-" + UUID.randomUUID())))).andExpect(status().isCreated()).andReturn(), "organizationId");

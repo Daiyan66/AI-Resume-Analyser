@@ -34,6 +34,12 @@ public class DocumentController {
         return documents.mine();
     }
 
+    @org.springframework.web.bind.annotation.DeleteMapping("/{documentId}")
+    public ResponseEntity<Void> delete(@PathVariable UUID documentId) {
+        documents.delete(documentId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{documentId}")
     public ResponseEntity<Resource> download(@PathVariable UUID documentId) {
         DocumentService.Download download = documents.download(documentId);

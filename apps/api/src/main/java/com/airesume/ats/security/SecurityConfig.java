@@ -1,6 +1,17 @@
 package com.airesume.ats.security;
 
+import com.airesume.ats.identity.AppPrincipal;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
+import org.springframework.security.web.context.SecurityContextHolderFilter;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -39,8 +50,21 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository contextRepository) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityContextRepository contextRepository, JdbcTemplate jdbc) throws Exception {
         return http
+                .addFilterAfter(new OncePerRequestFilter() {
+                    @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                                               FilterChain chain) throws ServletException, IOException {
+                        var auth = SecurityContextHolder.getContext().getAuthentication();
+                        if (auth != null && auth.getPrincipal() instanceof AppPrincipal principal) {
+                            Boolean valid = jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM users WHERE id = ? " +
+                                    "AND credential_version = ? AND email_verified_at IS NOT NULL)", Boolean.class,
+                                    principal.id(), principal.credentialVersion());
+                            if (!Boolean.TRUE.equals(valid)) new SecurityContextLogoutHandler().logout(request, response, auth);
+                        }
+                        chain.doFilter(request, response);
+                    }
+                }, SecurityContextHolderFilter.class)
                 .csrf(csrf -> csrf
                         .csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
                         .csrfTokenRequestHandler(new CsrfTokenRequestAttributeHandler()))
@@ -54,7 +78,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/system/status", "/api/v1/public/jobs", "/api/v1/public/jobs/*",
                                 "/api/v1/auth/csrf", "/api/v1/auth/session",
                                 "/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/verify-email",
-                                "/api/v1/auth/resend-verification",
+                                "/api/v1/auth/resend-verification", "/api/v1/auth/password-reset/request",
+                                "/api/v1/auth/password-reset/confirm",
                                 "/actuator/health/**").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors

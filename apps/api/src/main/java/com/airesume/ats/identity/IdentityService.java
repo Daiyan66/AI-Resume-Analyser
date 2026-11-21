@@ -51,11 +51,18 @@ public class IdentityService implements UserDetailsService {
     @Override
     public AppPrincipal loadUserByUsername(String email) throws UsernameNotFoundException {
         List<AppPrincipal> users = jdbc.query(
-                "SELECT id, email, password_hash, email_verified_at FROM users WHERE lower(email) = ?",
+                "SELECT id, email, password_hash, email_verified_at, credential_version FROM users WHERE lower(email) = ?",
                 (rs, row) -> new AppPrincipal(rs.getObject("id", UUID.class), rs.getString("email"),
-                        rs.getString("password_hash"), rs.getTimestamp("email_verified_at") != null), normalizeEmail(email));
+                        rs.getString("password_hash"), rs.getTimestamp("email_verified_at") != null, rs.getLong("credential_version")), normalizeEmail(email));
         if (users.isEmpty()) throw new UsernameNotFoundException("Invalid email or password");
         return users.getFirst();
+    }
+
+    String encodePassword(String password) {
+        if (password.getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password must fit within 72 UTF-8 bytes.");
+        }
+        return passwordEncoder.encode(password);
     }
 
     @Transactional
@@ -63,7 +70,7 @@ public class IdentityService implements UserDetailsService {
         UUID id = UUID.randomUUID();
         try {
             jdbc.update("INSERT INTO users (id, email, display_name, password_hash) VALUES (?, ?, ?, ?)",
-                    id, normalizeEmail(email), displayName.trim(), passwordEncoder.encode(password));
+                    id, normalizeEmail(email), displayName.trim(), encodePassword(password));
         } catch (DuplicateKeyException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An account with this email already exists");
         }

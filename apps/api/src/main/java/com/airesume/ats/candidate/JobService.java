@@ -91,10 +91,12 @@ public class JobService {
         String from = switch (status) {
             case "PAUSED", "CLOSED" -> "PUBLISHED";
             case "PUBLISHED" -> "PAUSED";
+            case "ARCHIVED" -> "CLOSED";
             default -> throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Unsupported job status.");
         };
         int changed = jdbc.update("UPDATE jobs SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? " +
-                "AND organization_id = ? AND status = ?", status, jobId, organizationId, from);
+                "AND organization_id = ? AND status IN (?, ?)", status, jobId, organizationId, from,
+                "CLOSED".equals(status) ? "PAUSED" : from);
         if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "This job cannot move to " + status.toLowerCase() + " from its current status.");
         audit.record(identities.currentUserId(), organizationId, "job.status_" + status.toLowerCase(), "job", jobId);
@@ -146,11 +148,16 @@ public class JobService {
         return jobs.getFirst();
     }
 
-    public Page publicJobs(int page, int size) {
-        long total = jdbc.queryForObject("SELECT count(*) FROM jobs WHERE status = 'PUBLISHED'", Long.class);
-        List<Job> jobs = jdbc.query("SELECT j.*, o.name AS organization_name FROM jobs j JOIN organizations o ON o.id = j.organization_id " +
-                        "WHERE j.status = 'PUBLISHED' ORDER BY j.published_at DESC, j.id LIMIT ? OFFSET ?",
-                (rs, row) -> map(rs, false), size, (long) page * size);
+    public Page publicJobs(int page, int size, String query, String workType) {
+        String search = query.strip();
+        String work = workType == null ? "" : workType;
+        String filter = " FROM jobs j JOIN organizations o ON o.id = j.organization_id WHERE j.status = 'PUBLISHED' " +
+                "AND (j.work_type = ? OR ? = '') AND (? = '' OR strpos(lower(concat_ws(' ', j.title, j.location, " +
+                "o.name, j.description, j.requirements)), lower(?)) > 0)";
+        long total = jdbc.queryForObject("SELECT count(*)" + filter, Long.class, work, work, search, search);
+        List<Job> jobs = jdbc.query("SELECT j.*, o.name AS organization_name" + filter +
+                " ORDER BY j.published_at DESC, j.id LIMIT ? OFFSET ?", (rs, row) -> map(rs, false),
+                work, work, search, search, size, (long) page * size);
         return new Page(jobs, page, size, total);
     }
 

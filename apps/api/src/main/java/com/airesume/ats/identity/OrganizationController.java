@@ -80,6 +80,13 @@ public class OrganizationController {
                 request.aiEnabled());
     }
 
+    @PutMapping("/organizations/{organizationId}/members/{userId}/role")
+    public OrganizationService.Member changeRole(@PathVariable UUID organizationId, @PathVariable UUID userId,
+                                                  @Valid @RequestBody ChangeRole request) {
+        return organizations.changeRole(organizationId, userId, request.role());
+    }
+
+    public record ChangeRole(@NotBlank @Pattern(regexp = "ADMIN|RECRUITER") String role) {}
     public record CreateOrganization(@NotBlank @Pattern(regexp = "[a-z0-9]+(?:-[a-z0-9]+)*") @Size(max = 80) String slug,
                                      @NotBlank @Size(max = 200) String name) {}
     public record CreateInvitation(@NotBlank @Email String email,

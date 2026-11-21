@@ -27,12 +27,16 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/v1")
 public class AuthController {
     private final IdentityService identities;
+    private final PasswordResetService passwords;
+    private final OrganizationService organizations;
     private final AuthenticationManager authenticationManager;
     private final SecurityContextRepository contextRepository;
 
     public AuthController(IdentityService identities, AuthenticationManager authenticationManager,
-                          SecurityContextRepository contextRepository) {
+                          SecurityContextRepository contextRepository, PasswordResetService passwords, OrganizationService organizations) {
         this.identities = identities;
+        this.passwords = passwords;
+        this.organizations = organizations;
         this.authenticationManager = authenticationManager;
         this.contextRepository = contextRepository;
     }
@@ -91,6 +95,29 @@ public class AuthController {
         }
         return ResponseEntity.ok(identities.account(principal.id()));
     }
+
+    @PostMapping("/auth/password-reset/request")
+    public ResponseEntity<Void> requestPasswordReset(@Valid @RequestBody ResendVerificationRequest request) {
+        passwords.request(request.email());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/auth/password-reset/confirm")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody PasswordResetRequest request) {
+        passwords.reset(request.token(), request.password());
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/me/workspaces")
+    public Workspaces workspaces() {
+        var account = identities.currentAccount();
+        return new Workspaces(account, organizations.myOrganizations(), organizations.canCreateOrganizations(account));
+    }
+
+    public record Workspaces(IdentityService.Account account,
+                             java.util.List<OrganizationService.OrganizationMembership> organizations, boolean canCreateOrganizations) {}
+    public record PasswordResetRequest(@NotBlank @Size(max = 128) String token,
+                                       @NotBlank @Size(min = 12, max = 72) String password) {}
 
     public record RegisterRequest(
             @NotBlank(message = "Email is required.") @Email(message = "Enter a valid email address.") String email,

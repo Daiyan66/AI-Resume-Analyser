@@ -281,7 +281,11 @@ export default function Preview() {
     <a href="#preview-content" className="pv-skip" onClick={e=>{e.preventDefault();document.getElementById('preview-content')?.focus()}}>Skip to content</a>
     <header className="pv-header"><div className="pv-top">
       <Link go={go} id="home" className="pv-brand"><span className="pv-mark">A<span>.</span></span><span>AI Resume Analyser</span></Link>
-      <nav aria-label="Top navigation"><a className="pv-top-link" href="/#how-it-works">How it works</a>{role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Sign in',undefined,'pv-button')}{!role&&link('register','Create account',undefined,'pv-button primary')}</nav>
+      <nav aria-label="Top navigation">
+        <a className="pv-top-link" href="/#how-it-works">How it works</a>
+        {id==='home'?<><a href="/connected" className="pv-button">Sign in</a><a href="/connected?mode=register" className="pv-button primary">Create account</a></>:
+          role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Try a sample sign-in',undefined,'pv-button')}
+      </nav>
     </div></header>
     <div className="pv-body">
       {inWorkspace&&role&&<aside className="pv-sidebar"><div className="pv-org"><span className="pv-symbol">{data.organization.slice(0,2).toUpperCase()}</span><div><strong>{data.organization}</strong><small>{roleLabel[role]} workspace</small></div></div>
@@ -294,7 +298,7 @@ export default function Preview() {
         {denied?<Empty title={role?'Switch workspace to continue':'Sign in to continue'} detail={'This screen belongs to the '+roleLabel[required]+' workspace.'}>{act('Continue as '+roleLabel[required],()=>switchRole(required),true)}{link('login','Sign in options')}</Empty>:core()}
       </main>
     </div>
-    <footer className="pv-footer"><span>Interactive preview · Sample data</span><nav aria-label="Footer">{link('privacy','Privacy',undefined,'pv-top-link')}{link('help','Help',undefined,'pv-top-link')}{link('assistant','Assistant',undefined,'pv-top-link')}<details><summary>Screen directory</summary><div className="pv-directory">{screens.map(s=><Link key={s.id} go={go} id={s.id}>{s.title}</Link>)}</div></details><a href="/connected">Connected app</a></nav></footer>
+    <footer className="pv-footer"><span>Interactive preview · Sample data</span><nav aria-label="Footer">{link('privacy','Privacy',undefined,'pv-top-link')}{link('help','Help',undefined,'pv-top-link')}{link('assistant','Assistant',undefined,'pv-top-link')}<details><summary>Screen directory</summary><div className="pv-directory">{screens.map(s=><Link key={s.id} go={go} id={s.id}>{s.title}</Link>)}</div></details><a href="/connected">Open live workspace</a></nav></footer>
   </div>
 }
 const audiences = [

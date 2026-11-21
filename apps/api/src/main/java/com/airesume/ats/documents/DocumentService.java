@@ -131,6 +131,43 @@ public class DocumentService {
         return new Download(file.document(), new PathResource(path));
     }
 
+    public Download downloadForVerification(UUID organization, UUID request) {
+        organizations.requireAdmin(organization);
+        var rows = jdbc.query("SELECT d.* FROM recruiter_access_requests r JOIN documents d ON d.id = r.document_id " +
+                        "WHERE r.id = ? AND r.organization_id = ? AND r.applicant_id = d.owner_user_id",
+                (rs, row) -> new ReviewFile(map(rs), rs.getString("storage_key")), request, organization);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Verification document not found.");
+        var file = rows.getFirst();
+        Path path = storageRoot.resolve(file.key()).normalize();
+        if (!path.startsWith(storageRoot) || !Files.isRegularFile(path)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document file not found.");
+        }
+        audit.record(identities.currentUserId(), organization, "document.verification_download", "document", file.document().id());
+        return new Download(file.document(), new PathResource(path));
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        UUID user = identities.currentUserId();
+        var rows = jdbc.query("SELECT storage_key FROM documents WHERE id = ? AND owner_user_id = ? FOR UPDATE",
+                (rs, row) -> rs.getString(1), id, user);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found.");
+        if (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM applications WHERE document_id = ?) " +
+                "OR EXISTS (SELECT 1 FROM recruiter_access_requests WHERE document_id = ? AND status = 'PENDING')",
+                Boolean.class, id, id))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Documents attached to a submission cannot be removed.");
+        }
+        jdbc.update("DELETE FROM documents WHERE id = ?", id);
+        audit.record(user, null, "document.delete", "document", id);
+        Path path = storageRoot.resolve(rows.getFirst()).normalize();
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCommit() {
+                try { if (path.startsWith(storageRoot)) Files.deleteIfExists(path); }
+                catch (IOException ex) { org.slf4j.LoggerFactory.getLogger(DocumentService.class).warn("Document file cleanup failed"); }
+            }
+        });
+    }
+
     private Document getMetadata(UUID id, UUID owner) {
         List<Document> results = jdbc.query("SELECT id, original_filename, media_type, byte_size, created_at " +
                         "FROM documents WHERE id = ? AND owner_user_id = ?", (rs, row) -> map(rs), id, owner);
