@@ -17,6 +17,9 @@ spring:
     username: ${SMTP_USER:}
     password: ${SMTP_PASSWORD:}
     properties:
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
       mail.smtp.auth: ${SMTP_AUTH:false}
       mail.smtp.starttls.enable: ${SMTP_STARTTLS:false}
 
@@ -32,6 +35,8 @@ app:
   public-url: ${APP_PUBLIC_URL}
   mail-from: ${MAIL_FROM}
   document-dir: ${DOCUMENT_DIR}
+  notifications:
+    email-enabled: ${APPLICATION_EMAIL_ENABLED:false}
   ai:
     api-key: ${AI_API_KEY:}
     model: ${AI_MODEL:}

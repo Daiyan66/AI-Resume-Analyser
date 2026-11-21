@@ -2,7 +2,7 @@ package com.airesume.ats.recruiter;
 
 import com.airesume.ats.candidate.JobService;
 import com.airesume.ats.identity.IdentityService;
-import com.airesume.ats.identity.OrganizationService;
+import com.airesume.ats.workflow.DeliveryService;
 import com.airesume.ats.security.AuditService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -22,16 +22,16 @@ import org.springframework.web.server.ResponseStatusException;
 public class RecruiterService {
     private final JdbcTemplate jdbc;
     private final IdentityService identities;
-    private final OrganizationService organizations;
+    private final DeliveryService delivery;
     private final JobService jobs;
     private final AuditService audit;
     private final ObjectMapper json;
 
-    public RecruiterService(JdbcTemplate jdbc, IdentityService identities, OrganizationService organizations,
+    public RecruiterService(JdbcTemplate jdbc, IdentityService identities, DeliveryService delivery,
                             JobService jobs, AuditService audit, ObjectMapper json) {
         this.jdbc = jdbc;
         this.identities = identities;
-        this.organizations = organizations;
+        this.delivery = delivery;
         this.jobs = jobs;
         this.audit = audit;
         this.json = json;
@@ -97,7 +97,7 @@ public class RecruiterService {
             default -> "Offer"; };
         jdbc.update("INSERT INTO application_events (id, application_id, actor_user_id, status, message) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, target, label);
-        notifyCandidate(applicationId, "Your application status changed to " + label + ".");
+        delivery.notifyCandidate(organizationId, applicationId, "Your application status changed to " + label + ".");
         audit.record(actor, organizationId, "application.stage_" + target.toLowerCase(), "application", applicationId);
         return detail(organizationId, jobId, applicationId);
     }
@@ -121,10 +121,12 @@ public class RecruiterService {
         jdbc.update("INSERT INTO application_decisions (id, application_id, actor_user_id, outcome, reason) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, outcome, reason.trim());
         jdbc.update("UPDATE applications SET status = ? WHERE id = ?", outcome, applicationId);
+        jdbc.update("UPDATE application_interviews SET cancelled_at = CURRENT_TIMESTAMP " +
+                "WHERE application_id = ? AND cancelled_at IS NULL AND starts_at > CURRENT_TIMESTAMP", applicationId);
         jdbc.update("INSERT INTO application_events (id, application_id, actor_user_id, status, message) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, outcome,
                 "HIRED".equals(outcome) ? "Hired" : "Not selected");
-        notifyCandidate(applicationId, "Your application status changed to " +
+        delivery.notifyCandidate(organizationId, applicationId, "Your application status changed to " +
                 ("HIRED".equals(outcome) ? "Hired" : "Not selected") + ".");
         audit.record(actor, organizationId, "application.decision_" + outcome.toLowerCase(), "application", applicationId);
         return detail(organizationId, jobId, applicationId);
@@ -135,13 +137,6 @@ public class RecruiterService {
                 (rs, row) -> rs.getString("status"), applicationId, jobId);
         if (statuses.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found.");
         return statuses.getFirst();
-    }
-
-    private void notifyCandidate(UUID applicationId, String message) {
-        UUID recipient = jdbc.queryForObject("SELECT candidate_user_id FROM applications WHERE id = ?", UUID.class,
-                applicationId);
-        jdbc.update("INSERT INTO candidate_notifications (id, recipient_user_id, application_id, message) " +
-                "VALUES (?, ?, ?, ?)", UUID.randomUUID(), recipient, applicationId, message);
     }
 
     private Review reviewById(UUID id) {

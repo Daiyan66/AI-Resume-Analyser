@@ -68,8 +68,9 @@ function App() {
 
   useEffect(() => {
     if (!account) return
-    void Promise.all([api<Organization[]>('/organizations'), api<Document[]>('/documents')])
-      .then(([orgs, docs]) => {
+    void Promise.all([api<{ account: Account; organizations: Organization[] }>('/me/workspaces'), api<Document[]>('/documents')])
+      .then(([workspace, docs]) => {
+        const orgs = workspace.organizations
         setOrganizations(orgs)
         setDocuments(docs)
         setSelectedOrgId((current) => orgs.some((org) => org.organizationId === current)
@@ -280,6 +281,7 @@ function App() {
                 {mode === 'register' && <small id="password-hint">Use 12 to 128 characters.</small>}</label>
               <button type="submit" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
             </form>
+            {mode === 'login' && <p><a href="/connected/password-recovery">Forgot your password?</a></p>}
             {mode === 'login' && <form onSubmit={resendVerification}>
               <h3>Need a new verification email?</h3>
               <label>Account email<input type="email" required value={resendEmail}

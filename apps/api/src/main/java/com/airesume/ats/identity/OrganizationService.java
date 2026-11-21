@@ -123,10 +123,13 @@ public class OrganizationService {
                 invitation.id());
         if (updated != 1) throw new ResponseStatusException(HttpStatus.GONE, "Invitation already used");
         jdbc.update("INSERT INTO memberships (organization_id, user_id, role, status) VALUES (?, ?, ?, 'ACTIVE') " +
-                        "ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role, status = 'ACTIVE'",
+                        "ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role, status = 'ACTIVE' " +
+                        "WHERE memberships.status = 'REVOKED'",
                 invitation.organizationId(), actor, invitation.role());
+        String role = jdbc.queryForObject("SELECT role FROM memberships WHERE organization_id = ? AND user_id = ?",
+                String.class, invitation.organizationId(), actor);
         audit.record(actor, invitation.organizationId(), "membership.accept", "invitation", invitation.id());
-        return new OrganizationMembership(invitation.organizationId(), invitation.slug(), invitation.name(), invitation.role());
+        return new OrganizationMembership(invitation.organizationId(), invitation.slug(), invitation.name(), role);
     }
 
     public List<Member> members(UUID organizationId) {
@@ -139,7 +142,7 @@ public class OrganizationService {
 
     @Transactional
     public void revoke(UUID organizationId, UUID userId) {
-        requireAdmin(organizationId);
+        lockOrganizationForAdmin(organizationId);
         UUID actor = identities.currentUserId();
         if (actor.equals(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot revoke yourself");
         List<String> roles = jdbc.query("SELECT role FROM memberships WHERE organization_id = ? AND user_id = ? " +
@@ -153,6 +156,27 @@ public class OrganizationService {
         jdbc.update("UPDATE memberships SET status = 'REVOKED' WHERE organization_id = ? AND user_id = ?",
                 organizationId, userId);
         audit.record(actor, organizationId, "membership.revoke", "user", userId);
+    }
+
+    @Transactional
+    public Member changeRole(UUID organizationId, UUID userId, String role) {
+        lockOrganizationForAdmin(organizationId);
+        UUID actor = identities.currentUserId();
+        if (actor.equals(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot change your own role.");
+        int updated = jdbc.update("UPDATE memberships SET role = ? WHERE organization_id = ? AND user_id = ? " +
+                "AND status = 'ACTIVE'", role, organizationId, userId);
+        if (updated != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active member not found.");
+        audit.record(actor, organizationId, "membership.role_change", "user", userId);
+        return jdbc.queryForObject("SELECT u.id, u.email, u.display_name, m.role, m.status FROM memberships m " +
+                        "JOIN users u ON u.id = m.user_id WHERE m.organization_id = ? AND m.user_id = ?",
+                (rs, row) -> new Member(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getString(5)), organizationId, userId);
+    }
+
+    private void lockOrganizationForAdmin(UUID organizationId) {
+        requireAdmin(organizationId);
+        jdbc.queryForObject("SELECT id FROM organizations WHERE id = ? FOR NO KEY UPDATE", UUID.class, organizationId);
+        requireAdmin(organizationId);
     }
 
     public List<AuditEvent> recentAudit(UUID organizationId) {

@@ -174,6 +174,39 @@ class IdentityAccessIntegrationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void passwordResetTokenIsSingleUseAndInvalidatesExistingSessions() throws Exception {
+        String email = "password-reset-" + UUID.randomUUID() + "@example.test";
+        register(email);
+        MockHttpSession previous = login(email);
+        var request = Map.of("email", email);
+        mvc.perform(post("/api/v1/auth/password-reset/request").contentType(MediaType.APPLICATION_JSON)
+                .content(body(request))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/auth/password-reset/request").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(request))).andExpect(status().isAccepted());
+        mvc.perform(post("/api/v1/auth/password-reset/request").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(request))).andExpect(status().isAccepted());
+        mvc.perform(post("/api/v1/auth/password-reset/request").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", "missing@example.test")))).andExpect(status().isAccepted());
+        ArgumentCaptor<SimpleMailMessage> emails = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mail, times(2)).send(emails.capture());
+        String token = emails.getAllValues().getLast().getText().split("token=")[1].strip();
+        String newPassword = "Updated-Password-123";
+        var change = Map.of("token", token, "password", newPassword);
+        mvc.perform(post("/api/v1/auth/password-reset/confirm").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(change))).andExpect(status().isNoContent());
+        mvc.perform(post("/api/v1/auth/password-reset/confirm").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(change))).andExpect(status().isGone());
+        mvc.perform(get("/api/v1/me").session(previous)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email, "password", PASSWORD)))).andExpect(status().isUnauthorized());
+        MvcResult result = mvc.perform(post("/api/v1/auth/login").with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("email", email, "password", newPassword)))).andExpect(status().isOk()).andReturn();
+        mvc.perform(get("/api/v1/me/workspaces").session((MockHttpSession) result.getRequest().getSession(false)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.account.email").value(email))
+                .andExpect(jsonPath("$.organizations").isEmpty());
+    }
+
     private void register(String email) throws Exception {
         mvc.perform(post("/api/v1/auth/register").with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("email", email, "displayName", "Test User", "password", PASSWORD))))

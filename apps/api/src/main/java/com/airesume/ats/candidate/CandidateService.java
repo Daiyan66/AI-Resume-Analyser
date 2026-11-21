@@ -86,9 +86,9 @@ public class CandidateService {
             }
         }
         if (documentId != null) {
-            Integer count = jdbc.queryForObject("SELECT count(*) FROM documents WHERE id = ? AND owner_user_id = ?",
-                    Integer.class, documentId, candidateId);
-            if (count == null || count == 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose one of your own documents.");
+            var owned = jdbc.query("SELECT id FROM documents WHERE id = ? AND owner_user_id = ? FOR SHARE",
+                    (rs, row) -> rs.getObject(1, UUID.class), documentId, candidateId);
+            if (owned.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose one of your own documents.");
         }
         Map<UUID, String> submittedAnswers = answers == null ? Map.of() : answers;
         for (JobService.Question question : job.questions()) {
@@ -158,6 +158,8 @@ public class CandidateService {
                 "WHERE id = ? AND candidate_user_id = ? AND status IN ('SUBMITTED', 'IN_REVIEW', 'INTERVIEW', 'OFFER')",
                 id, identities.currentUserId());
         if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already closed.");
+        jdbc.update("UPDATE application_interviews SET cancelled_at = CURRENT_TIMESTAMP " +
+                "WHERE application_id = ? AND cancelled_at IS NULL AND starts_at > CURRENT_TIMESTAMP", id);
         addEvent(id, identities.currentUserId(), "WITHDRAWN", "You withdrew this application");
         UUID orgId = jdbc.queryForObject("SELECT organization_id FROM jobs WHERE id = ?", UUID.class, current.jobId());
         audit.record(identities.currentUserId(), orgId, "application.withdraw", "application", id);
@@ -176,6 +178,7 @@ public class CandidateService {
     @Transactional
     public DataRequest requestDeletion() {
         UUID userId = identities.currentUserId();
+        jdbc.queryForObject("SELECT id FROM users WHERE id = ? FOR UPDATE", UUID.class, userId);
         List<DataRequest> existing = jdbc.query("SELECT id, status, created_at FROM candidate_data_requests " +
                         "WHERE user_id = ? AND status = 'PENDING' ORDER BY created_at DESC LIMIT 1",
                 (rs, row) -> new DataRequest(rs.getObject("id", UUID.class), rs.getString("status"),
