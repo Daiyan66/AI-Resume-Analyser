@@ -48,7 +48,7 @@ Use the session cookie from sign-in and send `X-XSRF-TOKEN` from `GET /auth/csrf
 
 ## Integration boundaries
 
-- The redesigned landing and workspace preview at `/` still uses sample data. The connected app uses the real session, membership, and password recovery endpoints. The other redesigned screens still need to be wired to these contracts.
+- The public landing page at `/` links Sign in and Create account to the connected app, which uses the redesigned colors and layout with real sessions, membership, and password recovery. Use Try a workspace or the Screen directory to open the separate sample walkthrough. Some backend features still have sample-only preview screens.
 - Recruiter verification uses a verified signed-in account, a private document, and an organization admin decision. The preview's sample OTP is not part of this contract.
 - Screening and coaching use local text extraction and explainable matching. Screening reads text PDFs, DOCX, and UTF-8 TXT up to 2 MB each. Image-only scans need OCR. Batch results remain separate from candidate accounts and applications. The existing optional provider-backed job drafting endpoint remains available.
 - Application email dispatch is delivered at least once. SMTP acceptance immediately before a database failure can cause a duplicate retry. Use the organization delivery list for failed sends. The worker has bounded attempts and SMTP timeouts.

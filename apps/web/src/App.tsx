@@ -1,11 +1,10 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Account, type AuditEvent, type Document, type Member, type Organization,
   type OrganizationPolicy } from './api'
 import { CandidateWorkspace } from './CandidateWorkspace'
 import { JobPublisher } from './JobPublisher'
-import './App.css'
+import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
-type ApiStatus = 'checking' | 'ready' | 'unavailable'
 type View = 'home' | 'candidate' | 'recruiter' | 'admin' | 'documents'
 
 function currentView(): View {
@@ -13,17 +12,8 @@ function currentView(): View {
   return ['home', 'candidate', 'recruiter', 'admin', 'documents'].includes(value) ? value as View : 'home'
 }
 
-async function getApiStatus(): Promise<ApiStatus> {
-  try {
-    const result = await api<{ status: string }>('/system/status')
-    return result.status === 'ready' ? 'ready' : 'unavailable'
-  } catch {
-    return 'unavailable'
-  }
-}
-
 function App() {
-  const [status, setStatus] = useState<ApiStatus>('checking')
+  const [sessionLoading, setSessionLoading] = useState(true)
   const [view, setView] = useState<View>(currentView)
   const [account, setAccount] = useState<Account | null>(null)
   const [organizations, setOrganizations] = useState<Organization[]>([])
@@ -33,10 +23,11 @@ function App() {
   const [policy, setPolicy] = useState<OrganizationPolicy | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
   const [jobsVersion, setJobsVersion] = useState(0)
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register'>(()=>new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login')
   const [resendEmail, setResendEmail] = useState('')
   const [inviteToken, setInviteToken] = useState(new URLSearchParams(window.location.search).get('token'))
   const [verifyToken, setVerifyToken] = useState(new URLSearchParams(window.location.search).get('verify'))
+  const verificationStarted = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
@@ -50,20 +41,28 @@ function App() {
   }, [])
 
   useEffect(() => {
-    void getApiStatus().then(setStatus)
-    void api<Account | undefined>('/auth/session').then((current) => setAccount(current || null))
-      .catch(() => setAccount(null))
+    let active = true
+    void api<Account | undefined>('/auth/session')
+      .then(current => { if (active) setAccount(current ?? null) })
+      .catch(() => { if (active) setError('Could not check your session. Check that the app server is running and try again.') })
+      .finally(() => { if (active) setSessionLoading(false) })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
-    if (!verifyToken) return
+    if (!verifyToken || verificationStarted.current) return
+    verificationStarted.current = true
     void api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token: verifyToken }) })
       .then(() => {
         setVerifyToken(null)
         window.history.replaceState({}, '', '/connected')
         setNotice('Email verified. You can sign in now.')
       })
-      .catch((cause: unknown) => setError(message(cause)))
+      .catch((cause: unknown) => {
+        setError(message(cause))
+        setVerifyToken(null)
+        window.history.replaceState({}, '', '/connected')
+      })
   }, [verifyToken])
 
   useEffect(() => {
@@ -116,7 +115,7 @@ function App() {
         await api<Account>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) })
         setResendEmail(email)
         setMode('login')
-        setNotice('Account created. Open the verification email in Mailpit at localhost:8025, then sign in.')
+        setNotice('Account created. Open the verification email, then sign in.')
         return
       }
       const signedIn = await api<Account>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
@@ -129,7 +128,7 @@ function App() {
     event.preventDefault()
     void run(async () => {
       await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: resendEmail }) })
-      setNotice('If this account is waiting for verification, a new email was sent. Check Mailpit at localhost:8025.')
+      setNotice('If this account is waiting for verification, a new email was sent. Check your inbox.')
     })
   }
 
@@ -159,7 +158,7 @@ function App() {
       await api(`/organizations/${selectedOrg.organizationId}/invitations`, {
         method: 'POST', body: JSON.stringify({ email, role }),
       })
-      setNotice(`Invitation sent to ${email}. Open Mailpit at localhost:8025 to see it locally.`)
+      setNotice(`Invitation sent to ${email}.`)
       form.reset()
       setAudit(await api<AuditEvent[]>(`/organizations/${selectedOrg.organizationId}/audit`))
     })
@@ -222,75 +221,71 @@ function App() {
       setDocuments([])
       setMembers([])
       setAudit([])
+      setView('home')
+      if (!inviteToken) window.history.replaceState({}, '', '/connected')
       setNotice('Signed out.')
     })
   }
 
+  if (sessionLoading) return <ConnectedLayout><main className="pv-main" aria-busy="true"><p role="status">Checking your session…</p></main></ConnectedLayout>
+
+  if (!account && (view !== 'candidate' || inviteToken || verifyToken || error || notice)) {
+    const registering = mode === 'register'
+    return <ConnectedAuthCard title={registering ? 'Create your account' : 'Sign in to your workspace'}
+      description={registering ? 'Set up a candidate account or accept an invitation from a hiring team.' :
+        'Use your account to track applications, review candidates, or manage hiring access.'}
+      actions={<button type="button" className="pv-button" onClick={() => {setError('');setNotice('');setMode(registering ? 'login' : 'register')}}>
+        {registering ? 'Sign in' : 'Create account'}
+      </button>}>
+      {error && <p className="alert error" role="alert">{error}</p>}
+      {notice && <p className="alert success" role="status">{notice}</p>}
+      {inviteToken && <p>Use the email address where you received the invitation.</p>}
+      {verifyToken && <p role="status">Verifying your email…</p>}
+      <form key={mode} onSubmit={submitAccount}>
+        {registering && <label>Display name<input name="displayName" maxLength={160} required autoComplete="name" /></label>}
+        <label>Email<input name="email" type="email" defaultValue={resendEmail} required autoComplete="email" /></label>
+        <label>Password<input name="password" type="password" minLength={registering ? 12 : undefined}
+          maxLength={registering ? 72 : undefined} required
+          aria-describedby={registering ? 'password-hint' : undefined}
+          autoComplete={registering ? 'new-password' : 'current-password'} />
+          {registering && <small id="password-hint">Use at least 12 characters. The limit is 72 bytes.</small>}</label>
+        <button type="submit" className="pv-button primary" disabled={busy}>
+          {busy ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}
+        </button>
+      </form>
+      {!registering && <div className="live-auth-links">
+        <a href="/connected/password-recovery">Forgot your password?</a>
+        <details><summary>Resend verification email</summary><form onSubmit={resendVerification}>
+          <label>Account email<input type="email" required value={resendEmail} onChange={event => setResendEmail(event.target.value)} /></label>
+          <button type="submit" className="pv-button" disabled={busy}>Send verification email</button>
+        </form></details>
+      </div>}
+    </ConnectedAuthCard>
+  }
+
   return (
-    <main className="page">
-      <div className="shell">
-        <header className="topbar">
-          <span className="eyebrow">AI Resume Analyser</span>
-          {account && <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out</button>}
-        </header>
-        <nav className="main-nav" aria-label="Main navigation">
-          {([['home', 'Overview'], ['candidate', 'Find jobs & applications'],
-            ...(selectedOrg ? [['recruiter', 'Recruiter workspace']] : []),
-            ...(selectedOrg?.role === 'ADMIN' ? [['admin', 'Admin workspace']] : []),
-            ...(account ? [['documents', 'My documents']] : [])] as [View, string][]).map(([target, label]) =>
-            <a key={target} href={`#${target}`} aria-current={view === target ? 'page' : undefined}>{label}</a>)}
-        </nav>
-        {view === 'home' && <><h1>A clearer hiring experience starts here.</h1>
-          <p className="intro">Find jobs, apply, and track progress. Hiring teams have their own workspace for reviewing applications.</p></>}
-        {view !== 'home' && <h1>{({ candidate: 'Find jobs & applications', recruiter: 'Recruiter workspace',
-          admin: 'Admin workspace', documents: 'My documents' } as Record<string, string>)[view]}</h1>}
-        {view === 'home' &&
-        <section className="status-card" aria-labelledby="status-heading">
-          <div>
-            <h2 id="status-heading">System connection</h2>
-            <p aria-live="polite" className={`status status-${status}`}>
-              {status === 'checking' && 'Checking the API and database…'}
-              {status === 'ready' && 'Ready · API and database are connected'}
-              {status === 'unavailable' && 'Unavailable · Start the API and database, then try again'}
-            </p>
+    <ConnectedLayout actions={account ? <button type="button" className="pv-button" onClick={signOut} disabled={busy}>Sign out</button> : <a className="pv-button" href="/connected">Sign in</a>}>
+      <div className="pv-body">
+        <aside className="pv-sidebar">
+          <div className="pv-org"><span className="pv-symbol" aria-hidden="true">{selectedOrg?.name.slice(0,2).toUpperCase() ?? 'AI'}</span>
+            <div><strong>{selectedOrg?.name ?? 'Your workspace'}</strong><small>{account?.displayName ?? 'Public job board'}</small></div>
           </div>
-          <button type="button" onClick={() => { setStatus('checking'); void getApiStatus().then(setStatus) }}
-            disabled={status === 'checking'}>Check again</button>
-        </section>}
-
-        {error && <p className="alert error" role="alert">{error}</p>}
-        {notice && <p className="alert success" role="status">{notice}</p>}
-
-        {!account ? (
-          <section className="panel narrow" aria-labelledby="account-heading">
-            <div className="section-heading">
-              <h2 id="account-heading">{mode === 'login' ? 'Sign in' : 'Create an account'}</h2>
-              <button type="button" className="text-button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-                {mode === 'login' ? 'Create an account' : 'I have an account'}
-              </button>
-            </div>
-            {inviteToken && <p>Sign in or register with the email that received the invitation. You can accept it afterward.</p>}
-            {verifyToken && <p>Checking your email verification link…</p>}
-            <form onSubmit={submitAccount}>
-              {mode === 'register' && <label>Display name<input name="displayName" maxLength={160} required autoComplete="name" /></label>}
-              <label>Email<input name="email" type="email" required autoComplete="email" /></label>
-              <label>Password<input name="password" type="password" minLength={mode === 'register' ? 12 : undefined}
-                maxLength={mode === 'register' ? 128 : undefined} required
-                aria-describedby={mode === 'register' ? 'password-hint' : undefined}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
-                {mode === 'register' && <small id="password-hint">Use 12 to 128 characters.</small>}</label>
-              <button type="submit" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
-            </form>
-            {mode === 'login' && <p><a href="/connected/password-recovery">Forgot your password?</a></p>}
-            {mode === 'login' && <form onSubmit={resendVerification}>
-              <h3>Need a new verification email?</h3>
-              <label>Account email<input type="email" required value={resendEmail}
-                onChange={(event) => setResendEmail(event.target.value)} /></label>
-              <button type="submit" className="quiet" disabled={busy}>Resend verification email</button>
-            </form>}
-          </section>
-        ) : (
-          <div className="workspace">
+          <nav aria-label="Workspace navigation">
+            {([['home', 'Overview'], ['candidate', 'Find jobs & applications'],
+              ...(selectedOrg ? [['recruiter', 'Recruiter workspace']] : []),
+              ...(selectedOrg?.role === 'ADMIN' ? [['admin', 'Admin workspace']] : []),
+              ...(account ? [['documents', 'My documents']] : [])] as [View, string][]).map(([target, label]) =>
+              <a className="pv-nav-item" key={target} href={`#${target}`} aria-current={view === target ? 'page' : undefined}>{label}</a>)}
+          </nav>
+        </aside>
+        <main className="pv-main">
+          <div className="pv-page-heading">
+            <h1>{({ home: 'Workspace overview', candidate: 'Find jobs & applications', recruiter: 'Recruiter workspace',
+              admin: 'Admin workspace', documents: 'My documents' } as Record<View, string>)[view]}</h1>
+          </div>
+          {error && <p className="alert error" role="alert">{error}</p>}
+          {notice && <p className="alert success" role="status">{notice}</p>}
+          {account && <div className="live-workspace">
             {view === 'home' &&
             <section className="panel" aria-labelledby="account-heading">
               <div className="section-heading"><h2 id="account-heading">Welcome, {account.displayName}</h2><span>{account.email}</span></div>
@@ -357,14 +352,14 @@ function App() {
                 <a href={`/api/v1/documents/${document.id}`}>Download</a>
               </li>)}</ul>
             </section>}
-          </div>
-        )}
+          </div>}
         {view === 'recruiter' && selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
           onPublished={() => setJobsVersion((current) => current + 1)} />}
         {view === 'candidate' && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
           onSignIn={() => { window.location.hash = 'home' }} />}
+        </main>
       </div>
-    </main>
+    </ConnectedLayout>
   )
 }
 
