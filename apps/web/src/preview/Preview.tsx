@@ -281,7 +281,7 @@ export default function Preview() {
     <a href="#preview-content" className="pv-skip" onClick={e=>{e.preventDefault();document.getElementById('preview-content')?.focus()}}>Skip to content</a>
     <header className="pv-header"><div className="pv-top">
       <Link go={go} id="home" className="pv-brand"><span className="pv-mark">A<span>.</span></span><span>AI Resume Analyser</span></Link>
-      <nav aria-label="Top navigation">{link('jobs','Find jobs',undefined,'pv-top-link')}{link('how','How it works',undefined,'pv-top-link')}{role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Sign in',undefined,'pv-button')}{!role&&link('register','Create account',undefined,'pv-button primary')}</nav>
+      <nav aria-label="Top navigation"><a className="pv-top-link" href="/#how-it-works">How it works</a>{role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Sign in',undefined,'pv-button')}{!role&&link('register','Create account',undefined,'pv-button primary')}</nav>
     </div></header>
     <div className="pv-body">
       {inWorkspace&&role&&<aside className="pv-sidebar"><div className="pv-org"><span className="pv-symbol">{data.organization.slice(0,2).toUpperCase()}</span><div><strong>{data.organization}</strong><small>{roleLabel[role]} workspace</small></div></div>
@@ -297,20 +297,74 @@ export default function Preview() {
     <footer className="pv-footer"><span>Interactive preview · Sample data</span><nav aria-label="Footer">{link('privacy','Privacy',undefined,'pv-top-link')}{link('help','Help',undefined,'pv-top-link')}{link('assistant','Assistant',undefined,'pv-top-link')}<details><summary>Screen directory</summary><div className="pv-directory">{screens.map(s=><Link key={s.id} go={go} id={s.id}>{s.title}</Link>)}</div></details><a href="/connected">Connected app</a></nav></footer>
   </div>
 }
+const audiences = [
+  {
+    role: 'For candidates', title: 'Know where you stand',
+    description: 'Find roles that fit, apply with a reusable profile, and see what happens after you submit.',
+    features: ['Browse jobs by role, location, or work arrangement', 'Manage your profile and résumé in one place', 'See status updates, interview details, and decisions'],
+    target: 'jobs', action: 'Browse open roles',
+  },
+  {
+    role: 'For recruiters', title: 'Run a structured hiring process',
+    description: 'Give your team one place to publish openings, review applicants, and share updates.',
+    features: ['Publish jobs with screening questions and review criteria', 'Assess applicants against the same criteria', 'Schedule interviews and record decisions'],
+    target: 'access', action: 'Request recruiter access',
+  },
+  {
+    role: 'For admins', title: 'Manage hiring access and policies',
+    description: 'Set up your organization, give teammates the right access, and track changes.',
+    features: ['Invite team members and revoke access when needed', 'Set reapplication, retention, and AI policies', 'Review audit activity and candidate data requests'],
+    target: 'adash', action: 'Explore admin workspace',
+  },
+] as const
+
 function Home({go}:{go:Navigate}) {
+  useEffect(()=>{
+    if (location.hash==='#how-it-works') document.getElementById('how-it-works')?.scrollIntoView()
+  }, [])
+
   return <>
-    <div className="pv-hero"><div className="pv-hero-copy"><p className="pv-kicker">THE HIRING WORKSPACE</p><h1>Hiring with<br/>clear next steps.</h1><p>Find your next role or run your hiring process in one place. Every application has a timeline, and every decision has a person behind it.</p>
-      <div className="pv-actions"><Link go={go} id="jobs" className="pv-button primary">Explore open roles <span className="pv-link-arrow" aria-hidden="true"/></Link><Link go={go} id="access" className="pv-button">I’m hiring</Link></div></div>
-      <div className="pv-hero-visual" aria-label="Example hiring pipeline"><div className="pv-mini">
-        <div className="pv-mini-top"><span className="pv-mark">A<span>.</span></span><div><strong>Hiring overview</strong><small>Studio North</small></div><Pill>Sample workspace</Pill></div>
-        <div className="pv-mini-stats"><div><small>Open roles</small><strong>02</strong></div><div><small>In review</small><strong>04</strong></div><div><small>Interviews</small><strong>02</strong></div></div>
-        <div className="pv-mini-app"><strong>Recent applicants</strong><div><span className="pv-avatar">MP</span><span>Maya Patel<small>Product Designer</small></span><Pill>In review</Pill></div><div><span className="pv-avatar">AR</span><span>Arjun Rao<small>Platform Engineer</small></span><Pill>Interview</Pill></div></div>
-      </div></div>
-    </div>
-    <section className="pv-home-roles"><p className="pv-kicker">EXPLORE THE PLATFORM</p><h2>A workspace for each part of hiring</h2><div className="pv-grid stats">{[
-      ['Candidate','Browse openings, submit your profile and follow your application.','jobs'],
-      ['Recruiter','Publish jobs, assess applicants and keep hiring moving.','rdash'],
-      ['Admin','Manage your team, permissions and organization policies.','adash'],
-    ].map(([title,detail,target])=><article className="pv-card" key={title}><h3>{title}</h3><p>{detail}</p><Link go={go} id={target} className="pv-button">Explore {title.toLowerCase()} <span className="pv-link-arrow" aria-hidden="true"/></Link></article>)}</div></section>
+    <section className="pv-hero" aria-labelledby="landing-title">
+      <p className="pv-kicker">THE HIRING WORKSPACE</p>
+      <h1 id="landing-title">Find your next role.<br/>Build your next team.</h1>
+      <p className="pv-hero-intro">Follow an application from the first job post to the final decision. Candidates see their progress, recruiters have a clear process for review, and admins control how their team works.</p>
+      <div className="pv-actions pv-hero-actions">
+        <Link go={go} id="jobs" className="pv-button primary">Explore open roles <span className="pv-link-arrow" aria-hidden="true"/></Link>
+        <Link go={go} id="access" className="pv-button">I’m hiring</Link>
+        <Link go={go} id="adash" className="pv-button">I manage a team</Link>
+      </div>
+    </section>
+
+    <section className="pv-home-section" aria-labelledby="workspaces-title">
+      <h2 id="workspaces-title">What you can do in each workspace</h2>
+      <div className="pv-home-grid">{audiences.map(audience=><article className="pv-card pv-role-card" key={audience.role}>
+        <p className="pv-kicker">{audience.role}</p>
+        <h3>{audience.title}</h3>
+        <p>{audience.description}</p>
+        <ul>{audience.features.map(feature=><li key={feature}>{feature}</li>)}</ul>
+        <Link go={go} id={audience.target} className="pv-button">{audience.action} <span className="pv-link-arrow" aria-hidden="true"/></Link>
+      </article>)}</div>
+    </section>
+
+    <section id="how-it-works" className="pv-home-section pv-journey" aria-labelledby="journey-title" tabIndex={-1}>
+      <h2 id="journey-title">How hiring works</h2>
+      <ol className="pv-home-grid">
+        <li><h3>Set up and publish</h3><p>Admins invite the hiring team. Recruiters define the job, screening questions, and criteria before publishing.</p></li>
+        <li><h3>Apply and review</h3><p>Candidates submit their profile, résumé, and answers. Recruiters review the submission and record an assessment for each criterion.</p></li>
+        <li><h3>Share the next step</h3><p>Recruiters move applications through review and interviews. Candidates see the status, next steps, and final outcome in their timeline.</p></li>
+      </ol>
+    </section>
+
+    <section className="pv-home-section pv-home-faq" aria-labelledby="platform-faq">
+      <h2 id="platform-faq">Good to know before you start</h2>
+      <details><summary>Where does AI fit in?</summary><p>AI can help draft job descriptions and offer coaching suggestions. The hiring team reviews the evidence and makes the decision.</p></details>
+      <details><summary>Who can see my application?</summary><p>Candidates can see their own applications and updates. Hiring teams can review submissions for their jobs. Internal assessments and decision notes stay in the hiring workspace.</p></details>
+      <details><summary>How do I get access?</summary><p>Candidates can create an account. Recruiters can request access or accept an organization invitation, and admins can open their organization’s workspace after signing in.</p></details>
+      <details><summary>Can I try the platform before using real data?</summary><p>Yes. Choose a sample role on the sign-in screen to try the workflows with fictional data. Preview activity stays in this browser.</p></details>
+      <div className="pv-actions">
+        <Link go={go} id="login" className="pv-button primary">Try a workspace</Link>
+        <Link go={go} id="privacy" className="pv-button">Read the privacy information</Link>
+      </div>
+    </section>
   </>
 }

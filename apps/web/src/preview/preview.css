@@ -33,23 +33,35 @@
 .pv-app .pv-kicker {color:#3159ab;font-size:12px;font-weight:800;letter-spacing:.11em;margin-bottom:10px}
 .pv-page-heading {margin-bottom:24px}
 .pv-page-heading p:last-child {font-size:16px;max-width:68ch}
-.pv-hero {display:grid;grid-template-columns:1fr 1fr;gap:clamp(22px,5vw,75px);align-items:center;padding:clamp(28px,5vw,70px) 0}
-.pv-hero h1 {font-size:clamp(47px,7vw,96px);letter-spacing:-.069em}
-.pv-hero-copy>p:not(.pv-kicker) {font-size:clamp(16px,2vw,20px);max-width:40ch;margin:20px 0 28px}
-.pv-hero-visual {display:grid;place-items:center;min-width:0;background:linear-gradient(135deg,#dfeaff,#dbe3ff 55%,#b7c9fa);min-height:404px;border-radius:24px;padding:clamp(12px,4vw,40px);position:relative;overflow:hidden;border:1px solid #c2d3f5}
-.pv-hero-visual:before {content:"";position:absolute;inset:0;background-image:radial-gradient(#587bc8 1px,transparent 1px);background-size:18px 18px;opacity:.19}
-.pv-mini {position:relative;background:white;border-radius:14px;width:100%;max-width:550px;padding:18px;box-shadow:0 20px 50px #19357229;border:1px solid #bacded}
-.pv-mini-top,.pv-mini-app>div {display:flex;align-items:center;gap:10px}
-.pv-mini-top>div {flex:1}
-.pv-mini small {display:block;color:var(--pv-muted);font-size:11px}
-.pv-mini-stats {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:18px 0}
-.pv-mini-stats>div {background:#f0f4fb;padding:8px 10px;border-radius:8px}
-.pv-mini-stats strong {font-size:24px}
-.pv-mini-app>div {border-top:1px solid var(--pv-line);padding:8px 0;font-size:13px}
-.pv-mini-app>div>span:nth-child(2) {flex:1}
-.pv-avatar,.pv-symbol {display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;background:#e7efff;color:#24468b;font-weight:800;font-size:13px}
-.pv-home-roles {padding:20px 0 38px}
-.pv-home-roles h2 {font-size:clamp(26px,4vw,39px)}
+.pv-hero {
+  text-align:center;padding:clamp(44px,8vw,96px) clamp(16px,5vw,70px);
+  border:1px solid #d0def5;border-radius:24px;
+  background:radial-gradient(ellipse at 50% 0%,#dce8ff 0%,#eef4ff 53%,#f8faff 100%);
+}
+.pv-hero h1 {max-width:none;font-size:clamp(38px,7vw,86px);letter-spacing:-.06em}
+.pv-app .pv-hero-intro {max-width:57ch;margin:18px auto 24px;font-size:clamp(16px,2vw,20px)}
+.pv-hero-actions {justify-content:center}
+.pv-symbol {display:inline-grid;place-items:center;width:36px;height:36px;flex:none;border-radius:10px;background:#e7efff;color:#24468b;font-weight:800;font-size:13px}
+.pv-main .pv-home-section {margin-top:clamp(32px,6vw,68px)}
+.pv-home-section h2 {font-size:clamp(26px,4vw,40px);max-width:28ch;margin-bottom:19px}
+.pv-home-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.pv-role-card {display:flex;flex-direction:column;align-items:flex-start}
+.pv-role-card .pv-kicker {text-transform:uppercase}
+.pv-role-card h3,.pv-journey h3 {font-size:21px;margin-bottom:8px}
+.pv-role-card ul {padding-left:20px;margin:0 0 20px;color:var(--pv-muted)}
+.pv-role-card li+li {margin-top:6px}
+.pv-role-card .pv-button {margin-top:auto}
+.pv-journey {padding:clamp(18px,3vw,34px);background:#eaf0fc;border-radius:16px;scroll-margin-top:16px}
+.pv-journey ol {padding:0;margin:0;list-style:none;counter-reset:journey}
+.pv-journey li {counter-increment:journey;border-top:1px solid #bdcbea;padding-top:12px}
+.pv-journey li::before {content:counter(journey);display:grid;place-items:center;width:26px;height:26px;margin-bottom:12px;border-radius:50%;background:white;color:#234ead;font-weight:750}
+.pv-journey li p {margin:0}
+.pv-home-faq {max-width:780px;margin-inline:auto}
+.pv-home-faq details {border-top:1px solid #cbd7e9;padding:12px 0}
+.pv-home-faq details:last-of-type {border-bottom:1px solid #cbd7e9}
+.pv-home-faq summary {cursor:pointer;font-weight:700}
+.pv-home-faq details p {margin:8px 0 0}
+.pv-home-faq .pv-actions {margin-top:16px}
 .pv-card,.pv-empty {background:var(--pv-surface);border:1px solid var(--pv-line);border-radius:14px;padding:clamp(16px,2.8vw,28px);min-width:0}
 .pv-card > .pv-form {margin:14px 0}
 .pv-empty {border-style:dashed}
@@ -105,15 +117,11 @@
 .pv-directory {position:absolute;bottom:calc(100% + 10px);right:0;width:min(260px,72vw);max-height:44vh;overflow:auto;background:white;border:1px solid var(--pv-line);border-radius:9px;padding:10px;box-shadow:0 8px 30px #18243a22;z-index:2;display:grid;gap:6px}
 @media(max-width:900px) {
   .pv-sidebar {flex-basis:178px}
-  .pv-hero {gap:20px}
-  .pv-hero-visual {min-height:340px}
 }
 @media(max-width:680px) {
   .pv-top {align-items:flex-start;flex-direction:column;gap:7px}
   .pv-top nav {gap:4px}
-  .pv-hero,.pv-auth {grid-template-columns:1fr}
-  .pv-hero-visual {min-height:280px;padding:13px}
-  .pv-hero h1 {font-size:clamp(44px,11vw,63px)}
+  .pv-home-grid,.pv-auth {grid-template-columns:1fr}
   .pv-body {display:block}
   .pv-sidebar {padding:9px 13px;gap:7px;border-right:0;border-bottom:1px solid var(--pv-line)}
   .pv-org {display:none}
