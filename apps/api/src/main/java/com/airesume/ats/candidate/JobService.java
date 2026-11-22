@@ -124,12 +124,16 @@ public class JobService {
         return privateJob(organizationId, jobId);
     }
 
-    public Page organizationJobs(UUID organizationId, int page, int size) {
+    public Page organizationJobs(UUID organizationId, int page, int size, String query, String status, String workType) {
         organizations.requireMember(organizationId);
-        long total = jdbc.queryForObject("SELECT count(*) FROM jobs WHERE organization_id = ?", Long.class, organizationId);
-        List<Job> items = jdbc.query("SELECT j.*, o.name AS organization_name FROM jobs j JOIN organizations o ON o.id = j.organization_id " +
-                "WHERE j.organization_id = ? ORDER BY j.created_at DESC, j.id LIMIT ? OFFSET ?",
-                (rs, row) -> map(rs, true), organizationId, size, (long) page * size);
+        String search = query.strip();
+        String filter = " WHERE j.organization_id = ? AND (? = '' OR j.status = ?) AND (? = '' OR j.work_type = ?) " +
+                "AND (? = '' OR strpos(lower(concat_ws(' ', j.title, j.location, j.description, j.requirements)), lower(?)) > 0)";
+        long total = jdbc.queryForObject("SELECT count(*) FROM jobs j" + filter, Long.class,
+                organizationId, status, status, workType, workType, search, search);
+        List<Job> items = jdbc.query("SELECT j.*, o.name AS organization_name FROM jobs j JOIN organizations o ON o.id = j.organization_id" +
+                filter + " ORDER BY j.created_at DESC, j.id LIMIT ? OFFSET ?", (rs, row) -> map(rs, true),
+                organizationId, status, status, workType, workType, search, search, size, (long) page * size);
         return new Page(items, page, size, total);
     }
 

@@ -87,6 +87,12 @@ public class OrganizationWorkflowService {
         return new ApplicationPage(items, page, size, total == null ? 0 : total);
     }
 
+    public List<JobOption> applicationJobs(UUID org) {
+        organizations.requireMember(org);
+        return jdbc.query("SELECT id, title, status FROM jobs WHERE organization_id = ? AND status <> 'DRAFT' ORDER BY lower(title), id",
+                (rs, row) -> new JobOption(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)), org);
+    }
+
     public List<DataReview> dataRequests(UUID org, int page, int size) {
         organizations.requireAdmin(org);
         return jdbc.query(DATA_REQUESTS + " WHERE " + SHARED_WITH_ORG + " ORDER BY d.created_at DESC, d.id LIMIT ? OFFSET ?",
@@ -195,6 +201,7 @@ public class OrganizationWorkflowService {
                 rs.getString("phone"), rs.getString("disciplines"), rs.getString("status"), rs.getTimestamp("created_at").toInstant());
     }
 
+    public record JobOption(UUID id, String title, String status) {}
     public record ApplicationSummary(UUID id, UUID jobId, String jobTitle, String candidateName, String status, Instant submittedAt) {}
     public record ApplicationPage(List<ApplicationSummary> items, int page, int size, long total) {}
     public record Report(Map<String, Long> byStage, long applications, long applicationsWithReview) {}

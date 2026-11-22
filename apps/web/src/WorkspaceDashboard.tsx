@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, type AuditEvent, type CandidateApplication, type CandidateNotification, type CandidateProfile,
   type Job, type Member, type Organization, type Page } from './api'
 import { CandidateJobList } from './CandidateJobList'
-import { firstName, type WorkspaceRole } from './workspaceNavigation'
+import { firstName, recruiterRoutes, type WorkspaceRole } from './workspaceNavigation'
 
 function useDashboardData<T>(load: () => Promise<T>, key: string) {
   const [result, setResult] = useState<{ key: string; data?: T; failed?: boolean }>()
@@ -71,7 +71,7 @@ function RecruiterDashboard({ organization }: { organization: Organization }) {
   return <>
     <section className="pv-card live-recruiter-heading">
       <div><p className="pv-kicker">{organization.name}</p><h2>Hiring pipeline</h2><p>See where applications stand across your organization.</p></div>
-      <a className="pv-button primary" href="#recruiter">Manage jobs & applicants</a>
+      <a className="pv-button primary" href={recruiterRoutes['recruiter-applications']}>View applications</a>
     </section>
     <div className="pv-grid stats live-dashboard-cards">
       <div className="pv-card pv-stat"><span>Job records</span><strong>{summary?.jobs ?? '—'}</strong></div>

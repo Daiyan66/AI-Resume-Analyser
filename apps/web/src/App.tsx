@@ -2,10 +2,13 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Account, type AuditEvent, type Document, type Member, type Organization,
   type OrganizationPolicy } from './api'
 import { CandidateWorkspace } from './CandidateWorkspace'
-import { JobPublisher } from './JobPublisher'
+import { PostedJobsPage } from './PostedJobsPage'
+import { PostJobPage } from './PostJobPage'
+import { RecruiterApplicationsPage } from './RecruiterApplicationsPage'
+import { TeamChatPage } from './TeamChatPage'
 import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
-import { currentView, firstName, isCandidateSection, isCandidateView, viewTitles, workspaceMenus, workspaceNames,
+import { currentView, firstName, isCandidateSection, isCandidateView, recruiterView, recruiterRoutes, workspaceHref, viewTitles, workspaceMenus, workspaceNames,
   type View, type WorkspaceRole } from './workspaceNavigation'
 import { WorkspaceDashboard } from './WorkspaceDashboard'
 
@@ -23,7 +26,6 @@ function App() {
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [policy, setPolicy] = useState<OrganizationPolicy | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
-  const [jobsVersion, setJobsVersion] = useState(0)
   const [mode, setMode] = useState<'login' | 'register'>(()=>new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login')
   const [resendEmail, setResendEmail] = useState('')
   const [inviteToken, setInviteToken] = useState(new URLSearchParams(window.location.search).get('token'))
@@ -35,7 +37,9 @@ function App() {
 
   const selectedOrg = organizations.find((org) => org.organizationId === selectedOrgId)
   const organizationRole = selectedOrg?.role
-  const allowed = view === 'recruiter' ? !!organizationRole :
+  const hiringRoute = recruiterView(location.pathname)
+  const allowed = hiringRoute ? !!organizationRole :
+    view === 'organizations' ? !!inviteToken || organizationRole === 'ADMIN' || (!organizationRole && canCreateOrganizations) :
     ['admin', 'policy', 'audit'].includes(view) ? organizationRole === 'ADMIN' : true
   const activeView = !allowed ? 'home' : inviteToken && account ? 'organizations' : view
   const role: WorkspaceRole = isCandidateView(activeView) ? 'CANDIDATE' : organizationRole ?? (canCreateOrganizations ? 'ADMIN' : 'CANDIDATE')
@@ -69,6 +73,7 @@ function App() {
       .then(() => {
         setVerifyToken(null)
         window.history.replaceState({}, '', '/connected')
+        setFragment('')
         setNotice('Email verified. You can sign in now.')
       })
       .catch((cause: unknown) => {
@@ -88,13 +93,32 @@ function App() {
         const orgs = workspace.organizations
         setOrganizations(orgs)
         setDocuments(docs)
+        const savedOrg = sessionStorage.getItem(`active-organization-${account.id}`)
         setSelectedOrgId((current) => orgs.some((org) => org.organizationId === current)
-          ? current : (orgs[0]?.organizationId || ''))
+          ? current : orgs.find(org => org.organizationId === savedOrg)?.organizationId ?? orgs[0]?.organizationId ?? '')
       })
       .catch((cause: unknown) => { if (active) setError(message(cause)) })
       .finally(() => { if (active) setWorkspaceLoading(false) })
     return () => { active = false }
   }, [account])
+
+  function switchOrganization(id: string) {
+    if (!account) return
+    sessionStorage.setItem(`active-organization-${account.id}`, id)
+    if (['organizations', 'admin', 'policy', 'audit'].includes(view) &&
+        organizations.some(org => org.organizationId === id && org.role === 'RECRUITER') && !inviteToken) {
+      location.assign('/connected')
+      return
+    }
+    if (hiringRoute && location.search) {
+      location.assign(recruiterRoutes[hiringRoute])
+      return
+    }
+    setSelectedOrgId(id)
+    setMembers([])
+    setAudit([])
+    setPolicy(null)
+  }
 
   useEffect(() => {
     if (!selectedOrgId || selectedOrg?.role !== 'ADMIN') return
@@ -163,7 +187,7 @@ function App() {
     void run(async () => {
       const created = await api<Organization>('/organizations', { method: 'POST', body: JSON.stringify({ name, slug }) })
       setOrganizations((current) => [...current, created])
-      setSelectedOrgId(created.organizationId)
+      switchOrganization(created.organizationId)
       window.location.hash = 'home'
       setNotice(`${created.name} created. You are its Admin.`)
       form.reset()
@@ -196,7 +220,11 @@ function App() {
       setInviteToken(null)
       window.history.replaceState({}, '', '/connected')
       setOrganizations((current) => [...current.filter((org) => org.organizationId !== joined.organizationId), joined])
+      if (account) sessionStorage.setItem(`active-organization-${account.id}`, joined.organizationId)
       setSelectedOrgId(joined.organizationId)
+      setMembers([])
+      setAudit([])
+      setPolicy(null)
       setFragment('')
       setNotice(`You joined ${joined.name} as ${joined.role}.`)
     })
@@ -294,14 +322,20 @@ function App() {
       <div className="pv-body">
         <aside className="pv-sidebar">
           <div className="pv-org live-sidebar-name"><strong>{account ? firstName(account.displayName) : 'Public job board'}</strong></div>
+          {role !== 'CANDIDATE' && selectedOrg && <div className="recruiter-organization">
+            {organizations.length > 1 ? <label>Organization<select aria-label="Switch organization" value={selectedOrgId}
+              onChange={event => switchOrganization(event.target.value)}>
+              {organizations.map(org => <option key={org.organizationId} value={org.organizationId}>{org.name} · {org.role}</option>)}
+            </select></label> : <span>{selectedOrg.name}</span>}
+          </div>}
           <nav aria-label="Workspace navigation">
             {(account ? menu : ['candidate'] as View[]).map(target =>
-              <a className="pv-nav-item" key={target} href={`#${target}`} aria-current={activeMenuView === target ? 'page' : undefined}>
+              <a className="pv-nav-item" key={target} href={workspaceHref(target)} aria-current={activeMenuView === target ? 'page' : undefined}>
                 {target === 'home' || target === 'candidate-home' ? 'Dashboard' : target === 'updates' ? 'Notifications' : target === 'profile' ? 'Profile' : viewTitles[target]}
               </a>)}
           </nav>
           {account && <div className="pv-sidebar-bottom">
-            {(organizationRole || canCreateOrganizations) && <a className="pv-nav-item" href={role === 'CANDIDATE' ? '#home' : '#candidate-home'}>
+            {(organizationRole || canCreateOrganizations) && <a className="pv-nav-item" href={workspaceHref(role === 'CANDIDATE' ? 'home' : 'candidate-home')}>
               {role === 'CANDIDATE' ? 'Switch to hiring workspace' : 'Switch to candidate workspace'}
             </a>}
             <button type="button" className="pv-button" onClick={signOut} disabled={busy}>Sign out</button>
@@ -327,7 +361,7 @@ function App() {
               </div>}
               <h3>Your organizations</h3>
               {organizations.length === 0 ? <p>You have not joined an organization yet. If a hiring team has invited you, open the invitation from your email.</p> : (
-                <label>Active organization<select value={selectedOrgId} onChange={(event) => {setSelectedOrgId(event.target.value);setMembers([]);setAudit([]);setPolicy(null)}}>
+                <label>Active organization<select value={selectedOrgId} onChange={event => switchOrganization(event.target.value)}>
                   {organizations.map((org) => <option key={org.organizationId} value={org.organizationId}>
                     {org.name} · {org.role}
                   </option>)}
@@ -391,9 +425,11 @@ function App() {
               </li>)}</ul>
             </section>}
           </div>}
-        {activeView === 'recruiter' && selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
-          onPublished={() => setJobsVersion((current) => current + 1)} />}
-        {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
+        {selectedOrg && activeView === 'posted-jobs' && <PostedJobsPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && activeView === 'post-job' && <PostJobPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && activeView === 'recruiter-applications' && <RecruiterApplicationsPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && account && activeView === 'team-chat' && <TeamChatPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} />}
+        {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents}
           section={activeView} jobId={jobId} onDocumentAdded={(document) => setDocuments(current => [document, ...current])}
           onSignIn={() => { window.location.hash = 'home' }} />}
         </main>

@@ -61,6 +61,13 @@ class PlatformWorkflowIntegrationTest {
                 .andExpect(status().isCreated()).andReturn(), "id");
         var listing = organization + "/jobs/" + job;
         mvc.perform(post(listing + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
+        mvc.perform(get(organization + "/jobs").param("q", "Spring services").param("status", "PUBLISHED")
+                        .param("workType", "REMOTE").session(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1)).andExpect(jsonPath("$.items[0].id").value(job));
+        mvc.perform(get(organization + "/jobs").param("status", "DRAFT").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get(organization + "/applications/jobs").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].id").value(job));
         mvc.perform(get("/api/v1/public/jobs").param("q", "Java Engineer").param("workType", "ONSITE"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         mvc.perform(get("/api/v1/public/jobs").param("q", "Build Spring services").param("workType", "REMOTE"))
@@ -185,6 +192,52 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(get(batches + "/" + batch).session(outsider)).andExpect(status().isForbidden());
         mvc.perform(delete(batches + "/" + batch).session(candidate).with(csrf())).andExpect(status().isNoContent());
         mvc.perform(get(batches + "/" + batch).session(admin)).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void teamChatScopesRoomsAndDirectMessagesToActiveMembers() throws Exception {
+        var admin = session("chat-admin");
+        var recruiter = session("chat-recruiter");
+        var teammate = session("chat-teammate");
+        var outsider = session("chat-outsider");
+        var organization = org(admin, "chat");
+        var otherOrg = org(outsider, "other-chat");
+        UUID orgId = UUID.fromString(organization.substring(organization.lastIndexOf('/') + 1));
+        String adminId = id(mvc.perform(get("/api/v1/auth/session").session(admin)).andReturn(), "id");
+        String recruiterId = id(mvc.perform(get("/api/v1/auth/session").session(recruiter)).andReturn(), "id");
+        String teammateId = id(mvc.perform(get("/api/v1/auth/session").session(teammate)).andReturn(), "id");
+        String outsiderId = id(mvc.perform(get("/api/v1/auth/session").session(outsider)).andReturn(), "id");
+        for (String member : List.of(recruiterId, teammateId)) {
+            jdbc.update("INSERT INTO memberships (organization_id, user_id, role) VALUES (?, ?, 'RECRUITER')",
+                    orgId, UUID.fromString(member));
+        }
+        String messages = organization + "/chat/messages";
+        mvc.perform(get(organization + "/chat/people").session(recruiter))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2));
+        mvc.perform(get(messages).session(outsider)).andExpect(status().isForbidden());
+        mvc.perform(payload(post(messages), admin, Map.of("person", outsiderId, "body", "Outside message")))
+                .andExpect(status().isNotFound());
+        String roomId = id(mvc.perform(payload(post(messages), admin, Map.of("body", "Hiring team update")))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        String directId = id(mvc.perform(payload(post(messages), recruiter, Map.of("person", adminId, "body", "Private note")))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        mvc.perform(get(messages).session(recruiter)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1)).andExpect(jsonPath("$.items[0].id").value(roomId));
+        mvc.perform(get(messages).param("person", recruiterId).session(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].id").value(directId));
+        mvc.perform(get(messages).param("person", recruiterId).param("after", roomId).session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].body").value("Private note"));
+        mvc.perform(get(messages).param("person", recruiterId).param("before", directId).session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+        mvc.perform(get(messages).param("person", recruiterId).session(teammate))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+        mvc.perform(get(otherOrg + "/chat/messages").session(outsider))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+        jdbc.update("UPDATE memberships SET status = 'REVOKED' WHERE organization_id = ? AND user_id = ?", orgId,
+                UUID.fromString(recruiterId));
+        mvc.perform(get(messages).session(recruiter)).andExpect(status().isForbidden());
+        mvc.perform(payload(post(messages), admin, Map.of("person", recruiterId, "body", "After removal")))
+                .andExpect(status().isNotFound());
     }
 
     private String org(MockHttpSession admin, String prefix) throws Exception {

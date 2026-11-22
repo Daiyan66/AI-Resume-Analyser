@@ -15,7 +15,6 @@ const pageSize = 12
 type Props = {
   account: Account | null
   documents: Document[]
-  jobsVersion: number
   section: CandidateSection
   jobId: string | null
   onSignIn: () => void
@@ -37,7 +36,7 @@ function usePage<T>(path: string | null, revision: number) {
   return result?.path === path && result.revision === revision ? result : undefined
 }
 
-export function CandidateWorkspace({ account, documents, jobsVersion, section, jobId, onSignIn, onDocumentAdded }: Props) {
+export function CandidateWorkspace({ account, documents, section, jobId, onSignIn, onDocumentAdded }: Props) {
   const [jobPage, setJobPage] = useState(0)
   const [jobFilters, setJobFilters] = useState({ q: '', workType: '' })
   const [jobFilterDraft, setJobFilterDraft] = useState(jobFilters)
@@ -55,7 +54,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, section, j
 
   const jobParams = new URLSearchParams({ page: String(jobPage), size: String(pageSize), q: jobFilters.q })
   if (jobFilters.workType) jobParams.set('workType', jobFilters.workType)
-  const jobResult = usePage<Job>(section === 'candidate' ? `/public/jobs?${jobParams}` : null, jobsVersion)
+  const jobResult = usePage<Job>(section === 'candidate' ? `/public/jobs?${jobParams}` : null, 0)
   const jobs = jobResult?.data
   const selectedJob = jobId && jobDetail?.id === jobId ? jobDetail.job : undefined
 
@@ -76,7 +75,7 @@ export function CandidateWorkspace({ account, documents, jobsVersion, section, j
       if (active) setJobDetail({ id: jobId, error: 'This job is unavailable. Choose another opening from the list.' })
     })
     return () => { active = false }
-  }, [section, jobId, jobsVersion])
+  }, [section, jobId])
 
   useEffect(() => {
     if (!account) return

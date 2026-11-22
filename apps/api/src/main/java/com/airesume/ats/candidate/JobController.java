@@ -40,8 +40,11 @@ public class JobController {
     @GetMapping("/organizations/{organizationId}/jobs")
     public JobService.Page organizationJobs(@PathVariable UUID organizationId,
                                            @RequestParam(defaultValue = "0") @Min(0) int page,
-                                           @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
-        return jobs.organizationJobs(organizationId, page, size);
+                                           @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
+                                           @RequestParam(defaultValue = "") @Size(max = 160) String q,
+                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|DRAFT|PUBLISHED|PAUSED|CLOSED") String status,
+                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|REMOTE|HYBRID|ONSITE") String workType) {
+        return jobs.organizationJobs(organizationId, page, size, q, status, workType);
     }
 
     @PostMapping("/organizations/{organizationId}/jobs")

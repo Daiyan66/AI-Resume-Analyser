@@ -41,6 +41,11 @@ public class OrganizationWorkflowController {
         return workflows.pipeline(org, jobId, status, q, page, size);
     }
 
+    @GetMapping(ORG + "/applications/jobs")
+    public List<OrganizationWorkflowService.JobOption> applicationJobs(@PathVariable UUID org) {
+        return workflows.applicationJobs(org);
+    }
+
     @GetMapping(ORG + "/reports/pipeline")
     public OrganizationWorkflowService.Report report(@PathVariable UUID org, @RequestParam(required = false) UUID jobId) {
         return workflows.report(org, jobId);

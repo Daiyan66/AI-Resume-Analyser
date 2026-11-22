@@ -11,8 +11,6 @@ export type Job = { id: string; organizationId: string; organizationName: string
   workType: 'REMOTE' | 'HYBRID' | 'ONSITE'; salaryMin: number | null; salaryMax: number | null;
   currency: string | null; description: string; requirements: string; status: string;
   publishedAt: string | null; questions: JobQuestion[]; criteria: JobCriterion[] }
-export type PipelineItem = { id: string; candidateName: string; candidateEmail: string; status: string;
-  submittedAt: string; reviewedCriteria: number; totalCriteria: number }
 export type Review = { id: string; criterionId: string; reviewerName: string; rating: string; note: string; createdAt: string }
 export type Decision = { id: string; actorName: string; outcome: string; reason: string; createdAt: string }
 export type ReviewDetail = { id: string; job: Job; status: string;
