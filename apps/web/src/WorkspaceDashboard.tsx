@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type AuditEvent, type CandidateApplication, type CandidateNotification, type CandidateProfile,
   type Job, type Member, type Organization, type Page } from './api'
+import { CandidateJobList } from './CandidateJobList'
 import { firstName, type WorkspaceRole } from './workspaceNavigation'
 
 function useDashboardData<T>(load: () => Promise<T>, key: string) {
@@ -19,8 +20,11 @@ const loadCandidate = () => Promise.all([
   api<Page<CandidateApplication>>('/candidate/applications?size=3'),
   api<Page<CandidateNotification>>('/candidate/notifications?read=false&size=1'),
 ])
+const loadOpenJobs = () => api<Page<Job>>('/public/jobs?size=5')
+
 function CandidateDashboard({ name }: { name: string }) {
   const snapshot = useDashboardData(loadCandidate, name)
+  const openJobs = useDashboardData(loadOpenJobs, name)
   const [profile, applications, inbox] = snapshot?.data ?? []
   const ready = !!(profile?.headline.trim() && profile.summary.trim())
   return <>
@@ -33,6 +37,12 @@ function CandidateDashboard({ name }: { name: string }) {
       <a className="pv-card pv-stat" href="#updates"><span>Unread notifications</span><strong>{inbox?.total ?? '—'}</strong><small>Open notifications</small></a>
       <a className="pv-card pv-stat" href="#applications"><span>My applications</span><strong>{applications?.total ?? '—'}</strong><small>View applications</small></a>
     </div>
+    <section className="pv-card">
+      <div className="section-heading"><h2>Open jobs</h2><a href="#candidate">Browse and filter jobs</a></div>
+      {openJobs?.failed ? <p role="alert">Couldn’t load open jobs.</p> :
+        !openJobs?.data ? <p role="status">Loading open jobs…</p> :
+        openJobs.data.items.length ? <CandidateJobList jobs={openJobs.data.items} /> : <p>No jobs have been published yet.</p>}
+    </section>
     <section className="pv-card">
       <h2>Recent applications</h2>
       {snapshot?.failed ? <p>Couldn’t load your recent activity. You can still open the pages from the menu.</p> :

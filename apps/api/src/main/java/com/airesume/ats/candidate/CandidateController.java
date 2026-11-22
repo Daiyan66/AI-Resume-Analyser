@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import java.util.List;
 import java.util.Map;
@@ -39,8 +40,11 @@ public class CandidateController {
 
     @GetMapping("/applications")
     public CandidateService.Page applications(@RequestParam(defaultValue = "0") @Min(0) int page,
-                                              @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
-        return candidates.applications(page, size);
+                                              @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
+                                              @RequestParam(required = false)
+                                              @Pattern(regexp = "SUBMITTED|IN_REVIEW|INTERVIEW|OFFER|HIRED|NOT_SELECTED|WITHDRAWN")
+                                              String status) {
+        return candidates.applications(page, size, status);
     }
 
     @GetMapping("/applications/{id}")

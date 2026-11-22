@@ -113,6 +113,16 @@ class CandidateFlowIntegrationTest {
                 .andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/candidate/applications/{id}/withdraw", applicationId).session(candidate).with(csrf()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.events.length()").value(2));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "WITHDRAWN").session(candidate))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(applicationId));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "SUBMITTED").session(candidate))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.items").isEmpty());
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "WITHDRAWN").session(other))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "UNKNOWN").session(candidate))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/organizations/{id}/policy", orgId).session(candidate))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/organizations/{id}/policy", orgId).session(admin).with(csrf())

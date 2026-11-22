@@ -11,7 +11,9 @@ import { WorkspaceDashboard } from './WorkspaceDashboard'
 
 function App() {
   const [sessionLoading, setSessionLoading] = useState(true)
-  const [view, setView] = useState<View>(currentView)
+  const [fragment, setFragment] = useState(() => window.location.hash)
+  const view = currentView(fragment)
+  const jobId = new URLSearchParams(fragment.split('?')[1]).get('job')
   const [account, setAccount] = useState<Account | null>(null)
   const [workspaceLoading, setWorkspaceLoading] = useState(false)
   const [canCreateOrganizations, setCanCreateOrganizations] = useState(false)
@@ -44,7 +46,7 @@ function App() {
 
   useEffect(() => {
     const updateView = () => {
-      setView(currentView())
+      setFragment(window.location.hash)
       window.scrollTo(0, 0)
     }
     window.addEventListener('hashchange', updateView)
@@ -195,7 +197,7 @@ function App() {
       window.history.replaceState({}, '', '/connected')
       setOrganizations((current) => [...current.filter((org) => org.organizationId !== joined.organizationId), joined])
       setSelectedOrgId(joined.organizationId)
-      setView('home')
+      setFragment('')
       setNotice(`You joined ${joined.name} as ${joined.role}.`)
     })
   }
@@ -245,7 +247,7 @@ function App() {
       setDocuments([])
       setMembers([])
       setAudit([])
-      setView('home')
+      setFragment('')
       if (!inviteToken) window.history.replaceState({}, '', '/connected')
       setCanCreateOrganizations(false)
     })
@@ -314,7 +316,7 @@ function App() {
           {!allowed && <p className="alert error" role="alert">This workspace page is unavailable for your active organization role.</p>}
           {account && dashboardView && <WorkspaceDashboard role={role} accountId={account.id} name={account.displayName} members={members}
             audit={audit} organization={role === 'CANDIDATE' ? undefined : selectedOrg} />}
-          {account && <div className="live-workspace">
+          {account && ['organizations', 'policy', 'admin', 'audit', 'documents'].includes(activeView) && <div className="live-workspace">
             {activeView === 'organizations' &&
             <section className="panel" aria-labelledby="account-heading">
               <div className="section-heading"><h2 id="account-heading">Welcome, {account.displayName}</h2><span>{account.email}</span></div>
@@ -392,7 +394,8 @@ function App() {
         {activeView === 'recruiter' && selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
           onPublished={() => setJobsVersion((current) => current + 1)} />}
         {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
-          section={activeView} onSignIn={() => { window.location.hash = 'home' }} />}
+          section={activeView} jobId={jobId} onDocumentAdded={(document) => setDocuments(current => [document, ...current])}
+          onSignIn={() => { window.location.hash = 'home' }} />}
         </main>
       </div>
     </ConnectedLayout>

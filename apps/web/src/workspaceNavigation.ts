@@ -16,8 +16,8 @@ export function isCandidateSection(view: View): view is CandidateSection {
 export function isCandidateView(view: View) {
   return isCandidateSection(view) || view === 'candidate-home' || view === 'documents'
 }
-export function currentView(): View {
-  const hash = window.location.hash.slice(1)
+export function currentView(fragment: string): View {
+  const [hash] = fragment.slice(1).split('?')
   return Object.hasOwn(viewTitles, hash) ? hash as View : 'home'
 }
 
@@ -33,3 +33,5 @@ export const workspaceMenus: Record<WorkspaceRole, View[]> = {
 export function firstName(name: string) {
   return name.trim().split(/\s+/)[0] || 'there'
 }
+
+export const workTypes = { REMOTE: 'Remote', HYBRID: 'Hybrid', ONSITE: 'On-site' } as const

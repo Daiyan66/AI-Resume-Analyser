@@ -52,3 +52,20 @@
 @media(max-width:680px) {
   .live-sidebar-name {display:flex;padding-bottom:6px}
 }
+
+.live-app-workspace .pv-main {max-width:none;margin:0;padding:clamp(12px,1.3vw,20px)}
+.live-app-workspace .pv-page-heading {margin-bottom:12px}
+.live-app-workspace .pv-main h1 {font-size:clamp(24px,2.5vw,34px);margin-bottom:0}
+.live-app-workspace .pv-main h2 {font-size:20px}
+.live-app-workspace .pv-main .pv-welcome h2 {font-size:clamp(20px,2vw,25px);margin-bottom:6px}
+.live-app-workspace .pv-main > *+* {margin-top:12px}
+.live-app-workspace .panel,.live-app-workspace .pv-card,.live-app-workspace .pv-welcome {padding:clamp(12px,1.4vw,20px)}
+.live-app-workspace .panel {margin-top:12px}
+.live-app-workspace .candidate-area > .panel:first-child,.live-app-workspace .live-workspace > .panel:first-child {margin-top:0}
+.live-app-workspace .pv-stat strong {font-size:clamp(18px,2vw,25px)}
+.live-app .candidate-job-list li > div {min-width:0}
+.live-app .candidate-job-list li > div span {color:var(--pv-muted)}
+.live-app .candidate-filters label,.live-app .resume-existing label {flex:0 1 300px}
+.live-app .candidate-status-filter {max-width:260px;margin:12px 0}
+.live-app .resume-existing {gap:13px;margin:14px 0}
+.live-app .resume-profile textarea {min-height:12rem;margin-bottom:8px}

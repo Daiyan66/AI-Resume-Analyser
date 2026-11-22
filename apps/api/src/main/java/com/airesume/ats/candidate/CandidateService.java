@@ -138,13 +138,16 @@ public class CandidateService {
         return applications.getFirst();
     }
 
-    public Page applications(int page, int size) {
+    public Page applications(int page, int size, String status) {
         UUID userId = identities.currentUserId();
-        long total = jdbc.queryForObject("SELECT count(*) FROM applications WHERE candidate_user_id = ?", Long.class, userId);
+        long total = jdbc.queryForObject(
+                "SELECT count(*) FROM applications WHERE candidate_user_id = ? AND (CAST(? AS TEXT) IS NULL OR status = ?)",
+                Long.class, userId, status, status);
         List<Application> items = jdbc.query("SELECT a.*, j.title AS job_title, o.name AS organization_name " +
                         "FROM applications a JOIN jobs j ON j.id = a.job_id JOIN organizations o ON o.id = j.organization_id " +
-                        "WHERE a.candidate_user_id = ? ORDER BY a.submitted_at DESC, a.id LIMIT ? OFFSET ?",
-                (rs, row) -> map(rs), userId, size, (long) page * size);
+                        "WHERE a.candidate_user_id = ? AND (CAST(? AS TEXT) IS NULL OR a.status = ?) " +
+                        "ORDER BY a.submitted_at DESC, a.id LIMIT ? OFFSET ?",
+                (rs, row) -> map(rs), userId, status, status, size, (long) page * size);
         return new Page(items, page, size, total);
     }
 
