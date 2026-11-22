@@ -1,10 +1,13 @@
 export const candidateSections = ['candidate', 'applications', 'profile', 'updates', 'privacy'] as const
 export type CandidateSection = typeof candidateSections[number]
 export const recruiterRoutes = {
-  'posted-jobs': '/connected/recruiter/jobs',
-  'post-job': '/connected/recruiter/jobs/new',
-  'recruiter-applications': '/connected/recruiter/applications',
-  'team-chat': '/connected/recruiter/chat',
+  'posted-jobs': '/dashboard/recruiter/jobs',
+  'post-job': '/dashboard/recruiter/jobs/new',
+  'recruiter-applications': '/dashboard/recruiter/applications',
+  'team-chat': '/dashboard/recruiter/chat',
+  'recruiter-notifications': '/dashboard/recruiter/notifications',
+  'hired-candidates': '/dashboard/recruiter/hires',
+  'batch-screening': '/dashboard/recruiter/batch-screening',
 } as const
 export type RecruiterView = keyof typeof recruiterRoutes
 export type View = RecruiterView | CandidateSection | 'home' | 'candidate-home' | 'admin' | 'policy' | 'audit' | 'documents' | 'organizations'
@@ -14,7 +17,8 @@ export const viewTitles: Record<View, string> = {
   home: 'Workspace overview', 'candidate-home': 'Candidate dashboard', candidate: 'Find jobs',
   applications: 'My applications', profile: 'Candidate profile', updates: 'Application updates', privacy: 'Privacy & data',
   'posted-jobs': 'Posted jobs', 'post-job': 'Post a job',
-  'recruiter-applications': 'Applications', 'team-chat': 'Team chat', admin: 'Team & invitations', policy: 'Hiring policies', audit: 'Audit log',
+  'recruiter-applications': 'Applications', 'recruiter-notifications': 'Notifications',
+  'hired-candidates': 'Hired candidates', 'batch-screening': 'Batch screening', 'team-chat': 'Team chat', admin: 'Team & invitations', policy: 'Hiring policies', audit: 'Audit log',
   documents: 'My documents', organizations: 'Organizations',
 }
 
@@ -29,8 +33,9 @@ export function recruiterView(path: string) {
 }
 
 export function workspaceHref(view: View) {
+  if (view === 'home' || view === 'candidate-home') return view === 'home' ? '/dashboard' : '/dashboard#candidate-home'
   if (Object.hasOwn(recruiterRoutes, view)) return recruiterRoutes[view as RecruiterView]
-  return (recruiterView(location.pathname) ? '/connected' : '') + '#' + view
+  return (recruiterView(location.pathname) ? '/dashboard' : '') + '#' + view
 }
 
 export function currentView(fragment: string): View {
@@ -45,8 +50,8 @@ export const workspaceNames: Record<WorkspaceRole, string> = {
 }
 export const workspaceMenus: Record<WorkspaceRole, View[]> = {
   CANDIDATE: ['candidate-home', 'profile', 'updates', 'candidate', 'applications', 'documents', 'privacy'],
-  RECRUITER: ['home', 'posted-jobs', 'post-job', 'recruiter-applications', 'team-chat'],
-  ADMIN: ['home', 'admin', 'policy', 'audit', 'posted-jobs', 'post-job', 'recruiter-applications', 'team-chat', 'organizations'],
+  RECRUITER: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'hired-candidates', 'batch-screening', 'team-chat'],
+  ADMIN: ['home', 'admin', 'policy', 'audit', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'hired-candidates', 'batch-screening', 'team-chat', 'organizations'],
 }
 
 export function firstName(name: string) {

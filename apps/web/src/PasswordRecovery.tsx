@@ -22,7 +22,7 @@ export function PasswordRecovery() {
         method: 'POST',
         body: JSON.stringify(token ? { token, password } : { email: form.get('email') }),
       })
-      if (token) history.replaceState(null, '', '/connected/password-recovery')
+      if (token) history.replaceState(null, '', '/dashboard/password-recovery')
       setDone(true)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not complete the request.')
@@ -32,7 +32,7 @@ export function PasswordRecovery() {
   }
   return <ConnectedAuthCard title={token ? 'Choose a new password' : 'Recover your account'}
     description={token ? 'Enter a new password, then sign in again.' : 'Enter the email address you use to sign in.'}
-    actions={<a className="pv-button" href="/connected">Sign in</a>}>
+    actions={<a className="pv-button" href="/dashboard">Sign in</a>}>
       {error && <p className="alert error" role="alert">{error}</p>}
       {done ? <p role="status">{token ? 'Your password was changed. Sign in with your new password.' :
         'If your account is eligible, a reset link will arrive by email. Check Mailpit when running locally.'}</p> :
@@ -43,6 +43,6 @@ export function PasswordRecovery() {
           </> : <label>Account email<input name="email" type="email" autoComplete="email" required /></label>}
           <button type="submit" className="pv-button primary" disabled={busy}>{token ? 'Change password' : 'Send reset link'}</button>
         </form>}
-      <p className="live-auth-links"><a href="/connected">Back to sign in</a>{token && !done && <> · <a href="/connected/password-recovery">Request a new link</a></>}</p>
+      <p className="live-auth-links"><a href="/dashboard">Back to sign in</a>{token && !done && <> · <a href="/dashboard/password-recovery">Request a new link</a></>}</p>
     </ConnectedAuthCard>
 }

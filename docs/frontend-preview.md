@@ -8,7 +8,7 @@ npm ci
 npm run dev
 ```
 
-Open the address Vite prints. With the full Docker Compose stack, open <http://localhost:5174>. The previous API-connected application is available at <http://localhost:5174/connected>. Existing verification and invitation URLs still enter that application.
+Open the address Vite prints. With the full Docker Compose stack, open <http://localhost:5174>. The previous API-connected application is available at <http://localhost:5174/dashboard>. Existing verification and invitation URLs still enter that application.
 
 ## Review the preview
 

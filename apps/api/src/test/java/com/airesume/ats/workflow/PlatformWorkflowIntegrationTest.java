@@ -104,8 +104,20 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(get("/api/v1/documents/" + document + "/text").session(outsider)).andExpect(status().isNotFound());
         mvc.perform(get(organization + "/applications").param("status", "IN_REVIEW").param("q", "Java Engineer").session(admin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
+        String recruiterNotifications = organization + "/recruiter-notifications";
+        mvc.perform(get(recruiterNotifications).param("unread", "true").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].applicationId").value(application));
+        mvc.perform(put(recruiterNotifications + "/submitted-" + application + "/read").session(outsider).with(csrf()))
+                .andExpect(status().isForbidden());
+        mvc.perform(put(recruiterNotifications + "/submitted-" + application + "/read").session(admin).with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(recruiterNotifications).param("unread", "true").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         mvc.perform(get(organization + "/reports/pipeline").param("jobId", job).session(admin))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.byStage.IN_REVIEW").value(1));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.byStage.IN_REVIEW").value(1))
+                .andExpect(jsonPath("$.weeklyApplications.length()").value(8))
+                .andExpect(jsonPath("$.weeklyApplications[7].applications").value(1));
         mvc.perform(get(otherOrg + "/reports/pipeline").param("jobId", job).session(outsider)).andExpect(status().isNotFound());
         mvc.perform(delete("/api/v1/documents/" + document).session(candidate).with(csrf())).andExpect(status().isConflict());
         mvc.perform(post("/api/v1/candidate/notifications/read-all").session(candidate).with(csrf()))
@@ -231,6 +243,13 @@ class PlatformWorkflowIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
         mvc.perform(get(messages).param("person", recruiterId).session(teammate))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
+        String notifications = organization + "/recruiter-notifications";
+        mvc.perform(get(notifications).session(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[0].personId").value(recruiterId));
+        mvc.perform(get(notifications).session(teammate)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1)).andExpect(jsonPath("$.items[0].key").value("chat-" + roomId));
+        mvc.perform(put(notifications + "/chat-" + directId + "/read").session(teammate).with(csrf()))
+                .andExpect(status().isNotFound());
         mvc.perform(get(otherOrg + "/chat/messages").session(outsider))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items").isEmpty());
         jdbc.update("UPDATE memberships SET status = 'REVOKED' WHERE organization_id = ? AND user_id = ?", orgId,

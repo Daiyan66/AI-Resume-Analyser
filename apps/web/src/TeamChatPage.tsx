@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Organization } from './api'
+import { routeId } from './recruiterSearch'
 
 type Person = { id: string; displayName: string; role: 'ADMIN' | 'RECRUITER' }
 type Message = { id: string; senderId: string; senderName: string; body: string; sentAt: string }
@@ -12,7 +13,7 @@ function mergeMessages(current: Message[], incoming: Message[]) {
 
 export function TeamChatPage({ organization, accountId }: { organization: Organization; accountId: string }) {
   const [people, setPeople] = useState<Person[]>()
-  const [personId, setPersonId] = useState('')
+  const [personId, setPersonId] = useState(() => routeId(new URLSearchParams(location.search).get('person')))
   const [error, setError] = useState('')
   const base = `/organizations/${organization.organizationId}/chat`
 
@@ -28,11 +29,13 @@ export function TeamChatPage({ organization, accountId }: { organization: Organi
     <div className="section-heading"><h2>{organization.name}</h2>
       <label>Conversation<select aria-label="Conversation" value={personId} onChange={event => setPersonId(event.target.value)}>
         <option value="">Team room</option>
+        {personId && !person && <option value={personId} disabled>{people ? 'Teammate unavailable' : 'Loading teammate…'}</option>}
         {people?.map(item => <option key={item.id} value={item.id}>{item.displayName} · {item.role === 'ADMIN' ? 'Admin' : 'Recruiter'}</option>)}
       </select></label>
     </div>
     {error && <p role="alert">Could not load teammates. {error}</p>}
-    <ChatThread key={personId} base={base} person={person} accountId={accountId} />
+    {personId && !person ? <p role="status">{people ? 'Choose another conversation.' : 'Loading conversation…'}</p> :
+      <ChatThread key={personId} base={base} person={person} accountId={accountId} />}
   </section>
 }
 

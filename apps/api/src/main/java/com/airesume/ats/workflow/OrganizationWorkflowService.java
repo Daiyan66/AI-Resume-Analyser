@@ -62,28 +62,41 @@ public class OrganizationWorkflowService {
                 rs -> { counts.put(rs.getString(1), rs.getLong(2)); }, args);
         Long withReview = jdbc.queryForObject("SELECT count(*)" + filter +
                 " AND EXISTS (SELECT 1 FROM application_reviews r WHERE r.application_id = a.id)", Long.class, args);
-        return new Report(counts, counts.values().stream().mapToLong(Long::longValue).sum(), withReview == null ? 0 : withReview);
+        String weekStart = "date_trunc('week', now() AT TIME ZONE 'UTC')";
+        var weeks = jdbc.query("SELECT week.start::date, COALESCE(totals.total, 0) " +
+                        "FROM generate_series(" + weekStart + " - INTERVAL '7 weeks', " + weekStart +
+                        ", INTERVAL '1 week') AS week(start) LEFT JOIN (" +
+                        "SELECT date_trunc('week', a.submitted_at AT TIME ZONE 'UTC') AS start, count(*) AS total" + filter +
+                        " AND a.submitted_at >= (" + weekStart + " - INTERVAL '7 weeks') AT TIME ZONE 'UTC' GROUP BY 1" +
+                        ") totals USING (start) ORDER BY week.start",
+                (rs, row) -> new Week(rs.getDate(1).toLocalDate().toString(), rs.getLong(2)), args);
+        return new Report(counts, counts.values().stream().mapToLong(Long::longValue).sum(), withReview == null ? 0 : withReview, weeks);
     }
 
     public ApplicationPage pipeline(UUID org, UUID job, String status, String query, int page, int size) {
         organizations.requireMember(org);
         if (job != null) jobs.privateJob(org, job);
-        String filter = " FROM applications a JOIN jobs j ON j.id = a.job_id WHERE j.organization_id = ?" +
-                " AND (? = '' OR a.status = ?) AND (? = '' OR strpos(lower(concat_ws(' ', j.title, " +
+        String from = " FROM applications a JOIN jobs j ON j.id = a.job_id";
+        String filter = " WHERE j.organization_id = ? AND (? = '' OR a.status = ?) AND (? = '' OR strpos(lower(concat_ws(' ', j.title, " +
                 "a.profile_snapshot->>'displayName', a.profile_snapshot->>'email')), lower(?)) > 0)" +
                 (job == null ? "" : " AND j.id = ?");
         String state = status == null ? "" : status;
         String search = query.strip();
         Object[] params = job == null ? new Object[] {org, state, state, search, search}
                 : new Object[] {org, state, state, search, search, job};
-        Long total = jdbc.queryForObject("SELECT count(*)" + filter, Long.class, params);
+        Long total = jdbc.queryForObject("SELECT count(*)" + from + filter, Long.class, params);
         var paged = new java.util.ArrayList<>(java.util.Arrays.asList(params));
         paged.add(size);
         paged.add((long) page * size);
-        var items = jdbc.query("SELECT a.id, a.job_id, j.title, a.profile_snapshot->>'displayName', a.status, a.submitted_at" +
-                        filter + " ORDER BY a.submitted_at DESC, a.id LIMIT ? OFFSET ?",
-                (rs, row) -> new ApplicationSummary(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                        rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant()), paged.toArray());
+        String order = "HIRED".equals(state) ? "d.created_at DESC NULLS LAST, a.submitted_at DESC" : "a.submitted_at DESC";
+        String withDecision = from + " LEFT JOIN application_decisions d ON d.application_id = a.id AND d.outcome = 'HIRED'" + filter;
+        var items = jdbc.query("SELECT a.id, a.job_id, j.title, a.profile_snapshot->>'displayName', a.status, a.submitted_at, d.created_at" +
+                        withDecision + " ORDER BY " + order + ", a.id LIMIT ? OFFSET ?",
+                (rs, row) -> {
+                    var hiredAt = rs.getTimestamp(7);
+                    return new ApplicationSummary(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                            rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant(), hiredAt == null ? null : hiredAt.toInstant());
+                }, paged.toArray());
         return new ApplicationPage(items, page, size, total == null ? 0 : total);
     }
 
@@ -202,9 +215,10 @@ public class OrganizationWorkflowService {
     }
 
     public record JobOption(UUID id, String title, String status) {}
-    public record ApplicationSummary(UUID id, UUID jobId, String jobTitle, String candidateName, String status, Instant submittedAt) {}
+    public record ApplicationSummary(UUID id, UUID jobId, String jobTitle, String candidateName, String status, Instant submittedAt, Instant hiredAt) {}
     public record ApplicationPage(List<ApplicationSummary> items, int page, int size, long total) {}
-    public record Report(Map<String, Long> byStage, long applications, long applicationsWithReview) {}
+    public record Week(String start, long applications) {}
+    public record Report(Map<String, Long> byStage, long applications, long applicationsWithReview, List<Week> weeklyApplications) {}
     public record DataReview(UUID requestId, String candidateName, Instant requestedAt, String outcome, Instant reviewedAt) {}
     public record AccessRequest(UUID id, UUID organizationId, String organizationName, UUID applicantId, String email,
                                 UUID documentId, String designation, String website, String phone, String disciplines,

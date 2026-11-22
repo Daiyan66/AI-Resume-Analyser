@@ -60,7 +60,7 @@ public class ScreeningService {
     @Transactional
     public Batch screen(UUID org, UUID jobId, List<MultipartFile> files) {
         JobService.Job job = jobs.privateJob(org, jobId);
-        if (job.criteria().isEmpty()) throw new ResponseStatusException(HttpStatus.CONFLICT, "Add a review criterion first.");
+        var criteria = batchCriteria(job);
         if (files.isEmpty() || files.size() > 5) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose between one and five sample or authorized files.");
         }
@@ -73,7 +73,7 @@ public class ScreeningService {
             List<Finding> findings;
             try (var stream = file.getInputStream()) {
                 String text = DocumentText.extract(name, stream);
-                findings = match(job.criteria(), text);
+                findings = match(criteria, text);
                 state = "READY";
             } catch (IOException ex) {
                 findings = List.of();
@@ -145,6 +145,21 @@ public class ScreeningService {
         } catch (IOException ex) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "The submitted document cannot be read.");
         }
+    }
+
+    private static List<JobService.Criterion> batchCriteria(JobService.Job job) {
+        var criteria = new ArrayList<>(job.criteria().stream()
+                .filter(criterion -> !"Overall role requirements".equals(criterion.description())).toList());
+        var seen = new java.util.HashSet<String>();
+        criteria.forEach(criterion -> seen.add(criterion.description().toLowerCase(java.util.Locale.ROOT).strip()));
+        // Requirements supply additional literal checks, including for jobs with the default rubric.
+        java.util.Arrays.stream(job.requirements().split("[\\r\\n;]+"))
+                .map(line -> line.replaceFirst("^\\s*(?:[-*•]|[0-9]+[.)])?\\s*", "").strip().replaceFirst("\\.$", ""))
+                .filter(line -> !line.isBlank() && seen.add(line.toLowerCase(java.util.Locale.ROOT)))
+                .limit(12)
+                .forEach(line -> criteria.add(new JobService.Criterion(null, line.substring(0, Math.min(line.length(), 500)),
+                        "REQUIRED", null)));
+        return criteria.isEmpty() ? job.criteria() : criteria;
     }
 
     private static List<Finding> match(List<JobService.Criterion> criteria, String text) {

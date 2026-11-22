@@ -1,9 +1,12 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type ReviewDetail } from './api'
+import { HiringToolsTrial } from './HiringToolsTrial'
 
 type Evidence = { criterionId: string; criterion: string; excerpt: string | null; extractedLine: number | null }
 
-export function RecruiterApplicationReview({ base, applicationId }: { base: string; applicationId: string }) {
+export function RecruiterApplicationReview({ base, applicationId, organizationId, accountId }: {
+  base: string; applicationId: string; organizationId: string; accountId: string
+}) {
   const [detail, setDetail] = useState<ReviewDetail>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -97,6 +100,7 @@ export function RecruiterApplicationReview({ base, applicationId }: { base: stri
           </blockquote> : <p>No matching excerpt found. Review the document manually.</p>}
         </li>)}</ul>}
       </div>}
+      <HiringToolsTrial detail={detail} organizationId={organizationId} accountId={accountId} />
       <h3>Criteria and assessments</h3>
       {detail.job.criteria.map((criterion) => <div className="criterion" key={criterion.id}>
         <p><strong>{criterion.description}</strong> · {criterion.importance.toLowerCase()}</p>

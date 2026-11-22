@@ -53,7 +53,7 @@ Register with that same address, verify it in Mailpit, and sign in. The Admin da
 
 ## How to verify locally
 
-1. Run `docker compose up --build` and open <http://localhost:5174/connected>. Register a fictional account and verify it using Mailpit at <http://localhost:8025>.
+1. Run `docker compose up --build` and open <http://localhost:5174/dashboard>. Register a fictional account and verify it using Mailpit at <http://localhost:8025>.
 2. Use **Forgot your password?** in the connected app. Open the reset link in Mailpit, set a new password, and sign in. Check that the old password and reset link no longer work.
 3. Follow the admin setup above if needed. Create an organization and a job as admin, publish it, then apply from another account. Advance the application and inspect the candidate inbox and Mailpit. Application emails are enabled for Compose and disabled by default elsewhere.
 4. Run `mvn verify` in `apps/api` against a test PostgreSQL database. The integration suite checks authorization, reset tokens, file extraction, interviews, delivery retry and admin workflows.

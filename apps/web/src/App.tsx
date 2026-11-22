@@ -5,6 +5,8 @@ import { CandidateWorkspace } from './CandidateWorkspace'
 import { PostedJobsPage } from './PostedJobsPage'
 import { PostJobPage } from './PostJobPage'
 import { RecruiterApplicationsPage } from './RecruiterApplicationsPage'
+import { RecruiterNotificationsPage } from './RecruiterNotificationsPage'
+import { BatchScreeningPage } from './BatchScreeningPage'
 import { TeamChatPage } from './TeamChatPage'
 import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
@@ -72,14 +74,14 @@ function App() {
     void api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token: verifyToken }) })
       .then(() => {
         setVerifyToken(null)
-        window.history.replaceState({}, '', '/connected')
+        window.history.replaceState({}, '', '/dashboard')
         setFragment('')
         setNotice('Email verified. You can sign in now.')
       })
       .catch((cause: unknown) => {
         setError(message(cause))
         setVerifyToken(null)
-        window.history.replaceState({}, '', '/connected')
+        window.history.replaceState({}, '', '/dashboard')
       })
   }, [verifyToken])
 
@@ -107,7 +109,7 @@ function App() {
     sessionStorage.setItem(`active-organization-${account.id}`, id)
     if (['organizations', 'admin', 'policy', 'audit'].includes(view) &&
         organizations.some(org => org.organizationId === id && org.role === 'RECRUITER') && !inviteToken) {
-      location.assign('/connected')
+      location.assign('/dashboard')
       return
     }
     if (hiringRoute && location.search) {
@@ -218,7 +220,7 @@ function App() {
         method: 'POST', body: JSON.stringify({ token: inviteToken }),
       })
       setInviteToken(null)
-      window.history.replaceState({}, '', '/connected')
+      window.history.replaceState({}, '', '/dashboard')
       setOrganizations((current) => [...current.filter((org) => org.organizationId !== joined.organizationId), joined])
       if (account) sessionStorage.setItem(`active-organization-${account.id}`, joined.organizationId)
       setSelectedOrgId(joined.organizationId)
@@ -276,7 +278,7 @@ function App() {
       setMembers([])
       setAudit([])
       setFragment('')
-      if (!inviteToken) window.history.replaceState({}, '', '/connected')
+      if (!inviteToken) window.history.replaceState({}, '', '/dashboard')
       setCanCreateOrganizations(false)
     })
   }
@@ -308,7 +310,7 @@ function App() {
         </button>
       </form>
       {!registering && <div className="live-auth-links">
-        <a href="/connected/password-recovery">Forgot your password?</a>
+        <a href="/dashboard/password-recovery">Forgot your password?</a>
         <details><summary>Resend verification email</summary><form onSubmit={resendVerification}>
           <label>Account email<input type="email" required value={resendEmail} onChange={event => setResendEmail(event.target.value)} /></label>
           <button type="submit" className="pv-button" disabled={busy}>Send verification email</button>
@@ -318,7 +320,7 @@ function App() {
   }
 
   return (
-    <ConnectedLayout workspace={!!account} actions={!account && <a className="pv-button" href="/connected">Sign in</a>}>
+    <ConnectedLayout workspace={!!account} actions={!account && <a className="pv-button" href="/dashboard">Sign in</a>}>
       <div className="pv-body">
         <aside className="pv-sidebar">
           <div className="pv-org live-sidebar-name"><strong>{account ? firstName(account.displayName) : 'Public job board'}</strong></div>
@@ -427,7 +429,10 @@ function App() {
           </div>}
         {selectedOrg && activeView === 'posted-jobs' && <PostedJobsPage key={selectedOrg.organizationId} organization={selectedOrg} />}
         {selectedOrg && activeView === 'post-job' && <PostJobPage key={selectedOrg.organizationId} organization={selectedOrg} />}
-        {selectedOrg && activeView === 'recruiter-applications' && <RecruiterApplicationsPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && account && activeView === 'recruiter-applications' && <RecruiterApplicationsPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} />}
+        {selectedOrg && account && activeView === 'hired-candidates' && <RecruiterApplicationsPage key={selectedOrg.organizationId + ':hires'} organization={selectedOrg} accountId={account.id} hires />}
+        {selectedOrg && activeView === 'recruiter-notifications' && <RecruiterNotificationsPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && activeView === 'batch-screening' && <BatchScreeningPage key={selectedOrg.organizationId} organization={selectedOrg} />}
         {selectedOrg && account && activeView === 'team-chat' && <TeamChatPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} />}
         {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents}
           section={activeView} jobId={jobId} onDocumentAdded={(document) => setDocuments(current => [document, ...current])}

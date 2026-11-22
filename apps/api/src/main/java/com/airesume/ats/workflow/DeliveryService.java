@@ -95,7 +95,7 @@ public class DeliveryService {
         message.setFrom(from);
         message.setTo(item.email());
         message.setSubject("An update on your application");
-        message.setText("Sign in to see your latest application update:\n" + publicUrl + "/connected#candidate");
+        message.setText("Sign in to see your latest application update:\n" + publicUrl + "/dashboard#updates");
         int attempts = item.attempts() + 1;
         String result;
         try {

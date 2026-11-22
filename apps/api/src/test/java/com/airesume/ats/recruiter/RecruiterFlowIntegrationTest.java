@@ -155,6 +155,10 @@ class RecruiterFlowIntegrationTest {
                 organizationId, jobId, secondApplicationId).session(owner.session()).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("outcome", "HIRED",
                         "reason", "Private hiring decision reason")))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/organizations/{orgId}/applications", organizationId).param("status", "HIRED")
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(secondApplicationId))
+                .andExpect(jsonPath("$.items[0].hiredAt").isNotEmpty());
         mvc.perform(get("/api/v1/candidate/applications/{id}", secondApplicationId).session(candidate.session()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("HIRED"));
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/status", organizationId, jobId)

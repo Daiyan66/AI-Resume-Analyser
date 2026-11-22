@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, type AuditEvent, type CandidateApplication, type CandidateNotification, type CandidateProfile,
   type Job, type Member, type Organization, type Page } from './api'
 import { CandidateJobList } from './CandidateJobList'
+import { HiringToolsSetting } from './HiringToolsTrial'
+import { applicationStatuses } from './recruiterSearch'
 import { firstName, recruiterRoutes, type WorkspaceRole } from './workspaceNavigation'
 
 function useDashboardData<T>(load: () => Promise<T>, key: string) {
@@ -56,41 +58,68 @@ function CandidateDashboard({ name }: { name: string }) {
   </>
 }
 
-type PipelineReport = { byStage: Record<string, number>; applications: number; applicationsWithReview: number }
-function RecruiterDashboard({ organization }: { organization: Organization }) {
-  const [summary, setSummary] = useState<{ report: PipelineReport; jobs: number }>()
+type PipelineReport = {
+  byStage: Record<keyof typeof applicationStatuses, number>
+  weeklyApplications: { start: string; applications: number }[]
+}
+
+function RecruiterDashboard({ organization, accountId }: { organization: Organization; accountId: string }) {
+  const [summary, setSummary] = useState<{ report: PipelineReport; openJobs: number }>()
   const [failed, setFailed] = useState(false)
   useEffect(() => {
     let active = true
     const base = '/organizations/' + organization.organizationId
-    void Promise.all([api<PipelineReport>(base+'/reports/pipeline'), api<Page<Job>>(base+'/jobs?size=1')])
-      .then(([report, jobs]) => { if (active) setSummary({report, jobs:jobs.total}) })
+    void Promise.all([api<PipelineReport>(base + '/reports/pipeline'), api<Page<Job>>(base + '/jobs?size=1&status=PUBLISHED')])
+      .then(([report, jobs]) => { if (active) setSummary({ report, openJobs: jobs.total }) })
       .catch(() => { if (active) setFailed(true) })
     return () => { active = false }
   }, [organization.organizationId])
+
+  const stages = Object.entries(applicationStatuses).map(([key, label]) => ({
+    label, count: summary?.report.byStage[key as keyof typeof applicationStatuses] ?? 0,
+    href: key === 'HIRED' ? recruiterRoutes['hired-candidates'] : `${recruiterRoutes['recruiter-applications']}?status=${key}`,
+  }))
+  const stageMax = Math.max(1, ...stages.map(stage => stage.count))
+  const weeks = summary?.report.weeklyApplications ?? []
+  const weekMax = Math.max(1, ...weeks.map(week => week.applications))
+  const weekLabel = (start: string) => new Date(`${start}T00:00:00Z`).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', timeZone: 'UTC',
+  })
+
   return <>
-    <section className="pv-card live-recruiter-heading">
-      <div><p className="pv-kicker">{organization.name}</p><h2>Hiring pipeline</h2><p>See where applications stand across your organization.</p></div>
-      <a className="pv-button primary" href={recruiterRoutes['recruiter-applications']}>View applications</a>
-    </section>
-    <div className="pv-grid stats live-dashboard-cards">
-      <div className="pv-card pv-stat"><span>Job records</span><strong>{summary?.jobs ?? '—'}</strong></div>
-      <div className="pv-card pv-stat"><span>Total applications</span><strong>{summary?.report.applications ?? '—'}</strong></div>
-      <div className="pv-card pv-stat"><span>With a recorded review</span><strong>{summary?.report.applicationsWithReview ?? '—'}</strong></div>
+    <div className="section-heading">
+      <h2>{organization.name}</h2>
+      <a className="pv-button primary" href={recruiterRoutes['post-job']}>Post a job</a>
     </div>
-    <section className="pv-card"><h2>Applications by stage</h2>
-      {failed ? <p>Couldn’t load pipeline totals.</p> : !summary ? <p role="status">Loading pipeline…</p> :
-        <div className="pv-chart">{Object.entries(summary.report.byStage).map(([stage,count]) => {
-          const label = stage.toLowerCase().replaceAll('_',' ')
-          return <div key={stage}><span>{label}</span>
-            <meter aria-label={label} min={0} max={Math.max(summary.report.applications,1)} value={count}/>
-            <strong>{count}</strong></div>
-        })}</div>}
-    </section>
+    <div className="pv-grid stats live-dashboard-cards">
+      <a className="pv-card pv-stat" href={`${recruiterRoutes['posted-jobs']}?status=PUBLISHED`}><span>Open jobs</span><strong>{summary?.openJobs ?? '—'}</strong></a>
+      <a className="pv-card pv-stat" href={`${recruiterRoutes['recruiter-applications']}?status=SUBMITTED`}><span>Awaiting review</span><strong>{summary?.report.byStage.SUBMITTED ?? '—'}</strong></a>
+      <a className="pv-card pv-stat" href={recruiterRoutes['hired-candidates']}><span>Hires</span><strong>{summary?.report.byStage.HIRED ?? '—'}</strong></a>
+    </div>
+    {failed ? <p role="alert">Couldn’t load hiring metrics.</p> : !summary ? <p role="status">Loading hiring metrics…</p> :
+      <div className="hiring-charts">
+        <section className="pv-card">
+          <h2>Applications by stage</h2>
+          <ul className="hiring-stage-chart">{stages.map(stage => <li key={stage.label}>
+            <a href={stage.href}>{stage.label}</a>
+            <meter aria-label={stage.label} min={0} max={stageMax} value={stage.count} />
+            <strong>{stage.count}</strong>
+          </li>)}</ul>
+        </section>
+        <section className="pv-card">
+          <h2>Applications by week</h2>
+          <p>Last eight weeks, including the current week.</p>
+          <ol className="hiring-week-chart">{weeks.map(week => <li key={week.start}>
+            <div className="hiring-week-bar"><span aria-hidden="true" style={{ height: `${100 * week.applications / weekMax}%` }} /></div>
+            <strong>{week.applications}</strong><time dateTime={week.start}>{weekLabel(week.start)}</time>
+          </li>)}</ol>
+        </section>
+      </div>}
+    <section className="pv-card"><HiringToolsSetting organizationId={organization.organizationId} accountId={accountId} /></section>
   </>
 }
 
-function AdminDashboard({ organization, members, audit }: { organization?: Organization; members: Member[]; audit: AuditEvent[] }) {
+function AdminDashboard({ organization, members, audit, accountId }: { organization?: Organization; members: Member[]; audit: AuditEvent[]; accountId: string }) {
   if (!organization) return <section className="pv-card">
     <h2>Set up your first organization</h2>
     <p>Create an organization before inviting recruiters or setting hiring policies.</p>
@@ -105,6 +134,7 @@ function AdminDashboard({ organization, members, audit }: { organization?: Organ
       <a className="pv-card pv-stat" href="#admin"><span>Active team members</span><strong>{members.filter(member=>member.status==='ACTIVE').length}</strong><small>Team & invitations</small></a>
       <a className="pv-card pv-stat" href="#policy"><span>Hiring policies</span><strong>Settings</strong><small>Review retention, reapplication, and AI settings</small></a>
     </div>
+    <section className="pv-card"><HiringToolsSetting key={organization.organizationId} organizationId={organization.organizationId} accountId={accountId} /></section>
     <section className="pv-card">
       <div className="section-heading"><h2>Recent organization activity</h2><a href="#audit">View audit log</a></div>
       {audit.length ? <ul className="list">{audit.slice(0,5).map(event=><li key={event.id}>
@@ -117,7 +147,7 @@ function AdminDashboard({ organization, members, audit }: { organization?: Organ
 export function WorkspaceDashboard({ role, accountId, name, organization, members, audit }: {
   role: WorkspaceRole; accountId: string; name: string; organization?: Organization; members: Member[]; audit: AuditEvent[]
 }) {
-  if (role === 'RECRUITER' && organization) return <RecruiterDashboard key={organization.organizationId} organization={organization}/>
-  if (role === 'ADMIN') return <AdminDashboard organization={organization} members={members} audit={audit}/>
+  if (role === 'RECRUITER' && organization) return <RecruiterDashboard key={organization.organizationId} organization={organization} accountId={accountId}/>
+  if (role === 'ADMIN') return <AdminDashboard organization={organization} members={members} audit={audit} accountId={accountId}/>
   return <CandidateDashboard key={accountId} name={firstName(name)}/>
 }
