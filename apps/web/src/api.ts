@@ -3,14 +3,14 @@ export type Organization = { organizationId: string; slug: string; name: string;
 export type OrganizationPolicy = { reapplyCooldownDays: number; retentionDays: number; aiEnabled: boolean }
 export type Member = { id: string; email: string; displayName: string; role: string; status: string }
 export type Document = { id: string; filename: string; mediaType: string; byteSize: number; createdAt: string }
-export type AuditEvent = { id: string; action: string; targetType: string; createdAt: string }
+export type AuditEvent = { id: string; action: string; targetType: string; targetId: string | null; actorName: string | null; createdAt: string }
 export type Page<T> = { items: T[]; page: number; size: number; total: number }
 export type JobQuestion = { id: string; prompt: string; required: boolean }
 export type JobCriterion = { id: string; description: string; importance: 'REQUIRED' | 'PREFERRED'; guidance: string | null }
 export type Job = { id: string; organizationId: string; organizationName: string; title: string; location: string;
   workType: 'REMOTE' | 'HYBRID' | 'ONSITE'; salaryMin: number | null; salaryMax: number | null;
   currency: string | null; description: string; requirements: string; status: string;
-  publishedAt: string | null; questions: JobQuestion[]; criteria: JobCriterion[] }
+  publishedAt: string | null; postedByName: string | null; questions: JobQuestion[]; criteria: JobCriterion[] }
 export type Review = { id: string; criterionId: string; reviewerName: string; rating: string; note: string; createdAt: string }
 export type Decision = { id: string; actorName: string; outcome: string; reason: string; createdAt: string }
 export type ReviewDetail = { id: string; job: Job; status: string;

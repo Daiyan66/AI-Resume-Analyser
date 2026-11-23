@@ -18,6 +18,7 @@ type Props = {
   section: CandidateSection
   jobId: string | null
   onSignIn: () => void
+  onNotificationRead: () => void
   onDocumentAdded: (document: Document) => void
 }
 
@@ -36,7 +37,7 @@ function usePage<T>(path: string | null, revision: number) {
   return result?.path === path && result.revision === revision ? result : undefined
 }
 
-export function CandidateWorkspace({ account, documents, section, jobId, onSignIn, onDocumentAdded }: Props) {
+export function CandidateWorkspace({ account, documents, section, jobId, onSignIn, onDocumentAdded, onNotificationRead }: Props) {
   const [jobPage, setJobPage] = useState(0)
   const [jobFilters, setJobFilters] = useState({ q: '', workType: '' })
   const [jobFilterDraft, setJobFilterDraft] = useState(jobFilters)
@@ -158,6 +159,7 @@ export function CandidateWorkspace({ account, documents, section, jobId, onSignI
   function markNotificationRead(id: string) {
     void run(async () => {
       await api(`/candidate/notifications/${id}/read`, { method: 'POST' })
+      onNotificationRead()
       setNotifications(await api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12'))
     })
   }

@@ -73,29 +73,42 @@ public class OrganizationWorkflowService {
         return new Report(counts, counts.values().stream().mapToLong(Long::longValue).sum(), withReview == null ? 0 : withReview, weeks);
     }
 
-    public ApplicationPage pipeline(UUID org, UUID job, String status, String query, int page, int size) {
-        organizations.requireMember(org);
+    public ApplicationPage pipeline(UUID org, UUID job, UUID recruiterId, UUID hiredBy,
+                                    String status, String query, int page, int size) {
+        if (recruiterId != null || hiredBy != null) organizations.requireAdmin(org);
+        else organizations.requireMember(org);
         if (job != null) jobs.privateJob(org, job);
-        String from = " FROM applications a JOIN jobs j ON j.id = a.job_id";
-        String filter = " WHERE j.organization_id = ? AND (? = '' OR a.status = ?) AND (? = '' OR strpos(lower(concat_ws(' ', j.title, " +
-                "a.profile_snapshot->>'displayName', a.profile_snapshot->>'email')), lower(?)) > 0)" +
-                (job == null ? "" : " AND j.id = ?");
+        String from = """
+                 FROM applications a JOIN jobs j ON j.id = a.job_id
+                 JOIN users poster ON poster.id = COALESCE(j.published_by, j.created_by)
+                 LEFT JOIN application_decisions d ON d.application_id = a.id AND d.outcome = 'HIRED'
+                 LEFT JOIN users decider ON decider.id = d.actor_user_id
+                """;
+        String filter = """
+                 WHERE j.organization_id = ? AND (? = '' OR a.status = ?)
+                   AND (? = '' OR strpos(lower(concat_ws(' ', j.title, a.profile_snapshot->>'displayName',
+                        a.profile_snapshot->>'email')), lower(?)) > 0)
+                   AND (?::uuid IS NULL OR j.id = ?)
+                   AND (?::uuid IS NULL OR COALESCE(j.published_by, j.created_by) = ?)
+                   AND (?::uuid IS NULL OR d.actor_user_id = ?)
+                """;
         String state = status == null ? "" : status;
         String search = query.strip();
-        Object[] params = job == null ? new Object[] {org, state, state, search, search}
-                : new Object[] {org, state, state, search, search, job};
+        Object[] params = {org, state, state, search, search, job, job, recruiterId, recruiterId, hiredBy, hiredBy};
         Long total = jdbc.queryForObject("SELECT count(*)" + from + filter, Long.class, params);
         var paged = new java.util.ArrayList<>(java.util.Arrays.asList(params));
         paged.add(size);
         paged.add((long) page * size);
         String order = "HIRED".equals(state) ? "d.created_at DESC NULLS LAST, a.submitted_at DESC" : "a.submitted_at DESC";
-        String withDecision = from + " LEFT JOIN application_decisions d ON d.application_id = a.id AND d.outcome = 'HIRED'" + filter;
-        var items = jdbc.query("SELECT a.id, a.job_id, j.title, a.profile_snapshot->>'displayName', a.status, a.submitted_at, d.created_at" +
-                        withDecision + " ORDER BY " + order + ", a.id LIMIT ? OFFSET ?",
+        var items = jdbc.query("""
+                SELECT a.id, a.job_id, j.title, a.profile_snapshot->>'displayName', a.status, a.submitted_at,
+                       d.created_at, poster.display_name, decider.display_name
+                """ + from + filter + " ORDER BY " + order + ", a.id LIMIT ? OFFSET ?",
                 (rs, row) -> {
                     var hiredAt = rs.getTimestamp(7);
                     return new ApplicationSummary(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                            rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant(), hiredAt == null ? null : hiredAt.toInstant());
+                            rs.getString(4), rs.getString(5), rs.getTimestamp(6).toInstant(), hiredAt == null ? null : hiredAt.toInstant(),
+                            rs.getString(8), rs.getString(9));
                 }, paged.toArray());
         return new ApplicationPage(items, page, size, total == null ? 0 : total);
     }
@@ -215,7 +228,7 @@ public class OrganizationWorkflowService {
     }
 
     public record JobOption(UUID id, String title, String status) {}
-    public record ApplicationSummary(UUID id, UUID jobId, String jobTitle, String candidateName, String status, Instant submittedAt, Instant hiredAt) {}
+    public record ApplicationSummary(UUID id, UUID jobId, String jobTitle, String candidateName, String status, Instant submittedAt, Instant hiredAt, String postedByName, String hiredByName) {}
     public record ApplicationPage(List<ApplicationSummary> items, int page, int size, long total) {}
     public record Week(String start, long applications) {}
     public record Report(Map<String, Long> byStage, long applications, long applicationsWithReview, List<Week> weeklyApplications) {}

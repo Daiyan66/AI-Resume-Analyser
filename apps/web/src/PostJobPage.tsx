@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Job, type Organization } from './api'
 import { jobImport } from './jobImport'
 import { routeId } from './recruiterSearch'
-import { recruiterRoutes } from './workspaceNavigation'
+import { workspaceHref } from './workspaceNavigation'
 
 export function PostJobPage({ organization }: { organization: Organization }) {
   const draftParam = new URLSearchParams(location.search).get('draft')
@@ -20,7 +20,7 @@ export function PostJobPage({ organization }: { organization: Organization }) {
   if (draftParam && !id) return <p role="alert">Invalid draft link.</p>
   if (result?.error) return <p className="alert error" role="alert">{result.error}</p>
   if (id && !result?.job) return <p role="status">Loading draft…</p>
-  if (result?.job && result.job.status !== 'DRAFT') return <p>This job has already left the draft stage. <a href={recruiterRoutes['posted-jobs']}>Back to posted jobs</a></p>
+  if (result?.job && result.job.status !== 'DRAFT') return <p>This job has already left the draft stage. <a href={workspaceHref('posted-jobs', organization.role)}>Back to posted jobs</a></p>
   return <JobForm organization={organization} editing={result?.job} />
 }
 
@@ -63,7 +63,7 @@ function JobForm({ organization, editing }: { organization: Organization; editin
           salaryMin: min ? Number(min) : null, salaryMax: max ? Number(max) : null,
           currency: currency || null, description: fields.get('description'), requirements: fields.get('requirements'),
           questions: questions.map((prompt) => ({ prompt, required: editing?.questions.find(question => question.prompt === prompt)?.required ?? true })), criteria }) })
-      location.assign(`${recruiterRoutes['posted-jobs']}?status=DRAFT`)
+      location.assign(`${workspaceHref('posted-jobs', organization.role)}?status=DRAFT`)
     })
   }
 
@@ -118,7 +118,7 @@ function JobForm({ organization, editing }: { organization: Organization; editin
   }
 
   return <section className="panel" aria-label="Job draft">
-    <div className="section-heading"><h2>{organization.name}</h2><a href={recruiterRoutes['posted-jobs']}>Back to posted jobs</a></div>
+    <div className="section-heading"><h2>{organization.name}</h2><a href={workspaceHref('posted-jobs', organization.role)}>Back to posted jobs</a></div>
     <form className="inline-form" onSubmit={importDocument}>
       <label>Job description file<input type="file" name="file" accept=".pdf,.docx,.txt" required aria-describedby="job-import-hint" /></label>
       <button type="submit" disabled={busy}>Upload and autofill</button>
@@ -165,7 +165,7 @@ function JobForm({ organization, editing }: { organization: Organization; editin
       <button type="button" className="quiet" disabled={criteria.length >= 20}
         onClick={() => setCriteria([...criteria, { description: '', importance: 'REQUIRED', guidance: '' }])}>Add criterion</button>
       <span className="action-row"><button type="submit" disabled={busy}>{editing ? 'Save draft changes' : 'Create draft job'}</button>
-        {editing && <a className="pv-button" href={recruiterRoutes['posted-jobs']}>Cancel editing</a>}</span>
+        {editing && <a className="pv-button" href={workspaceHref('posted-jobs', organization.role)}>Cancel editing</a>}</span>
     </form>
   </section>
 }

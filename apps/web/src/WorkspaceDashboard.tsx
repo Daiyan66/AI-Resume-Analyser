@@ -4,7 +4,7 @@ import { api, type AuditEvent, type CandidateApplication, type CandidateNotifica
 import { CandidateJobList } from './CandidateJobList'
 import { HiringToolsSetting } from './HiringToolsTrial'
 import { applicationStatuses } from './recruiterSearch'
-import { firstName, recruiterRoutes, type WorkspaceRole } from './workspaceNavigation'
+import { firstName, workspaceHref, type WorkspaceRole } from './workspaceNavigation'
 
 function useDashboardData<T>(load: () => Promise<T>, key: string) {
   const [result, setResult] = useState<{ key: string; data?: T; failed?: boolean }>()
@@ -63,7 +63,7 @@ type PipelineReport = {
   weeklyApplications: { start: string; applications: number }[]
 }
 
-function RecruiterDashboard({ organization, accountId }: { organization: Organization; accountId: string }) {
+function HiringInsights({ organization }: { organization: Organization }) {
   const [summary, setSummary] = useState<{ report: PipelineReport; openJobs: number }>()
   const [failed, setFailed] = useState(false)
   useEffect(() => {
@@ -77,7 +77,7 @@ function RecruiterDashboard({ organization, accountId }: { organization: Organiz
 
   const stages = Object.entries(applicationStatuses).map(([key, label]) => ({
     label, count: summary?.report.byStage[key as keyof typeof applicationStatuses] ?? 0,
-    href: key === 'HIRED' ? recruiterRoutes['hired-candidates'] : `${recruiterRoutes['recruiter-applications']}?status=${key}`,
+    href: key === 'HIRED' ? workspaceHref('hired-candidates', organization.role) : `${workspaceHref('recruiter-applications', organization.role)}?status=${key}`,
   }))
   const stageMax = Math.max(1, ...stages.map(stage => stage.count))
   const weeks = summary?.report.weeklyApplications ?? []
@@ -87,14 +87,10 @@ function RecruiterDashboard({ organization, accountId }: { organization: Organiz
   })
 
   return <>
-    <div className="section-heading">
-      <h2>{organization.name}</h2>
-      <a className="pv-button primary" href={recruiterRoutes['post-job']}>Post a job</a>
-    </div>
     <div className="pv-grid stats live-dashboard-cards">
-      <a className="pv-card pv-stat" href={`${recruiterRoutes['posted-jobs']}?status=PUBLISHED`}><span>Open jobs</span><strong>{summary?.openJobs ?? '—'}</strong></a>
-      <a className="pv-card pv-stat" href={`${recruiterRoutes['recruiter-applications']}?status=SUBMITTED`}><span>Awaiting review</span><strong>{summary?.report.byStage.SUBMITTED ?? '—'}</strong></a>
-      <a className="pv-card pv-stat" href={recruiterRoutes['hired-candidates']}><span>Hires</span><strong>{summary?.report.byStage.HIRED ?? '—'}</strong></a>
+      <a className="pv-card pv-stat" href={`${workspaceHref('posted-jobs', organization.role)}?status=PUBLISHED`}><span>Open jobs</span><strong>{summary?.openJobs ?? '—'}</strong></a>
+      <a className="pv-card pv-stat" href={`${workspaceHref('recruiter-applications', organization.role)}?status=SUBMITTED`}><span>Awaiting review</span><strong>{summary?.report.byStage.SUBMITTED ?? '—'}</strong></a>
+      <a className="pv-card pv-stat" href={workspaceHref('hired-candidates', organization.role)}><span>Hires</span><strong>{summary?.report.byStage.HIRED ?? '—'}</strong></a>
     </div>
     {failed ? <p role="alert">Couldn’t load hiring metrics.</p> : !summary ? <p role="status">Loading hiring metrics…</p> :
       <div className="hiring-charts">
@@ -115,7 +111,6 @@ function RecruiterDashboard({ organization, accountId }: { organization: Organiz
           </li>)}</ol>
         </section>
       </div>}
-    <section className="pv-card"><HiringToolsSetting organizationId={organization.organizationId} accountId={accountId} /></section>
   </>
 }
 
@@ -123,20 +118,21 @@ function AdminDashboard({ organization, members, audit, accountId }: { organizat
   if (!organization) return <section className="pv-card">
     <h2>Set up your first organization</h2>
     <p>Create an organization before inviting recruiters or setting hiring policies.</p>
-    <a href="#organizations" className="pv-button primary">Set up organization</a>
+    <a href={workspaceHref('create-organization', 'ADMIN')} className="pv-button primary">Set up organization</a>
   </section>
   return <>
     <section className="pv-card live-admin-heading">
       <div><p className="pv-kicker">ORGANIZATION ADMIN</p><h2>{organization.name}</h2><p>Manage who can hire and how applications are handled.</p></div>
-      <a href="#admin" className="pv-button primary">Manage team</a>
+      <a href={workspaceHref('admin', 'ADMIN')} className="pv-button primary">Manage team</a>
     </section>
+    <HiringInsights key={organization.organizationId} organization={organization} />
     <div className="pv-grid stats live-dashboard-cards">
-      <a className="pv-card pv-stat" href="#admin"><span>Active team members</span><strong>{members.filter(member=>member.status==='ACTIVE').length}</strong><small>Team & invitations</small></a>
-      <a className="pv-card pv-stat" href="#policy"><span>Hiring policies</span><strong>Settings</strong><small>Review retention, reapplication, and AI settings</small></a>
+      <a className="pv-card pv-stat" href={workspaceHref('admin', 'ADMIN')}><span>Active team members</span><strong>{members.filter(member=>member.status==='ACTIVE').length}</strong><small>Team & invitations</small></a>
+      <a className="pv-card pv-stat" href={workspaceHref('policy', 'ADMIN')}><span>Hiring policies</span><strong>Settings</strong><small>Review retention, reapplication, and AI settings</small></a>
     </div>
     <section className="pv-card"><HiringToolsSetting key={organization.organizationId} organizationId={organization.organizationId} accountId={accountId} /></section>
     <section className="pv-card">
-      <div className="section-heading"><h2>Recent organization activity</h2><a href="#audit">View audit log</a></div>
+      <div className="section-heading"><h2>Recent organization activity</h2><a href={workspaceHref('audit', 'ADMIN')}>View audit log</a></div>
       {audit.length ? <ul className="list">{audit.slice(0,5).map(event=><li key={event.id}>
         <span>{event.action.replaceAll(/[._]/g,' ')}</span><time dateTime={event.createdAt}>{new Date(event.createdAt).toLocaleString()}</time>
       </li>)}</ul> : <p>No recent activity to show.</p>}
@@ -147,7 +143,13 @@ function AdminDashboard({ organization, members, audit, accountId }: { organizat
 export function WorkspaceDashboard({ role, accountId, name, organization, members, audit }: {
   role: WorkspaceRole; accountId: string; name: string; organization?: Organization; members: Member[]; audit: AuditEvent[]
 }) {
-  if (role === 'RECRUITER' && organization) return <RecruiterDashboard key={organization.organizationId} organization={organization} accountId={accountId}/>
+  if (role === 'RECRUITER' && organization) return <>
+    <div className="section-heading"><h2>{organization.name}</h2>
+      <a className="pv-button primary" href={workspaceHref('post-job', 'RECRUITER')}>Post a job</a>
+    </div>
+    <HiringInsights key={organization.organizationId} organization={organization} />
+    <section className="pv-card"><HiringToolsSetting organizationId={organization.organizationId} accountId={accountId} /></section>
+  </>
   if (role === 'ADMIN') return <AdminDashboard organization={organization} members={members} audit={audit} accountId={accountId}/>
   return <CandidateDashboard key={accountId} name={firstName(name)}/>
 }

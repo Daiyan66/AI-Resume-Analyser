@@ -5,21 +5,21 @@ import App from './App.tsx'
 import Preview from './preview/Preview.tsx'
 import { PasswordRecovery } from './PasswordRecovery.tsx'
 
-import { recruiterRoutes, recruiterView } from './workspaceNavigation'
+import { workspaceHref } from './workspaceNavigation'
 
 // Keep previously shared sign-in, recovery, and recruiter links usable.
 if (/^\/connected(?=\/|$)/.test(location.pathname)) {
   history.replaceState(null, '', location.pathname.replace(/^\/connected/, '/dashboard') + location.search + location.hash)
 }
 if (['/', '/dashboard', '/dashboard/'].includes(location.pathname) && location.hash === '#recruiter') {
-  history.replaceState(null, '', recruiterRoutes['posted-jobs'] + location.search)
+  history.replaceState(null, '', workspaceHref('posted-jobs', 'RECRUITER') + location.search)
 }
 
 const params = new URLSearchParams(location.search)
 const path = location.pathname.replace(/\/$/, '')
-const legacyHashes = ['#home', '#candidate', '#admin', '#documents']
+const legacyHashes = ['#home', '#candidate', '#admin', '#policy', '#audit', '#organizations', '#documents']
 const recovery = path === '/dashboard/password-recovery' || (path === '/auth/reset-password' && params.has('token'))
-const workspace = !!recruiterView(path) || ['/dashboard', '/invite'].includes(path) ||
+const workspace = /^\/dashboard\/(admin|recruiter)(?:\/|$)/.test(path) || ['/dashboard', '/invite'].includes(path) ||
   (!path && (params.has('verify') || params.has('token') || legacyHashes.includes(location.hash)))
 
 createRoot(document.getElementById('root')!).render(

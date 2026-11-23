@@ -195,11 +195,12 @@ public class OrganizationService {
 
     public List<AuditEvent> recentAudit(UUID organizationId) {
         requireAdmin(organizationId);
-        return jdbc.query("SELECT id, actor_user_id, action, target_type, target_id, created_at FROM audit_events " +
-                        "WHERE organization_id = ? ORDER BY created_at DESC LIMIT 100",
+        return jdbc.query("SELECT a.id, a.actor_user_id, a.action, a.target_type, a.target_id, a.created_at, u.display_name " +
+                        "FROM audit_events a LEFT JOIN users u ON u.id = a.actor_user_id " +
+                        "WHERE a.organization_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT 100",
                 (rs, row) -> new AuditEvent(rs.getObject("id", UUID.class), rs.getObject("actor_user_id", UUID.class),
                         rs.getString("action"), rs.getString("target_type"), rs.getObject("target_id", UUID.class),
-                        rs.getTimestamp("created_at").toInstant()), organizationId);
+                        rs.getTimestamp("created_at").toInstant(), rs.getString("display_name")), organizationId);
     }
 
     public Policy policy(UUID organizationId) {
@@ -224,7 +225,7 @@ public class OrganizationService {
     public record OrganizationMembership(UUID organizationId, String slug, String name, String role) {}
     public record Invitation(UUID id, String email, String role, Instant expiresAt) {}
     public record Member(UUID id, String email, String displayName, String role, String status) {}
-    public record AuditEvent(UUID id, UUID actorUserId, String action, String targetType, UUID targetId, Instant createdAt) {}
+    public record AuditEvent(UUID id, UUID actorUserId, String action, String targetType, UUID targetId, Instant createdAt, String actorName) {}
     private record PendingInvitation(UUID id, UUID organizationId, String email, String role, Instant expiresAt,
                                      boolean accepted, String slug, String name) {}
 }

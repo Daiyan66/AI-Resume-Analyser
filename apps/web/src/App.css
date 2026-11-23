@@ -102,3 +102,6 @@
 .hiring-rubric dd {margin:0}
 .hiring-draft {margin:10px 0}
 @media(max-width:920px) {.hiring-charts {grid-template-columns:1fr}}
+
+.live-app .pv-nav-item:has(.sidebar-unread) {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.sidebar-unread {display:inline-block;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#16823f}

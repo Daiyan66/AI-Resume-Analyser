@@ -43,8 +43,10 @@ public class JobController {
                                            @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
                                            @RequestParam(defaultValue = "") @Size(max = 160) String q,
                                            @RequestParam(defaultValue = "") @Pattern(regexp = "|DRAFT|PUBLISHED|PAUSED|CLOSED") String status,
-                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|REMOTE|HYBRID|ONSITE") String workType) {
-        return jobs.organizationJobs(organizationId, page, size, q, status, workType);
+                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|REMOTE|HYBRID|ONSITE") String workType,
+                                           @RequestParam(required = false) UUID recruiterId,
+                                           @RequestParam(defaultValue = "false") boolean excludeDrafts) {
+        return jobs.organizationJobs(organizationId, page, size, q, status, workType, recruiterId, excludeDrafts);
     }
 
     @PostMapping("/organizations/{organizationId}/jobs")

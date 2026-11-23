@@ -48,6 +48,9 @@ class RecruiterFlowIntegrationTest {
         String organizationId = id(mvc.perform(post("/api/v1/organizations").session(owner.session()).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("name", "Recruiter Test",
                         "slug", "recruiter-" + UUID.randomUUID())))).andExpect(status().isCreated()).andReturn(), "organizationId");
+        var publisher = account("publisher");
+        jdbc.update("INSERT INTO memberships (organization_id, user_id, role) VALUES (?, ?, 'RECRUITER')",
+                UUID.fromString(organizationId), publisher.id());
         String jobId = id(mvc.perform(post("/api/v1/organizations/{id}/jobs", organizationId)
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Draft")))
                 .andExpect(status().isCreated()).andReturn(), "id");
@@ -55,7 +58,13 @@ class RecruiterFlowIntegrationTest {
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Final")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Final"));
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/publish", organizationId, jobId)
-                .session(owner.session()).with(csrf())).andExpect(status().isOk());
+                .session(publisher.session()).with(csrf())).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", publisher.id().toString())
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(jobId));
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", owner.id().toString())
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", publisher.id().toString())
+                .session(publisher.session())).andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/organizations/{orgId}/jobs/{jobId}", organizationId, jobId)
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Too late")))
                 .andExpect(status().isConflict());
@@ -156,9 +165,12 @@ class RecruiterFlowIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("outcome", "HIRED",
                         "reason", "Private hiring decision reason")))).andExpect(status().isOk());
         mvc.perform(get("/api/v1/organizations/{orgId}/applications", organizationId).param("status", "HIRED")
-                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .param("recruiterId", publisher.id().toString()).param("hiredBy", owner.id().toString()).session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(secondApplicationId))
                 .andExpect(jsonPath("$.items[0].hiredAt").isNotEmpty());
+        mvc.perform(get("/api/v1/organizations/{orgId}/applications", organizationId).param("status", "HIRED")
+                .param("recruiterId", publisher.id().toString()).param("hiredBy", publisher.id().toString()).session(owner.session()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         mvc.perform(get("/api/v1/candidate/applications/{id}", secondApplicationId).session(candidate.session()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("HIRED"));
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/status", organizationId, jobId)

@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type Job, type Organization } from './api'
 import { jobStatuses, routeId } from './recruiterSearch'
-import { recruiterRoutes } from './workspaceNavigation'
+import { workspaceHref } from './workspaceNavigation'
 
 type JobOption = { id: string; title: string; status: keyof typeof jobStatuses }
 type BatchSummary = { id: string; createdAt: string; itemCount: number }
@@ -27,7 +27,7 @@ export function BatchScreeningPage({ organization }: { organization: Organizatio
       <label className="candidate-status-filter">Job<select value={jobId} aria-label="Job" onChange={event => {
         const next = event.target.value
         setJobId(next)
-        const path = recruiterRoutes['batch-screening']
+        const path = workspaceHref('batch-screening', 'RECRUITER')
         history.replaceState(null, '', next ? `${path}?job=${next}` : path)
       }}>
         <option value="">Choose a job</option>
@@ -36,7 +36,7 @@ export function BatchScreeningPage({ organization }: { organization: Organizatio
       </select></label>
       {error && <p role="alert" className="alert error">{error}</p>}
       {!options && !error && <p role="status">Loading jobs…</p>}
-      {options?.length === 0 && <p>Publish a job to start screening. <a href={recruiterRoutes['posted-jobs']}>Go to posted jobs</a></p>}
+      {options?.length === 0 && <p>Publish a job to start screening. <a href={workspaceHref('posted-jobs', 'RECRUITER')}>Go to posted jobs</a></p>}
     </section>
     {selected && <ScreeningJob key={jobId} path={`${base}/jobs/${jobId}`} />}
   </>
