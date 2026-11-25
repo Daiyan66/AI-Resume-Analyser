@@ -4,6 +4,7 @@ import { workspaceHref } from './workspaceNavigation'
 
 const candidateLabels: Record<string, string> = {
   assessment_due: 'Submit assessment',
+  assessment_scheduled: 'View assessment schedule',
   interview_booking: 'Book your interview',
   interview_upcoming: 'View upcoming interview',
 }
@@ -26,9 +27,9 @@ export function HiringTaskCard({ organization }: { organization?: Organization }
       !result.data.length ? <p>{organization ? 'No interview or assessment tasks are waiting.' : 'You have no upcoming interview or assessment tasks.'}</p> :
         <ul className="list">{result.data.slice(0, organization ? 8 : 3).map(task => {
           const tab = task.kind.startsWith('assessment') ? 'assessments' : 'interviews'
-          const query = new URLSearchParams({ tab, application: task.applicationId })
-          if (organization) query.set('job', task.jobId)
-          const timeLabel = task.kind === 'assessment_due' ? 'Due' : task.kind === 'assessment_review' ? 'Submitted' :
+          const query = new URLSearchParams({ application: task.applicationId })
+          if (organization) { query.set('tab', tab); query.set('job', task.jobId) }
+          const timeLabel = task.kind === 'assessment_due' ? 'Due' : task.kind === 'assessment_scheduled' ? 'Opens' : task.kind === 'assessment_review' ? 'Submitted' :
             task.kind === 'interview_reschedule' ? 'Requested' : task.kind === 'interview_expired' ? 'Last slot expired' :
             task.kind === 'interview_booking' ? 'First offered time' : 'Starts'
           return <li key={task.itemId}>

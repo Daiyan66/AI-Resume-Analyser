@@ -4,7 +4,7 @@ import { api, type Account, type CandidateApplication, type CandidateNotificatio
   type Document, type Job, type Page } from './api'
 import { CandidateJobList } from './CandidateJobList'
 import { ResumeProfileEditor } from './ResumeProfileEditor'
-import { workTypes, type CandidateSection } from './workspaceNavigation'
+import { workTypes, workspaceHref, type CandidateSection } from './workspaceNavigation'
 
 const emptyProfile: CandidateProfile = { headline: '', location: '', phone: '', summary: '', skills: '',
   experience: '', education: '' }
@@ -282,6 +282,7 @@ export function CandidateWorkspace({ account, documents, section, jobId, onSignI
         </div>}
         {selectedApplication && <div className="job-detail">
           <h3>{selectedApplication.jobTitle} · {statusLabels[selectedApplication.status]}</h3>
+          <p><a href={`${workspaceHref('candidate-assessment-interview', 'CANDIDATE')}?application=${selectedApplication.id}`}>View assessment and interview progress</a></p>
           <ol>{selectedApplication.events.map((event) => <li key={event.id}>{event.message} · {new Date(event.createdAt).toLocaleString()}</li>)}</ol>
           <h4>Submitted profile</h4><p>{selectedApplication.profileSnapshot.displayName} · {selectedApplication.profileSnapshot.email}</p>
           {Object.entries(selectedApplication.profileSnapshot.profile).map(([field, value]) =>

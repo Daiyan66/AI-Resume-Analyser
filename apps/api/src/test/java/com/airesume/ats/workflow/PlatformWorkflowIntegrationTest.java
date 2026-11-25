@@ -285,6 +285,10 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(post(listing + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
         String firstApp = workflowApplication(first, admin, listing, job);
         String secondApp = workflowApplication(second, admin, listing, job);
+        mvc.perform(get(org + "/applications").param("sort", "oldest").param("size", "1").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(firstApp));
+        mvc.perform(get(org + "/applications").param("sort", "oldest").param("size", "1").param("page", "1").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(secondApp));
         String firstInterview = "/api/v1/candidate/applications/" + firstApp + "/interviews";
         String secondInterview = "/api/v1/candidate/applications/" + secondApp + "/interviews";
         var starts = Instant.now().plusSeconds(7200);
@@ -328,8 +332,11 @@ class PlatformWorkflowIntegrationTest {
                     Map.of("times", List.of(starts.plusSeconds(14400)), "minutes", 30, "timezone", "UTC",
                             "location", "https://example.test/replacement", "message", ""))).andExpect(status().isOk());
             mvc.perform(get(winnerEndpoint).session(winner)).andExpect(jsonPath("$[0].cancelledAt").isEmpty());
-            mvc.perform(post(winnerEndpoint + "/book/" + firstSlot(winnerEndpoint, winner)).session(winner).with(csrf()))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.location").value("https://example.test/replacement"));
+            String replacement = id(mvc.perform(post(winnerEndpoint + "/book/" + firstSlot(winnerEndpoint, winner))
+                            .session(winner).with(csrf())).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.location").value("https://example.test/replacement")).andReturn(), "id");
+            mvc.perform(delete(listing + "/applications/" + winnerApp + "/interviews/" + replacement).session(admin).with(csrf()))
+                    .andExpect(status().isNoContent());
         }
 
         String templates = listing + "/assessment-templates";
@@ -338,14 +345,27 @@ class PlatformWorkflowIntegrationTest {
         var draft = Map.of("title", "Keyboard review", "instructions", "Review a signup form.", "effortMinutes", 20,
                 "allowedTools", "Documentation is allowed.", "rubric", List.of("Tab order", "Focus visibility"));
         String template = id(mvc.perform(payload(post(templates), admin, draft)).andExpect(status().isOk()).andReturn(), "id");
-        var assign = Map.of("templateId", template, "dueAt", Instant.now().plusSeconds(86400));
+        Instant due = Instant.now().plusSeconds(86400);
+        var assign = Map.of("templateId", template, "availableFrom", Instant.now().plusSeconds(3600), "dueAt", due);
         mvc.perform(payload(post(staff), admin, assign)).andExpect(status().isConflict());
         mvc.perform(post(templates + "/" + template + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
         mvc.perform(payload(put(templates + "/" + template), admin, draft)).andExpect(status().isConflict());
         String assignment = id(mvc.perform(payload(post(staff), admin, assign)).andExpect(status().isOk()).andReturn(), "id");
         mvc.perform(get(candidate).session(second)).andExpect(status().isNotFound());
+        String progress = "/api/v1/candidate/hiring-applications";
+        mvc.perform(get(progress).session(first)).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].nextKind").value("assessment_scheduled"));
+        mvc.perform(get(progress + "/" + firstApp).session(second)).andExpect(status().isNotFound());
+        mvc.perform(get(candidate).session(first)).andExpect(status().isOk()).andExpect(jsonPath("$[0].instructions").value(""));
+        mvc.perform(payload(put(listing + "/applications/" + firstApp + "/interviews/offer"), admin, slots))
+                .andExpect(status().isConflict());
+        mvc.perform(payload(post(listing + "/applications/" + firstApp + "/stage"), admin, Map.of("status", "INTERVIEW")))
+                .andExpect(status().isConflict());
         String attachment = upload(first, "work.txt", "A written test plan.");
         var answer = Map.of("answer", "I tested the tab order with a keyboard.", "documentId", attachment, "aiConsent", true);
+        mvc.perform(payload(put(candidate + "/" + assignment + "/draft"), first, answer)).andExpect(status().isConflict());
+        jdbc.update("UPDATE assessment_assignments SET available_from = CURRENT_TIMESTAMP - INTERVAL '1 minute' WHERE id = ?",
+                UUID.fromString(assignment));
         mvc.perform(payload(put(candidate + "/" + assignment + "/draft"), first, answer)).andExpect(status().isOk());
         mvc.perform(get(staff).session(admin)).andExpect(jsonPath("$[0].answer").value(""));
         mvc.perform(get(staff + "/" + assignment + "/attachment").session(admin)).andExpect(status().isNotFound());
@@ -367,9 +387,21 @@ class PlatformWorkflowIntegrationTest {
                 .andExpect(jsonPath("$[0].excerpt").value("tested the tab order"))
                 .andExpect(jsonPath("$[1].excerpt").value(""));
         mvc.perform(payload(post(staff + "/" + assignment + "/review"), admin,
-                Map.of("scores", List.of(4, 2), "feedback", "Confirm the focus indicator."))).andExpect(status().isOk());
+                Map.of("scores", List.of(4, 2), "feedback", "Confirm the focus indicator.", "outcome", "RETRY"))).andExpect(status().isOk());
         mvc.perform(get(candidate).session(first)).andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].feedback").value("Confirm the focus indicator."));
+        mvc.perform(get(progress + "/" + firstApp).session(first)).andExpect(jsonPath("$.nextKind").value("assessment_retry"));
+        mvc.perform(payload(put(listing + "/applications/" + firstApp + "/interviews/offer"), admin, slots))
+                .andExpect(status().isConflict());
+        String retry = id(mvc.perform(payload(post(staff), admin, Map.of("templateId", template, "dueAt", due)))
+                .andExpect(status().isOk()).andReturn(), "id");
+        mvc.perform(payload(post(candidate + "/" + retry + "/submit"), first, answer)).andExpect(status().isOk());
+        mvc.perform(payload(post(staff + "/" + retry + "/review"), admin,
+                Map.of("scores", List.of(4, 4), "feedback", "Clear focus testing.", "outcome", "PASSED"))).andExpect(status().isOk());
+        mvc.perform(get(progress + "/" + firstApp).session(first)).andExpect(jsonPath("$.nextKind").value("interview_pending"));
+        mvc.perform(payload(put(listing + "/applications/" + firstApp + "/interviews/offer"), admin, slots))
+                .andExpect(status().isOk());
+        mvc.perform(get(progress + "/" + firstApp).session(first)).andExpect(jsonPath("$.nextKind").value("interview_booking"));
     }
 
     private String workflowApplication(MockHttpSession candidate, MockHttpSession admin, String listing, String job) throws Exception {

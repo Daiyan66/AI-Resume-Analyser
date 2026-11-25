@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { workspaceHref } from './workspaceNavigation'
-import { localTime, useHiringAction, useHiringData, useWorkflowClock, write, type Interview, type InterviewOffer } from './hiringWorkflow'
+import { currentAssessments, localTime, useHiringAction, useHiringData, useWorkflowClock, write, type AssessmentAssignment, type Interview, type InterviewOffer } from './hiringWorkflow'
 import type { Organization } from './api'
 
 function meetingHref(value: string) {
@@ -27,8 +27,8 @@ function calendarFile(interview: Interview, job: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 
-export function HiringInterviews({ applicationId, jobId, jobTitle, stage, organization }: {
-  applicationId: string; jobId: string; jobTitle: string; stage: string; organization?: Organization
+export function HiringInterviews({ applicationId, jobId, jobTitle, stage, organization, onProgress }: {
+  applicationId: string; jobId: string; jobTitle: string; stage: string; organization?: Organization; onProgress?: () => void
 }) {
   const base = organization ? `/organizations/${organization.organizationId}/jobs/${jobId}/applications/${applicationId}/interviews`
     : `/candidate/applications/${applicationId}/interviews`
@@ -37,6 +37,8 @@ export function HiringInterviews({ applicationId, jobId, jobTitle, stage, organi
   const [chosen, setChosen] = useState('')
   const interviews = useHiringData<Interview[]>(base, revision)
   const offered = useHiringData<InterviewOffer>(`${base}/offer`, revision)
+  const assessments = useHiringData<AssessmentAssignment[]>(organization ?
+    `/organizations/${organization.organizationId}/applications/${applicationId}/assessments` : '')
   const { busy, error, notice, run } = useHiringAction()
   const zone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   const active = interviews?.data?.find(item => !item.cancelledAt && !item.completedAt)
@@ -46,7 +48,9 @@ export function HiringInterviews({ applicationId, jobId, jobTitle, stage, organi
 
   const canOffer = !active || (!!active.rescheduleRequestedAt && Date.parse(active.startsAt) > now)
 
-  function refresh() { setRevision(value => value + 1) }
+  const blocked = currentAssessments(assessments?.data ?? []).some(assessment => assessment.outcome !== 'PASSED')
+  const assessmentHref = organization ? `${workspaceHref('staff-assessment-interview', organization.role)}?tab=assessments&application=${applicationId}&job=${jobId}` : ''
+  function refresh() { setRevision(value => value + 1); onProgress?.() }
 
   function propose(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -121,7 +125,9 @@ export function HiringInterviews({ applicationId, jobId, jobTitle, stage, organi
           </form>}
     </article>}
     {!organization && interviews?.data && offered && !offer && !active && <p>No interview is scheduled for this application.</p>}
-    {organization && interviews?.data && offered && canOffer && interviewStage && <form key={offer?.id ?? 'new-offer'} onSubmit={propose}>
+    {organization && assessments?.error && <p role="alert" className="alert error">{assessments.error}</p>}
+    {organization && blocked && <p>Record a passing outcome for each assigned assessment first. <a href={assessmentHref}>Review assessments</a></p>}
+    {organization && assessments?.data && !blocked && interviews?.data && offered && canOffer && interviewStage && <form key={offer?.id ?? 'new-offer'} onSubmit={propose}>
       <h3>{offer ? 'Replace offered times' : 'Offer interview times'}</h3>
       <p>Enter options in {zone}. The candidate will pick one.</p>
       <div className="field-grid">

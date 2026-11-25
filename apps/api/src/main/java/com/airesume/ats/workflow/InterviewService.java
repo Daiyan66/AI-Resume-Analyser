@@ -24,14 +24,16 @@ public class InterviewService {
     private final JobService jobs;
     private final AuditService audit;
     private final DeliveryService delivery;
+    private final AssessmentGate assessmentGate;
 
     public InterviewService(JdbcTemplate jdbc, IdentityService identities, JobService jobs, AuditService audit,
-                            DeliveryService delivery) {
+                            DeliveryService delivery, AssessmentGate assessmentGate) {
         this.jdbc = jdbc;
         this.identities = identities;
         this.jobs = jobs;
         this.audit = audit;
         this.delivery = delivery;
+        this.assessmentGate = assessmentGate;
     }
 
     public List<Interview> forCandidate(UUID application) {
@@ -50,6 +52,7 @@ public class InterviewService {
                               String location, String message) {
         jobs.privateJob(org, job);
         requireInterviewStage(requireApplication(application, "job_id", job, true));
+        assessmentGate.requirePassed(application);
         validateTime(startsAt, timezone);
         ensureNoInterview(application);
         UUID organizer = identities.currentUserId();
@@ -80,6 +83,7 @@ public class InterviewService {
                          String location, String message) {
         jobs.privateJob(org, job);
         requireInterviewStage(requireApplication(application, "job_id", job, true));
+        assessmentGate.requirePassed(application);
         Interview current = activeInterview(application);
         if (current != null && (current.rescheduleRequestedAt() == null || !current.startsAt().isAfter(Instant.now()))) {
             throw conflict("The current interview must be completed or have an open reschedule request.");
@@ -107,6 +111,7 @@ public class InterviewService {
     public Interview book(UUID application, UUID slotId) {
         UUID candidate = identities.currentUserId();
         requireInterviewStage(requireApplication(application, "candidate_user_id", candidate, true));
+        assessmentGate.requirePassed(application);
         Interview current = activeInterview(application);
         if (current != null && (current.rescheduleRequestedAt() == null || !current.startsAt().isAfter(Instant.now()))) {
             throw conflict("An interview is already scheduled.");

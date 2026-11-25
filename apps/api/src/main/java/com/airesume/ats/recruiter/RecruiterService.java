@@ -3,6 +3,7 @@ package com.airesume.ats.recruiter;
 import com.airesume.ats.candidate.JobService;
 import com.airesume.ats.identity.IdentityService;
 import com.airesume.ats.workflow.DeliveryService;
+import com.airesume.ats.workflow.AssessmentGate;
 import com.airesume.ats.security.AuditService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -23,15 +24,17 @@ public class RecruiterService {
     private final JdbcTemplate jdbc;
     private final IdentityService identities;
     private final DeliveryService delivery;
+    private final AssessmentGate assessmentGate;
     private final JobService jobs;
     private final AuditService audit;
     private final ObjectMapper json;
 
     public RecruiterService(JdbcTemplate jdbc, IdentityService identities, DeliveryService delivery,
-                            JobService jobs, AuditService audit, ObjectMapper json) {
+                            JobService jobs, AuditService audit, ObjectMapper json, AssessmentGate assessmentGate) {
         this.jdbc = jdbc;
         this.identities = identities;
         this.delivery = delivery;
+        this.assessmentGate = assessmentGate;
         this.jobs = jobs;
         this.audit = audit;
         this.json = json;
@@ -91,6 +94,7 @@ public class RecruiterService {
                 ("INTERVIEW".equals(current) && "OFFER".equals(target));
         if (!allowed) throw new ResponseStatusException(HttpStatus.CONFLICT,
                 "This application cannot move from " + current + " to " + target + ".");
+        if ("INTERVIEW".equals(target) || "OFFER".equals(target)) assessmentGate.requirePassed(applicationId);
         jdbc.update("UPDATE applications SET status = ? WHERE id = ?", target, applicationId);
         UUID actor = identities.currentUserId();
         String label = switch (target) { case "IN_REVIEW" -> "In review"; case "INTERVIEW" -> "Interview";

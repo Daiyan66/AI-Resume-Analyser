@@ -9,9 +9,18 @@ export type InterviewOffer = { id: string; timezone: string; minutes: number; lo
   slots: { id: string; startsAt: string }[] }
 export type AssessmentFields = { title: string; instructions: string; effortMinutes: number; allowedTools: string; rubric: string[] }
 export type AssessmentTemplate = AssessmentFields & { id: string; publishedAt: string | null }
-export type AssessmentAssignment = AssessmentFields & { id: string; dueAt: string; answer: string; documentId: string | null
+export type AssessmentAssignment = AssessmentFields & { id: string; templateId: string; availableFrom: string; dueAt: string; answer: string; documentId: string | null
   documentName: string | null; aiConsent: boolean; updatedAt: string | null; submittedAt: string | null
-  reviewedAt: string | null; scores: number[]; feedback: string | null }
+  reviewedAt: string | null; scores: number[]; feedback: string | null; outcome: 'PASSED' | 'RETRY' | 'EXPIRED' | null }
+
+// The API returns attempts newest-first, so only the first attempt per template governs progression.
+export function currentAssessments(attempts: AssessmentAssignment[]) {
+  const latest = new Map<string, AssessmentAssignment>()
+  for (const attempt of attempts) {
+    if (!latest.has(attempt.templateId)) latest.set(attempt.templateId, attempt)
+  }
+  return [...latest.values()]
+}
 
 export function errorMessage(cause: unknown) {
   return cause instanceof Error ? cause.message : 'The request could not be completed.'

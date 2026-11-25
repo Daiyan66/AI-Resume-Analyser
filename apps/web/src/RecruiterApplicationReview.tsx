@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { useSuccessNotice } from './useSuccessNotice'
 import { api, type ReviewDetail } from './api'
+import { workspaceHref, type StaffRole } from './workspaceNavigation'
 import { HiringToolsTrial } from './HiringToolsTrial'
 
 type Evidence = { criterionId: string; criterion: string; excerpt: string | null; extractedLine: number | null }
 
-export function RecruiterApplicationReview({ base, applicationId, organizationId, accountId }: {
-  base: string; applicationId: string; organizationId: string; accountId: string
+export function RecruiterApplicationReview({ base, applicationId, organizationId, accountId, role }: {
+  base: string; applicationId: string; organizationId: string; accountId: string; role: StaffRole
 }) {
   const [detail, setDetail] = useState<ReviewDetail>()
   const [busy, setBusy] = useState(false)
@@ -76,6 +77,9 @@ export function RecruiterApplicationReview({ base, applicationId, organizationId
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
       <h2>{detail.profileSnapshot.displayName} · {detail.status.replaceAll('_', ' ').toLowerCase()}</h2>
+      <p><a className="pv-button" href={`${workspaceHref('staff-assessment-interview', role)}?tab=assessments&application=${detail.id}&job=${detail.job.id}`}>
+        Assessment &amp; Interview
+      </a></p>
       <p>{detail.profileSnapshot.email} · submitted {new Date(detail.submittedAt).toLocaleString()}</p>
       {Object.entries(detail.profileSnapshot.profile).map(([field, value]) => <p key={field} className="preserve-lines">
         <strong>{field[0].toUpperCase() + field.slice(1)}:</strong> {value || '—'}</p>)}

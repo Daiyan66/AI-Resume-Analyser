@@ -139,3 +139,6 @@
 .hiring-workflow .workflow-choice {display:flex;align-items:baseline;gap:8px;margin-block:6px}
 .hiring-workflow .workflow-choice input {margin:0;flex:none;width:auto}
 .hiring-workflow summary {cursor:pointer;font-weight:650}
+.candidate-progress-card > p {margin-top:6px}
+.candidate-progress-next {border-top:1px solid var(--pv-line);padding-top:10px;display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.candidate-progress-next time {color:var(--pv-muted)}

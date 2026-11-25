@@ -16,11 +16,13 @@ public class HiringTaskController {
                    a.candidate_user_id, task.kind, task.at, task.item_id
             FROM applications a JOIN jobs j ON j.id = a.job_id
             JOIN LATERAL (
-              SELECT 'assessment_due' AS kind, s.due_at AS at, s.id AS item_id
-                FROM assessment_assignments s WHERE s.application_id = a.id AND s.submitted_at IS NULL AND s.due_at > CURRENT_TIMESTAMP
+              SELECT CASE WHEN s.available_from > CURRENT_TIMESTAMP THEN 'assessment_scheduled' ELSE 'assessment_due' END AS kind,
+                     CASE WHEN s.available_from > CURRENT_TIMESTAMP THEN s.available_from ELSE s.due_at END AS at, s.id AS item_id
+                FROM latest_assessment_attempts s WHERE s.application_id = a.id AND s.submitted_at IS NULL
+                  AND s.outcome IS NULL AND s.due_at > CURRENT_TIMESTAMP
               UNION ALL
               SELECT 'assessment_review', s.submitted_at, s.id FROM assessment_assignments s
-                WHERE s.application_id = a.id AND s.submitted_at IS NOT NULL AND s.reviewed_at IS NULL
+                WHERE s.application_id = a.id AND s.submitted_at IS NOT NULL AND s.outcome IS NULL
               UNION ALL
               SELECT 'interview_booking', min(slot.starts_at), o.id FROM interview_offers o
                 JOIN interview_slots slot ON slot.offer_id = o.id WHERE o.application_id = a.id AND o.closed_at IS NULL
@@ -51,7 +53,7 @@ public class HiringTaskController {
     @GetMapping("/candidate/hiring-tasks")
     public List<Task> candidate() {
         return list("candidate_user_id", identities.currentUserId(),
-                "('assessment_due','interview_booking','interview_upcoming')");
+                "('assessment_due','assessment_scheduled','interview_booking','interview_upcoming')");
     }
 
     @GetMapping("/organizations/{org}/hiring-tasks")

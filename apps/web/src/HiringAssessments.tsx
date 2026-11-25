@@ -1,6 +1,6 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { api, type Document, type Organization } from './api'
-import { localTime, useHiringAction, useHiringData, useWorkflowClock, write, type AssessmentAssignment, type AssessmentFields, type AssessmentTemplate } from './hiringWorkflow'
+import { currentAssessments, localTime, useHiringAction, useHiringData, useWorkflowClock, write, type AssessmentAssignment, type AssessmentFields, type AssessmentTemplate } from './hiringWorkflow'
 
 const emptyTemplate = { title: '', instructions: '', effortMinutes: 30, allowedTools: '', rubric: [] }
 type Suggestion = Pick<AssessmentFields, 'title' | 'instructions' | 'rubric'>
@@ -10,6 +10,7 @@ function Feedback({ assessment }: { assessment: AssessmentAssignment }) {
   if (!assessment.reviewedAt) return null
   return <div>
     <h4>Review feedback</h4>
+    {assessment.outcome && <p><strong>{assessment.outcome === 'PASSED' ? 'Passed' : 'Another attempt requested'}</strong></p>}
     <p className="preserve-lines">{assessment.feedback}</p>
     <ul>{assessment.rubric.map((criterion, index) => <li key={criterion}>{criterion} · {assessment.scores[index]}/4</li>)}</ul>
   </div>
@@ -25,7 +26,9 @@ function CandidateAssessment({ assessment, base, documents, closed, refresh }: {
   const { busy, error, notice, run } = useHiringAction()
   const fileField = useRef<HTMLInputElement>(null)
   const now = useWorkflowClock()
-  const canEdit = !closed && !assessment.submittedAt && Date.parse(assessment.dueAt) > now
+  const opensLater = Date.parse(assessment.availableFrom) > now
+  const canEdit = !closed && !opensLater && !!assessment.instructions && !assessment.submittedAt &&
+    !assessment.outcome && Date.parse(assessment.dueAt) > now
 
   function save(submit: boolean) {
     void run(async () => {
@@ -49,10 +52,11 @@ function CandidateAssessment({ assessment, base, documents, closed, refresh }: {
 
   return <article className="criterion">
     <h3>{assessment.title}</h3>
-    <p>Due <time dateTime={assessment.dueAt}>{localTime(assessment.dueAt)}</time> · About {assessment.effortMinutes} minutes</p>
-    <p className="preserve-lines">{assessment.instructions}</p>
+    <p>Opens <time dateTime={assessment.availableFrom}>{localTime(assessment.availableFrom)}</time><br />
+      Due <time dateTime={assessment.dueAt}>{localTime(assessment.dueAt)}</time> · About {assessment.effortMinutes} minutes</p>
+    {assessment.instructions && <p className="preserve-lines">{assessment.instructions}</p>}
     <p className="preserve-lines"><strong>Allowed tools</strong> · {assessment.allowedTools}</p>
-    <details><summary>How this will be reviewed</summary><ul>{assessment.rubric.map(item => <li key={item}>{item}</li>)}</ul></details>
+    {assessment.rubric.length > 0 && <details><summary>How this will be reviewed</summary><ul>{assessment.rubric.map(item => <li key={item}>{item}</li>)}</ul></details>}
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
     {canEdit ? <form onSubmit={event => {
@@ -81,7 +85,9 @@ function CandidateAssessment({ assessment, base, documents, closed, refresh }: {
       {assessment.documentId && <a href={`/api/v1/documents/${assessment.documentId}`}>{assessment.documentName ?? 'Download attachment'}</a>}
       <Feedback assessment={assessment} />
     </> : <>
-      <p>{closed ? 'This application has closed.' : 'The assessment deadline has passed.'}</p>
+      <p>{closed ? 'This application has closed.' : opensLater ? 'You can start when the assessment opens.' :
+        Date.parse(assessment.dueAt) <= now || assessment.outcome === 'EXPIRED' ?
+          'The assessment deadline has passed.' : 'Loading assessment instructions…'}</p>
       {assessment.answer && <p className="preserve-lines">{assessment.answer}</p>}
       {assessment.documentId && <a href={`/api/v1/documents/${assessment.documentId}`}>{assessment.documentName ?? 'Download saved attachment'}</a>}
     </>}
@@ -107,19 +113,27 @@ function AssessmentPractice({ base }: { base: string }) {
   </details>
 }
 
-export function CandidateAssessments({ applicationId, documents, closed }: {
-  applicationId: string; documents: Document[]; closed: boolean
+export function CandidateAssessments({ applicationId, documents, closed, onProgress }: {
+  applicationId: string; documents: Document[]; closed: boolean; onProgress: () => void
 }) {
   const base = `/candidate/applications/${applicationId}/assessments`
   const [revision, setRevision] = useState(0)
   const result = useHiringData<AssessmentAssignment[]>(base, revision)
+  useEffect(() => {
+    if (closed || !result?.data) return
+    const starts = result.data.filter(item => !item.instructions).map(item => Date.parse(item.availableFrom))
+    if (!starts.length) return
+    const delay = Math.max(1000, Math.min(2_147_483_647, Math.min(...starts) - Date.now() + 250))
+    const timer = window.setTimeout(() => setRevision(value => value + 1), delay)
+    return () => window.clearTimeout(timer)
+  }, [closed, result])
   return <section className="panel">
     <h2>Assessments</h2>
     {result?.error ? <p role="alert" className="alert error">{result.error}</p> :
       !result?.data ? <p role="status">Loading assessments…</p> :
         !result.data.length ? <p>No assessments have been assigned for this application.</p> :
           result.data.map(assessment => <CandidateAssessment key={assessment.id} assessment={assessment} base={base}
-            documents={documents} closed={closed} refresh={() => setRevision(value => value + 1)} />)}
+            documents={documents} closed={closed} refresh={() => { setRevision(value => value + 1); onProgress() }} />)}
     <AssessmentPractice base={base} />
   </section>
 }
@@ -194,41 +208,47 @@ function StaffAssessment({ assessment, base, refresh }: { assessment: Assessment
     const form = new FormData(event.currentTarget)
     void run(async () => {
       await write(`${base}/${assessment.id}/review`, 'POST',
-        { scores: form.getAll('score').map(Number), feedback: form.get('feedback') })
+        { scores: form.getAll('score').map(Number), feedback: form.get('feedback'), outcome: form.get('outcome') })
       refresh()
     }, 'Assessment feedback sent.')
   }
 
   return <article className="criterion">
     <h3>{assessment.title}</h3>
-    <p>{assessment.reviewedAt ? 'Reviewed' : assessment.submittedAt ? 'Awaiting review' :
-      Date.parse(assessment.dueAt) <= now ? 'Deadline passed' : 'Awaiting submission'} · Due {localTime(assessment.dueAt)}</p>
+    <p>{assessment.outcome === 'PASSED' ? 'Passed' : assessment.outcome === 'RETRY' ? 'Another attempt requested' :
+      assessment.submittedAt ? 'Awaiting outcome' :
+      Date.parse(assessment.dueAt) <= now ? 'Deadline passed' : 'Awaiting submission'} · Opens {localTime(assessment.availableFrom)} · Due {localTime(assessment.dueAt)}</p>
     {!assessment.submittedAt ? null : <>
       <p className="preserve-lines">{assessment.answer}</p>
       {assessment.documentId && <p><a href={`/api/v1${base}/${assessment.id}/attachment`}>{assessment.documentName ?? 'Download submission'}</a></p>}
       {error && <p role="alert" className="alert error">{error}</p>}
       {notice && <p role="status" className="alert success">{notice}</p>}
-      {assessment.aiConsent && assessment.answer && !assessment.reviewedAt && <button type="button" className="quiet" disabled={busy}
+      {assessment.aiConsent && assessment.answer && !assessment.outcome && <button type="button" className="quiet" disabled={busy}
         onClick={() => void run(async () => { setEvidence(await write<Evidence[]>(`${base}/${assessment.id}/evidence`, 'POST')) })}>Find evidence with AI</button>}
       {evidence && <ul className="list">{evidence.map(item => <li key={item.criterion}>
         <div><strong>{item.criterion}</strong><p className="preserve-lines">{item.excerpt || 'Unclear from the written answer'}</p>
           {item.followUp && <p>Suggested follow-up · {item.followUp}</p>}</div>
       </li>)}</ul>}
-      {assessment.reviewedAt ? <Feedback assessment={assessment} /> : <form onSubmit={review}>
+      {assessment.outcome ? <Feedback assessment={assessment} /> : <form onSubmit={review}>
         <p>Score each criterion from 0 (no evidence) to 4 (strong evidence). Your feedback is shared with the candidate.</p>
-        {assessment.rubric.map(criterion => <label key={criterion}>{criterion}<select name="score" required defaultValue="">
+        {assessment.rubric.map((criterion, index) => <label key={criterion}>{criterion}<select name="score" required
+          defaultValue={assessment.scores[index] ?? ''}>
           <option value="" disabled>Choose a score</option>
           {[0, 1, 2, 3, 4].map(score => <option key={score}>{score}</option>)}
         </select></label>)}
-        <label>Feedback for candidate<textarea required maxLength={4000} name="feedback" /></label>
+        <label>Assessment outcome<select name="outcome" aria-label="Assessment outcome" required defaultValue="">
+          <option value="" disabled>Choose an outcome</option>
+          <option value="PASSED">Passed</option><option value="RETRY">Another attempt needed</option>
+        </select></label>
+        <label>Feedback for candidate<textarea required maxLength={4000} name="feedback" defaultValue={assessment.feedback ?? ''} /></label>
         <button type="submit" disabled={busy}>Send feedback</button>
       </form>}
     </>}
   </article>
 }
 
-export function StaffAssessments({ applicationId, jobId, organization, closed = false }: {
-  applicationId?: string; jobId: string; organization: Organization; closed?: boolean
+export function StaffAssessments({ applicationId, jobId, organization, closed = false, canAssign = true, interviewHref }: {
+  applicationId?: string; jobId: string; organization: Organization; closed?: boolean; canAssign?: boolean; interviewHref?: string
 }) {
   const organizationPath = `/organizations/${organization.organizationId}`
   const templates = `${organizationPath}/jobs/${jobId}/assessment-templates`
@@ -239,6 +259,8 @@ export function StaffAssessments({ applicationId, jobId, organization, closed = 
   const assigned = useHiringData<AssessmentAssignment[]>(base, revision)
   const { busy, error, notice, run } = useHiringAction()
   const published = collection?.data?.filter(template => template.publishedAt) ?? []
+  const attempts = currentAssessments(assigned?.data ?? [])
+  const canProceed = attempts.length > 0 && attempts.every(item => item.outcome === 'PASSED')
   function refresh() { setRevision(value => value + 1) }
 
   return <section className="panel">
@@ -249,19 +271,25 @@ export function StaffAssessments({ applicationId, jobId, organization, closed = 
     {!assigned ? <p role="status">Loading assessments…</p> : assigned.data?.length ?
       assigned.data.map(assessment => <StaffAssessment key={assessment.id} assessment={assessment} base={base} refresh={refresh} />) :
       !assigned.error && <p>No assessments assigned.</p>}
-    {!closed && <>
+    {!closed && canProceed && interviewHref &&
+      <a className="pv-button primary" href={interviewHref}>Proceed to interview</a>}
+    {!closed && canAssign && <>
       <h3>Assign an assessment</h3>
+      <p>Leave the opening time blank to let the candidate start immediately.</p>
       {published.length ? <form className="inline-form" onSubmit={event => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
         void run(async () => {
-          await write(base, 'POST', { templateId: data.get('templateId'), dueAt: new Date(String(data.get('due'))).toISOString() })
+          const starts = String(data.get('starts') ?? '')
+          await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: starts ? new Date(starts).toISOString() : null,
+            dueAt: new Date(String(data.get('due'))).toISOString() })
           refresh()
         }, 'Assessment assigned.')
       }}>
         <label>Published template<select aria-label="Published template" name="templateId" required>
           {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
         </select></label>
+        <label>Opening time in your timezone (optional)<input type="datetime-local" name="starts" /></label>
         <label>Deadline in your timezone<input type="datetime-local" name="due" required /></label>
         <button type="submit" disabled={busy}>Assign assessment</button>
       </form> : <p>Publish a job template to assign it to this candidate.</p>}

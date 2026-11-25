@@ -74,7 +74,7 @@ public class OrganizationWorkflowService {
     }
 
     public ApplicationPage pipeline(UUID org, UUID job, UUID recruiterId, UUID hiredBy,
-                                    String status, String query, int page, int size) {
+                                    String status, String query, int page, int size, boolean oldest) {
         if (recruiterId != null || hiredBy != null) organizations.requireAdmin(org);
         else organizations.requireMember(org);
         if (job != null) jobs.privateJob(org, job);
@@ -99,7 +99,7 @@ public class OrganizationWorkflowService {
         var paged = new java.util.ArrayList<>(java.util.Arrays.asList(params));
         paged.add(size);
         paged.add((long) page * size);
-        String order = "HIRED".equals(state) ? "d.created_at DESC NULLS LAST, a.submitted_at DESC" : "a.submitted_at DESC";
+        String order = oldest ? "a.submitted_at ASC" : "HIRED".equals(state) ? "d.created_at DESC NULLS LAST, a.submitted_at DESC" : "a.submitted_at DESC";
         var items = jdbc.query("""
                 SELECT a.id, a.job_id, j.title, a.profile_snapshot->>'displayName', a.status, a.submitted_at,
                        d.created_at, poster.display_name, decider.display_name

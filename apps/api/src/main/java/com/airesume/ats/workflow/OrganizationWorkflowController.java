@@ -39,8 +39,9 @@ public class OrganizationWorkflowController {
             @RequestParam(required = false) UUID hiredBy,
             @RequestParam(required = false) @Pattern(regexp = "SUBMITTED|IN_REVIEW|INTERVIEW|OFFER|HIRED|NOT_SELECTED|WITHDRAWN") String status,
             @RequestParam(defaultValue = "") @Size(max = 160) String q,
+            @RequestParam(defaultValue = "newest") @Pattern(regexp = "newest|oldest") String sort,
             @RequestParam(defaultValue = "0") @Min(0) int page, @RequestParam(defaultValue = "20") @Min(1) @Max(50) int size) {
-        return workflows.pipeline(org, jobId, recruiterId, hiredBy, status, q, page, size);
+        return workflows.pipeline(org, jobId, recruiterId, hiredBy, status, q, page, size, "oldest".equals(sort));
     }
 
     @GetMapping(ORG + "/applications/jobs")

@@ -66,7 +66,7 @@ public class AssessmentController {
     @PostMapping(STAFF)
     public AssessmentService.Assignment assign(@PathVariable UUID org, @PathVariable UUID application,
             @Valid @RequestBody Assign input) {
-        return assessments.assign(org, application, input.templateId(), input.dueAt());
+        return assessments.assign(org, application, input.templateId(), input.availableFrom(), input.dueAt());
     }
 
     @PostMapping(STAFF + "/{id}/review")
@@ -111,5 +111,5 @@ public class AssessmentController {
     @PostMapping(CANDIDATE + "/practice/ai")
     public List<String> aiPractice(@PathVariable UUID application) { return ai.practice(application); }
 
-    public record Assign(@NotNull UUID templateId, @NotNull Instant dueAt) {}
+    public record Assign(@NotNull UUID templateId, Instant availableFrom, @NotNull Instant dueAt) {}
 }

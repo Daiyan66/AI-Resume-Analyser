@@ -30,7 +30,7 @@ export function RecruiterApplicationsPage({ organization, accountId, hires = fal
     return <>
       <a className="pv-button" href={back}>{hires ? 'Back to hired candidates' : 'Back to applications'}</a>
       {selectedJob && reviewId ?
-        <RecruiterApplicationReview base={`${base}/jobs/${selectedJob}/applications`} applicationId={reviewId} organizationId={organization.organizationId} accountId={accountId} /> :
+        <RecruiterApplicationReview base={`${base}/jobs/${selectedJob}/applications`} applicationId={reviewId} organizationId={organization.organizationId} accountId={accountId} role={organization.role} /> :
         <p role="alert">This application link is invalid.</p>}
     </>
   }
