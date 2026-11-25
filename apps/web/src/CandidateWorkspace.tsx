@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type Account, type CandidateApplication, type CandidateNotification, type CandidateProfile, type DataRequest,
   type Document, type Job, type Page } from './api'
 import { CandidateJobList } from './CandidateJobList'
@@ -51,7 +52,7 @@ export function CandidateWorkspace({ account, documents, section, jobId, onSignI
   const [notifications, setNotifications] = useState<Page<CandidateNotification>>({ items: [], page: 0, size: 12, total: 0 })
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
 
   const jobParams = new URLSearchParams({ page: String(jobPage), size: String(pageSize), q: jobFilters.q })
   if (jobFilters.workType) jobParams.set('workType', jobFilters.workType)
@@ -181,29 +182,31 @@ export function CandidateWorkspace({ account, documents, section, jobId, onSignI
         </li>)}
       </ul>}
     </section>}
-    {section === 'candidate' && <section className="panel" aria-labelledby="jobs-heading">
-      <h2 id="jobs-heading">Published openings</h2>
-      <form className="inline-form candidate-filters" onSubmit={event => {
-        event.preventDefault()
-        setJobPage(0)
-        setJobFilters({ ...jobFilterDraft, q: jobFilterDraft.q.trim() })
-      }} onReset={event => {
-        event.preventDefault()
-        setJobPage(0)
-        setJobFilterDraft({ q: '', workType: '' })
-        setJobFilters({ q: '', workType: '' })
-      }}>
-        <label>Search jobs<input name="q" type="search" placeholder="Title, company, keyword or location"
-          value={jobFilterDraft.q} maxLength={160}
-          onChange={event => setJobFilterDraft({ ...jobFilterDraft, q: event.target.value })} /></label>
-        <label>Work arrangement<select name="workType" value={jobFilterDraft.workType}
-          onChange={event => setJobFilterDraft({ ...jobFilterDraft, workType: event.target.value })}>
-          <option value="">All arrangements</option>
-          {Object.entries(workTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </select></label>
-        <button type="submit">Filter jobs</button><button type="reset" className="quiet">Clear filters</button>
-      </form>
-      {jobId && <div className="job-detail">
+    {section === 'candidate' && <section className="candidate-job-board" aria-labelledby="jobs-heading">
+      <div className="panel">
+        <h2 id="jobs-heading">Published openings</h2>
+        <form className="inline-form candidate-filters" onSubmit={event => {
+          event.preventDefault()
+          setJobPage(0)
+          setJobFilters({ ...jobFilterDraft, q: jobFilterDraft.q.trim() })
+        }} onReset={event => {
+          event.preventDefault()
+          setJobPage(0)
+          setJobFilterDraft({ q: '', workType: '' })
+          setJobFilters({ q: '', workType: '' })
+        }}>
+          <label>Search jobs<input name="q" type="search" placeholder="Title, company, keyword or location"
+            value={jobFilterDraft.q} maxLength={160}
+            onChange={event => setJobFilterDraft({ ...jobFilterDraft, q: event.target.value })} /></label>
+          <label>Work arrangement<select name="workType" value={jobFilterDraft.workType}
+            onChange={event => setJobFilterDraft({ ...jobFilterDraft, workType: event.target.value })}>
+            <option value="">All arrangements</option>
+            {Object.entries(workTypes).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          </select></label>
+          <button type="submit">Filter jobs</button><button type="reset" className="quiet">Clear filters</button>
+        </form>
+      </div>
+      {jobId && <div className="panel">
         <a href="#candidate">Close job details</a>
         {!selectedJob ? jobDetail?.id === jobId && jobDetail.error
           ? <p role="alert">{jobDetail.error}</p> : <p role="status">Loading job details…</p> : <>

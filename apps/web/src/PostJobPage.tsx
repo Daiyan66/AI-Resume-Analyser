@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type Job, type Organization } from './api'
 import { jobImport } from './jobImport'
 import { routeId } from './recruiterSearch'
@@ -31,7 +32,7 @@ function JobForm({ organization, editing }: { organization: Organization; editin
   })) ?? [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const [draftSuggestion, setDraftSuggestion] = useState('')
   const [draftModel, setDraftModel] = useState('')
 

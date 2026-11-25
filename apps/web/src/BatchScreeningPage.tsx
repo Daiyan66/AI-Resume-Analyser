@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type Job, type Organization } from './api'
 import { jobStatuses, routeId } from './recruiterSearch'
 import { workspaceHref } from './workspaceNavigation'
@@ -51,7 +52,7 @@ function ScreeningJob({ path }: { path: string }) {
   const [revision, setRevision] = useState(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const size = 10
 
   useEffect(() => {

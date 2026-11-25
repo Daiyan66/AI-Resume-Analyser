@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type ReviewDetail } from './api'
 import { HiringToolsTrial } from './HiringToolsTrial'
 
@@ -10,7 +11,7 @@ export function RecruiterApplicationReview({ base, applicationId, organizationId
   const [detail, setDetail] = useState<ReviewDetail>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const [evidence, setEvidence] = useState<Evidence[]>()
 
   useEffect(() => {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type Account, type Page, type AuditEvent, type Document, type Member, type Organization,
   type OrganizationPolicy } from './api'
 import { AuditPage, CreateOrganizationPage, HiringPoliciesPage, OrganizationRecruitersPage, OrganizationsPage, TeamPage } from './AdminPages'
@@ -11,7 +12,7 @@ import { BatchScreeningPage } from './BatchScreeningPage'
 import { TeamChatPage } from './TeamChatPage'
 import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
-import { currentView, firstName, isCandidateSection, isCandidateView, staffRoute, directoryHref, workspaceHref, viewTitles, workspaceMenus, workspaceNames,
+import { currentView, firstName, isCandidateSection, isCandidateView, staffRoute, directoryHref, workspaceHref, viewTitles, workspaceMenus,
   type View, type WorkspaceRole } from './workspaceNavigation'
 import { WorkspaceDashboard } from './WorkspaceDashboard'
 
@@ -36,7 +37,7 @@ function App() {
   const verificationStarted = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
 
   const route = staffRoute(location.pathname)
   const routeRole = route?.role
@@ -123,7 +124,7 @@ function App() {
         setVerifyToken(null)
         window.history.replaceState({}, '', '/dashboard')
       })
-  }, [verifyToken])
+  }, [verifyToken, setNotice])
 
   useEffect(() => {
     if (!account) return
@@ -372,12 +373,12 @@ function App() {
         </aside>
         <main className="pv-main">
           <div className="pv-page-heading">
-            <h1>{dashboardView ? workspaceNames[role] + ' dashboard' : viewTitles[activeView]}</h1>
+            <h1>{dashboardView && account ? `Welcome, ${firstName(account.displayName)}` : viewTitles[activeView]}</h1>
           </div>
           {error && <p className="alert error" role="alert">{error}</p>}
           {notice && <p className="alert success" role="status">{notice}</p>}
           {!allowed && <p className="alert error" role="alert">This workspace page is unavailable for your active organization role.</p>}
-          {account && dashboardView && <WorkspaceDashboard role={role} accountId={account.id} name={account.displayName} members={members ?? []}
+          {account && dashboardView && <WorkspaceDashboard role={role} accountId={account.id} members={members ?? []}
             audit={audit} organization={role === 'CANDIDATE' ? undefined : selectedOrg} />}
           {account && activeView === 'invitation' && <section className="panel" aria-label="Accept invitation">
             <p>Invitations can only be accepted by the email they were sent to. You are signed in as {account.email}.</p>

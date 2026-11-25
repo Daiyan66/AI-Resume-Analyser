@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type CandidateProfile, type Document } from './api'
 import { resumeProfile } from './resumeProfile'
 
@@ -17,7 +18,7 @@ export function ResumeProfileEditor({ documents, onDocumentAdded, onAutofill, pr
   const [draft, setDraft] = useState<{ filename: string; text: string; savedText: string }>()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const editableDocuments = documents.filter(document => formats.test(document.filename) && document.byteSize <= maxFileBytes)
   const unsaved = !!draft && draft.text !== draft.savedText
 

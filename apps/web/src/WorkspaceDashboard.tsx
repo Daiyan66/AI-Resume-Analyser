@@ -4,7 +4,7 @@ import { api, type AuditEvent, type CandidateApplication, type CandidateNotifica
 import { CandidateJobList } from './CandidateJobList'
 import { HiringToolsSetting } from './HiringToolsTrial'
 import { applicationStatuses } from './recruiterSearch'
-import { firstName, workspaceHref, type WorkspaceRole } from './workspaceNavigation'
+import { workspaceHref, type WorkspaceRole } from './workspaceNavigation'
 
 function useDashboardData<T>(load: () => Promise<T>, key: string) {
   const [result, setResult] = useState<{ key: string; data?: T; failed?: boolean }>()
@@ -24,37 +24,41 @@ const loadCandidate = () => Promise.all([
 ])
 const loadOpenJobs = () => api<Page<Job>>('/public/jobs?size=5')
 
-function CandidateDashboard({ name }: { name: string }) {
-  const snapshot = useDashboardData(loadCandidate, name)
-  const openJobs = useDashboardData(loadOpenJobs, name)
+function CandidateDashboard({ accountId }: { accountId: string }) {
+  const snapshot = useDashboardData(loadCandidate, accountId)
+  const openJobs = useDashboardData(loadOpenJobs, accountId)
   const [profile, applications, inbox] = snapshot?.data ?? []
   const ready = !!(profile?.headline.trim() && profile.summary.trim())
   return <>
-    <section className="pv-welcome live-welcome-candidate">
-      <div><h2>Welcome, {name}</h2><p>Explore openings and keep track of the roles you’ve applied for.</p></div>
-      <a href="#candidate" className="pv-button light">Find jobs</a>
-    </section>
     <div className="pv-grid stats live-dashboard-cards">
       <a className="pv-card pv-stat" href="#profile"><span>Profile readiness</span><strong>{profile ? (ready ? 'Ready to apply' : 'Needs details') : '—'}</strong><small>Edit profile</small></a>
       <a className="pv-card pv-stat" href="#updates"><span>Unread notifications</span><strong>{inbox?.total ?? '—'}</strong><small>Open notifications</small></a>
       <a className="pv-card pv-stat" href="#applications"><span>My applications</span><strong>{applications?.total ?? '—'}</strong><small>View applications</small></a>
     </div>
-    <section className="pv-card">
-      <div className="section-heading"><h2>Open jobs</h2><a href="#candidate">Browse and filter jobs</a></div>
-      {openJobs?.failed ? <p role="alert">Couldn’t load open jobs.</p> :
-        !openJobs?.data ? <p role="status">Loading open jobs…</p> :
-        openJobs.data.items.length ? <CandidateJobList jobs={openJobs.data.items} /> : <p>No jobs have been published yet.</p>}
-    </section>
-    <section className="pv-card">
-      <h2>Recent applications</h2>
-      {snapshot?.failed ? <p>Couldn’t load your recent activity. You can still open the pages from the menu.</p> :
-        !applications ? <p role="status">Loading applications…</p> :
-        applications.items.length === 0 ? <p>You haven’t applied yet. Published openings are in <a href="#candidate">Find jobs</a>.</p> :
-        <ul className="list">{applications.items.map(application => <li key={application.id}>
-          <span><strong>{application.jobTitle}</strong> · {application.organizationName}</span>
-          <span className="pv-pill">{application.status.toLowerCase().replaceAll('_', ' ')}</span>
-        </li>)}</ul>}
-    </section>
+    <div className="candidate-dashboard-columns">
+      <section aria-labelledby="dashboard-open-jobs">
+        <div className="section-heading"><h2 id="dashboard-open-jobs">Open jobs</h2><a href="#candidate">Browse all jobs</a></div>
+        {openJobs?.failed ? <p role="alert">Couldn’t load open jobs.</p> :
+          !openJobs?.data ? <p role="status">Loading open jobs…</p> :
+          openJobs.data.items.length ? <CandidateJobList jobs={openJobs.data.items} compact /> :
+          <p className="pv-card">No jobs have been published yet.</p>}
+      </section>
+      <section aria-labelledby="dashboard-recent-applications">
+        <div className="section-heading"><h2 id="dashboard-recent-applications">Recent applications</h2>
+          <a href="#applications">View all applications</a></div>
+        {snapshot?.failed ? <p role="alert">Couldn’t load your recent activity.</p> :
+          !applications ? <p role="status">Loading applications…</p> :
+          applications.items.length === 0 ? <p className="pv-card">You haven’t applied yet. <a href="#candidate">Find jobs</a></p> :
+          <ul className="candidate-card-stack">{applications.items.map(application => <li className="pv-card candidate-application-card" key={application.id}>
+            <h3>{application.jobTitle}</h3>
+            <p>{application.organizationName}</p>
+            <div>
+              <time dateTime={application.submittedAt}>Applied {new Date(application.submittedAt).toLocaleDateString()}</time>
+              <span className="pv-pill">{applicationStatuses[application.status]}</span>
+            </div>
+          </li>)}</ul>}
+      </section>
+    </div>
   </>
 }
 
@@ -140,8 +144,8 @@ function AdminDashboard({ organization, members, audit, accountId }: { organizat
   </>
 }
 
-export function WorkspaceDashboard({ role, accountId, name, organization, members, audit }: {
-  role: WorkspaceRole; accountId: string; name: string; organization?: Organization; members: Member[]; audit: AuditEvent[]
+export function WorkspaceDashboard({ role, accountId, organization, members, audit }: {
+  role: WorkspaceRole; accountId: string; organization?: Organization; members: Member[]; audit: AuditEvent[]
 }) {
   if (role === 'RECRUITER' && organization) return <>
     <div className="section-heading"><h2>{organization.name}</h2>
@@ -151,5 +155,5 @@ export function WorkspaceDashboard({ role, accountId, name, organization, member
     <section className="pv-card"><HiringToolsSetting organizationId={organization.organizationId} accountId={accountId} /></section>
   </>
   if (role === 'ADMIN') return <AdminDashboard organization={organization} members={members} audit={audit} accountId={accountId}/>
-  return <CandidateDashboard key={accountId} name={firstName(name)}/>
+  return <CandidateDashboard key={accountId} accountId={accountId}/>
 }

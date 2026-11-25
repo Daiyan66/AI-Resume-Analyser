@@ -41,7 +41,6 @@
 }
 .live-dashboard-card {display:flex;flex-direction:column;align-items:flex-start}
 .live-dashboard-card .pv-button {margin-top:auto}
-.live-welcome-candidate {background:#172f66}
 .live-sidebar-name {padding-bottom:15px}
 .live-recruiter-heading,.live-admin-heading {display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
 .live-recruiter-heading {border-inline-start:4px solid #15554e}
@@ -57,14 +56,11 @@
 .live-app-workspace .pv-page-heading {margin-bottom:12px}
 .live-app-workspace .pv-main h1 {font-size:clamp(24px,2.5vw,34px);margin-bottom:0}
 .live-app-workspace .pv-main h2 {font-size:20px}
-.live-app-workspace .pv-main .pv-welcome h2 {font-size:clamp(20px,2vw,25px);margin-bottom:6px}
 .live-app-workspace .pv-main > *+* {margin-top:12px}
 .live-app-workspace .panel,.live-app-workspace .pv-card,.live-app-workspace .pv-welcome {padding:clamp(12px,1.4vw,20px)}
 .live-app-workspace .panel {margin-top:12px}
 .live-app-workspace .candidate-area > .panel:first-child,.live-app-workspace .live-workspace > .panel:first-child {margin-top:0}
 .live-app-workspace .pv-stat strong {font-size:clamp(18px,2vw,25px)}
-.live-app .candidate-job-list li > div {min-width:0}
-.live-app .candidate-job-list li > div span {color:var(--pv-muted)}
 .live-app .candidate-filters label,.live-app .resume-existing label {flex:0 1 300px}
 .live-app .candidate-status-filter {max-width:260px;margin:12px 0}
 .live-app .resume-existing {gap:13px;margin:14px 0}
@@ -105,3 +101,33 @@
 
 .live-app .pv-nav-item:has(.sidebar-unread) {display:flex;align-items:center;justify-content:space-between;gap:8px}
 .sidebar-unread {display:inline-block;width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#16823f}
+
+.candidate-dashboard-columns {display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:20px;align-items:start}
+.candidate-dashboard-columns .section-heading {margin-bottom:10px}
+.candidate-dashboard-columns .section-heading a {font-size:14px}
+.candidate-card-stack {list-style:none;padding:0;margin:0;display:grid;gap:10px}
+.candidate-card-stack > li {min-width:0}
+.candidate-job-board {display:grid;gap:12px}
+.live-app .candidate-job-board > .panel,.live-app .candidate-job-board form {margin-bottom:0}
+.live-app .candidate-job-board > .panel {margin-top:0}
+.candidate-job-card {border:1px solid var(--pv-line);border-radius:12px;background:var(--pv-surface);overflow-wrap:anywhere}
+.candidate-job-card.selected {border-color:var(--pv-accent)}
+.candidate-job-company {display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:11px 11px 0 0;background:var(--pv-bg)}
+.candidate-job-mark {width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:8px;background:var(--pv-light);color:var(--pv-accent);font-weight:750;font-size:12px;line-height:1}
+.candidate-job-opening {display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px;border-top:1px solid var(--pv-line)}
+.candidate-job-summary {min-width:0}
+.pv-app .candidate-job-summary h3,.pv-app .candidate-application-card h3 {margin-bottom:3px}
+.pv-app .candidate-job-summary p,.pv-app .candidate-application-card p {margin:0}
+.pv-app .candidate-job-summary .candidate-job-description,.pv-app .candidate-job-summary .candidate-job-pay {margin-top:6px}
+.pv-app .candidate-job-summary .candidate-job-pay {color:var(--pv-ink);font-weight:650}
+.candidate-job-action {display:flex;flex:none;align-items:center;gap:10px;flex-wrap:wrap}
+.candidate-job-action time,.candidate-application-card time {color:var(--pv-muted);font-size:13px}
+.candidate-job-card.compact .candidate-job-opening {padding-block:10px}
+.candidate-job-card.compact .candidate-job-company {padding-block:6px}
+.candidate-job-card.compact .candidate-job-mark {width:26px;height:26px}
+.candidate-application-card > div {display:flex;justify-content:space-between;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+@media(max-width:1000px) {.candidate-dashboard-columns {grid-template-columns:minmax(0,1fr)}}
+@media(max-width:680px) {
+  .candidate-job-opening {align-items:start;flex-direction:column}
+  .candidate-job-action {width:100%;justify-content:space-between}
+}

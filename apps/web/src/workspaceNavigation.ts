@@ -81,10 +81,6 @@ export function currentView(fragment: string): View {
   return Object.hasOwn(viewTitles, hash) ? hash as View : 'home'
 }
 
-export const workspaceNames: Record<WorkspaceRole, string> = {
-  CANDIDATE: 'Candidate', RECRUITER: 'Recruiter', ADMIN: 'Admin',
-}
-
 export const workspaceMenus: Record<WorkspaceRole, View[]> = {
   CANDIDATE: ['candidate-home', 'profile', 'updates', 'candidate', 'applications', 'documents', 'privacy'],
   RECRUITER: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'hired-candidates', 'batch-screening', 'team-chat'],

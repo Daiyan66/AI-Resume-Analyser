@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
 import { api, type Job, type Member, type Organization, type Page } from './api'
 import { RecruiterPagination } from './RecruiterPagination'
 import { RecruiterFilter } from './RecruiterFilter'
@@ -12,7 +13,7 @@ export function PostedJobsPage({ organization, members, directoryRecruiter }: {
   const path = directoryRecruiter ? directoryHref(organization.organizationId, directoryRecruiter.id) : workspaceHref('posted-jobs', organization.role)
   const [result, setResult] = useState<Page<Job>>()
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const [busy, setBusy] = useState(false)
   const [revision, setRevision] = useState(0)
   const params = new URLSearchParams(location.search)
