@@ -19,7 +19,7 @@ const params = new URLSearchParams(location.search)
 const path = location.pathname.replace(/\/$/, '')
 const legacyHashes = ['#home', '#candidate', '#admin', '#policy', '#audit', '#organizations', '#documents']
 const recovery = path === '/dashboard/password-recovery' || (path === '/auth/reset-password' && params.has('token'))
-const workspace = /^\/dashboard\/(admin|recruiter)(?:\/|$)/.test(path) || ['/dashboard', '/invite'].includes(path) ||
+const workspace = /^\/dashboard\/(admin|recruiter)(?:\/|$)/.test(path) || ['/dashboard', '/dashboard/assessment-interview', '/invite'].includes(path) ||
   (!path && (params.has('verify') || params.has('token') || legacyHashes.includes(location.hash)))
 
 createRoot(document.getElementById('root')!).render(

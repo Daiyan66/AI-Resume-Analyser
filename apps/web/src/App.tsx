@@ -9,6 +9,7 @@ import { PostJobPage } from './PostJobPage'
 import { RecruiterApplicationsPage } from './RecruiterApplicationsPage'
 import { RecruiterNotificationsPage } from './RecruiterNotificationsPage'
 import { BatchScreeningPage } from './BatchScreeningPage'
+import { HiringHubPage } from './HiringHubPage'
 import { TeamChatPage } from './TeamChatPage'
 import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
@@ -427,6 +428,9 @@ function App() {
         {selectedOrg && activeView === 'recruiter-notifications' && <RecruiterNotificationsPage key={selectedOrg.organizationId} organization={selectedOrg} onRead={() => setNotificationRevision(value => value + 1)} />}
         {selectedOrg && activeView === 'batch-screening' && <BatchScreeningPage key={selectedOrg.organizationId} organization={selectedOrg} />}
         {selectedOrg && account && activeView === 'team-chat' && <TeamChatPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} />}
+        {account && activeView === 'candidate-assessment-interview' && <HiringHubPage documents={documents} />}
+        {account && selectedOrg && activeView === 'staff-assessment-interview' &&
+          <HiringHubPage key={selectedOrg.organizationId} organization={selectedOrg} documents={[]} />}
         {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents}
           section={activeView} jobId={jobId} onNotificationRead={() => setNotificationRevision(value => value + 1)} onDocumentAdded={(document) => setDocuments(current => [document, ...current])}
           onSignIn={() => { window.location.hash = 'home' }} />}

@@ -131,6 +131,24 @@ public class DocumentService {
         return new Download(file.document(), new PathResource(path));
     }
 
+    public Download downloadForAssessment(UUID organization, UUID application, UUID assignment) {
+        organizations.requireMember(organization);
+        var rows = jdbc.query("""
+                SELECT d.* FROM assessment_assignments s JOIN applications a ON a.id = s.application_id
+                JOIN jobs j ON j.id = a.job_id JOIN documents d ON d.id = s.document_id
+                WHERE j.organization_id = ? AND a.id = ? AND s.id = ? AND s.submitted_at IS NOT NULL
+                AND d.owner_user_id = a.candidate_user_id
+                """, (rs, row) -> new ReviewFile(map(rs), rs.getString("storage_key")), organization, application, assignment);
+        if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Assessment attachment not found.");
+        var file = rows.getFirst();
+        Path path = storageRoot.resolve(file.key()).normalize();
+        if (!path.startsWith(storageRoot) || !Files.isRegularFile(path)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Assessment attachment not found.");
+        }
+        audit.record(identities.currentUserId(), organization, "document.assessment_download", "document", file.document().id());
+        return new Download(file.document(), new PathResource(path));
+    }
+
     public Download downloadForVerification(UUID organization, UUID request) {
         organizations.requireAdmin(organization);
         var rows = jdbc.query("SELECT d.* FROM recruiter_access_requests r JOIN documents d ON d.id = r.document_id " +
@@ -153,8 +171,9 @@ public class DocumentService {
                 (rs, row) -> rs.getString(1), id, user);
         if (rows.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found.");
         if (Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM applications WHERE document_id = ?) " +
-                "OR EXISTS (SELECT 1 FROM recruiter_access_requests WHERE document_id = ? AND status = 'PENDING')",
-                Boolean.class, id, id))) {
+                "OR EXISTS (SELECT 1 FROM recruiter_access_requests WHERE document_id = ? AND status = 'PENDING') " +
+                "OR EXISTS (SELECT 1 FROM assessment_assignments WHERE document_id = ?)",
+                Boolean.class, id, id, id))) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Documents attached to a submission cannot be removed.");
         }
         jdbc.update("DELETE FROM documents WHERE id = ?", id);

@@ -2,13 +2,18 @@ package com.airesume.ats.workflow;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.startsWith;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import com.airesume.ats.ai.AiTextClient;
 import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -46,6 +51,7 @@ class PlatformWorkflowIntegrationTest {
     @Autowired PasswordEncoder encoder;
     @Autowired DeliveryService deliveries;
     @MockitoBean JavaMailSender mail;
+    @MockitoBean AiTextClient ai;
 
     @Test
     void hiringOperationsStayScopedAndReachTheCandidate() throws Exception {
@@ -139,7 +145,8 @@ class PlatformWorkflowIntegrationTest {
                 "JOIN candidate_notifications n ON n.id = d.notification_id WHERE n.application_id = ? " +
                 "ORDER BY d.notification_id LIMIT 1", UUID.class, UUID.fromString(application));
         doThrow(new MailSendException("test failed SMTP")).when(mail).send(any(SimpleMailMessage.class));
-        jdbc.update("UPDATE notification_deliveries SET attempts = 2 WHERE notification_id = ?", notification);
+        jdbc.update("UPDATE notification_deliveries SET attempts = 2, next_attempt_at = CURRENT_TIMESTAMP - INTERVAL '1 day' " +
+                "WHERE notification_id = ?", notification);
         deliveries.dispatch();
         mvc.perform(get(organization + "/notification-deliveries").session(admin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[?(@.id == '" + notification + "')].status").value("FAILED"));
@@ -148,10 +155,15 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(post(organization + "/notification-deliveries/" + notification + "/retry").session(admin).with(csrf()))
                 .andExpect(status().isAccepted());
         reset(mail);
+        jdbc.update("UPDATE notification_deliveries SET next_attempt_at = CURRENT_TIMESTAMP - INTERVAL '1 day' WHERE notification_id = ?",
+                notification);
         deliveries.dispatch();
+        mvc.perform(get(organization + "/notification-deliveries").session(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.id == '" + notification + "')].status").value("SENT"));
         ArgumentCaptor<SimpleMailMessage> sent = ArgumentCaptor.forClass(SimpleMailMessage.class);
-        verify(mail).send(sent.capture());
-        assertThat(sent.getValue().getText()).doesNotContain("Bring a work sample", "Spring services");
+        verify(mail, atLeastOnce()).send(sent.capture());
+        assertThat(sent.getAllValues()).allSatisfy(message ->
+                assertThat(message.getText()).doesNotContain("Bring a work sample", "Spring services"));
         for (String state : List.of("PAUSED", "CLOSED", "ARCHIVED")) {
             mvc.perform(payload(post(listing + "/status"), admin, Map.of("status", state)))
                     .andExpect(status().isOk()).andExpect(jsonPath("$.status").value(state));
@@ -257,6 +269,123 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(get(messages).session(recruiter)).andExpect(status().isForbidden());
         mvc.perform(payload(post(messages), admin, Map.of("person", recruiterId, "body", "After removal")))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void interviewsAndAssessmentsRespectCalendarsApplicationOwnershipAndHumanReview() throws Exception {
+        var admin = session("workflow-admin");
+        var first = session("workflow-candidate-one");
+        var second = session("workflow-candidate-two");
+        String org = org(admin, "assess-interview");
+        String job = id(mvc.perform(payload(post(org + "/jobs"), admin, Map.of(
+                "title", "Accessibility Reviewer", "location", "Remote", "workType", "REMOTE",
+                "description", "Review keyboard accessibility", "requirements", "Keyboard testing")))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        String listing = org + "/jobs/" + job;
+        mvc.perform(post(listing + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
+        String firstApp = workflowApplication(first, admin, listing, job);
+        String secondApp = workflowApplication(second, admin, listing, job);
+        String firstInterview = "/api/v1/candidate/applications/" + firstApp + "/interviews";
+        String secondInterview = "/api/v1/candidate/applications/" + secondApp + "/interviews";
+        var starts = Instant.now().plusSeconds(7200);
+        var slots = Map.of("times", List.of(starts, starts.plusSeconds(5400)), "minutes", 30,
+                "timezone", "Asia/Kolkata", "location", "https://example.test/meeting", "message", "Bring your notes.");
+        for (String app : List.of(firstApp, secondApp)) {
+            mvc.perform(payload(put(listing + "/applications/" + app + "/interviews/offer"), admin, slots))
+                    .andExpect(status().isOk());
+        }
+        mvc.perform(get("/api/v1/candidate/hiring-tasks").session(first))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].kind").value("interview_booking"));
+        mvc.perform(get(firstInterview + "/offer").session(second)).andExpect(status().isNotFound());
+        String leftSlot = firstSlot(firstInterview, first);
+        String rightSlot = firstSlot(secondInterview, second);
+        try (var pool = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var gate = new java.util.concurrent.CountDownLatch(1);
+            var left = pool.submit(() -> {
+                gate.await();
+                return mvc.perform(post(firstInterview + "/book/" + leftSlot).session(first).with(csrf()))
+                        .andReturn().getResponse().getStatus();
+            });
+            var right = pool.submit(() -> {
+                gate.await();
+                return mvc.perform(post(secondInterview + "/book/" + rightSlot).session(second).with(csrf()))
+                        .andReturn().getResponse().getStatus();
+            });
+            gate.countDown();
+            assertThat(List.of(left.get(10, java.util.concurrent.TimeUnit.SECONDS), right.get(10, java.util.concurrent.TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200, 409);
+            boolean firstBooked = left.get() == 200;
+            var winner = firstBooked ? first : second;
+            String winnerApp = firstBooked ? firstApp : secondApp;
+            String winnerEndpoint = firstBooked ? firstInterview : secondInterview;
+            mvc.perform(get((firstBooked ? secondInterview : firstInterview) + "/offer").session(firstBooked ? second : first))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.slots.length()").value(1));
+            String interview = json.readTree(mvc.perform(get(winnerEndpoint).session(winner)).andReturn()
+                    .getResponse().getContentAsString()).get(0).get("id").asText();
+            mvc.perform(post(winnerEndpoint + "/" + interview + "/reschedule").session(winner).with(csrf()))
+                    .andExpect(status().isNoContent());
+            mvc.perform(payload(put(listing + "/applications/" + winnerApp + "/interviews/offer"), admin,
+                    Map.of("times", List.of(starts.plusSeconds(14400)), "minutes", 30, "timezone", "UTC",
+                            "location", "https://example.test/replacement", "message", ""))).andExpect(status().isOk());
+            mvc.perform(get(winnerEndpoint).session(winner)).andExpect(jsonPath("$[0].cancelledAt").isEmpty());
+            mvc.perform(post(winnerEndpoint + "/book/" + firstSlot(winnerEndpoint, winner)).session(winner).with(csrf()))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.location").value("https://example.test/replacement"));
+        }
+
+        String templates = listing + "/assessment-templates";
+        String staff = org + "/applications/" + firstApp + "/assessments";
+        String candidate = "/api/v1/candidate/applications/" + firstApp + "/assessments";
+        var draft = Map.of("title", "Keyboard review", "instructions", "Review a signup form.", "effortMinutes", 20,
+                "allowedTools", "Documentation is allowed.", "rubric", List.of("Tab order", "Focus visibility"));
+        String template = id(mvc.perform(payload(post(templates), admin, draft)).andExpect(status().isOk()).andReturn(), "id");
+        var assign = Map.of("templateId", template, "dueAt", Instant.now().plusSeconds(86400));
+        mvc.perform(payload(post(staff), admin, assign)).andExpect(status().isConflict());
+        mvc.perform(post(templates + "/" + template + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
+        mvc.perform(payload(put(templates + "/" + template), admin, draft)).andExpect(status().isConflict());
+        String assignment = id(mvc.perform(payload(post(staff), admin, assign)).andExpect(status().isOk()).andReturn(), "id");
+        mvc.perform(get(candidate).session(second)).andExpect(status().isNotFound());
+        String attachment = upload(first, "work.txt", "A written test plan.");
+        var answer = Map.of("answer", "I tested the tab order with a keyboard.", "documentId", attachment, "aiConsent", true);
+        mvc.perform(payload(put(candidate + "/" + assignment + "/draft"), first, answer)).andExpect(status().isOk());
+        mvc.perform(get(staff).session(admin)).andExpect(jsonPath("$[0].answer").value(""));
+        mvc.perform(get(staff + "/" + assignment + "/attachment").session(admin)).andExpect(status().isNotFound());
+        mvc.perform(post(staff + "/" + assignment + "/evidence").session(admin).with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(payload(post(candidate + "/" + assignment + "/submit"), first, answer)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.submittedAt").isNotEmpty());
+        mvc.perform(payload(put(candidate + "/" + assignment + "/draft"), first, answer)).andExpect(status().isConflict());
+        mvc.perform(get(staff + "/" + assignment + "/attachment").session(admin)).andExpect(status().isOk());
+        mvc.perform(get(org + "/hiring-tasks").session(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.kind == 'assessment_review')]").isNotEmpty());
+        mvc.perform(post(staff + "/" + assignment + "/evidence").session(admin).with(csrf())).andExpect(status().isForbidden());
+        mvc.perform(payload(put(org + "/policy"), admin,
+                Map.of("reapplyCooldownDays", 0, "retentionDays", 365, "aiEnabled", true))).andExpect(status().isOk());
+        when(ai.complete(startsWith("Treat all input"), any(), eq(1400))).thenReturn("""
+                [{"index":0,"excerpt":"tested the tab order","followUp":"What was your method?"},
+                 {"index":1,"excerpt":"invented text","followUp":"How did you check focus?"}]
+                """);
+        mvc.perform(post(staff + "/" + assignment + "/evidence").session(admin).with(csrf())).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].excerpt").value("tested the tab order"))
+                .andExpect(jsonPath("$[1].excerpt").value(""));
+        mvc.perform(payload(post(staff + "/" + assignment + "/review"), admin,
+                Map.of("scores", List.of(4, 2), "feedback", "Confirm the focus indicator."))).andExpect(status().isOk());
+        mvc.perform(get(candidate).session(first)).andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].feedback").value("Confirm the focus indicator."));
+    }
+
+    private String workflowApplication(MockHttpSession candidate, MockHttpSession admin, String listing, String job) throws Exception {
+        mvc.perform(payload(put("/api/v1/candidate/profile"), candidate, Map.of("headline", "Reviewer", "location", "",
+                "phone", "", "summary", "Tests interfaces", "skills", "", "experience", "", "education", "")))
+                .andExpect(status().isOk());
+        String id = id(mvc.perform(payload(post("/api/v1/candidate/applications"), candidate, Map.of("jobId", job)))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        mvc.perform(payload(post(listing + "/applications/" + id + "/stage"), admin, Map.of("status", "IN_REVIEW")))
+                .andExpect(status().isOk());
+        return id;
+    }
+
+    private String firstSlot(String interviews, MockHttpSession session) throws Exception {
+        return json.readTree(mvc.perform(get(interviews + "/offer").session(session)).andExpect(status().isOk()).andReturn()
+                .getResponse().getContentAsString()).get("slots").get(0).get("id").asText();
     }
 
     private String org(MockHttpSession admin, String prefix) throws Exception {

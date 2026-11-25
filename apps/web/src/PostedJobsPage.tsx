@@ -85,6 +85,7 @@ export function PostedJobsPage({ organization, members, directoryRecruiter }: {
           {admin && job.postedByName && <><br />{job.status === 'DRAFT' ? 'Draft by' : 'Posted by'} {job.postedByName}</>}
         </div>
         <div className="action-row">
+          {!directoryRecruiter && <a className="pv-button" href={`${workspaceHref('staff-assessment-interview', organization.role)}?tab=assessments&templateJob=${job.id}`}>Assessment templates</a>}
           {directoryRecruiter ? <a className="pv-button" href={directoryHref(organization.organizationId, directoryRecruiter.id, job.id)}
             aria-label={`View hires for ${job.title}`}>View hires</a> : job.status === 'DRAFT' ? <>
             <a className="pv-button" href={`${workspaceHref('post-job', organization.role)}?draft=${job.id}`}>Edit draft</a>

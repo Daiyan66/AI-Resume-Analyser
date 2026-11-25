@@ -65,3 +65,11 @@ Register with that same address, verify it in Mailpit, and sign in. The Admin da
 - Screening and coaching use local text extraction and explainable matching. Screening reads text PDFs, DOCX, and UTF-8 TXT up to 2 MB each. Image-only scans need OCR. Batch results remain separate from candidate accounts and applications. The existing optional provider-backed job drafting endpoint remains available.
 - Application email dispatch is delivered at least once. SMTP acceptance immediately before a database failure can cause a duplicate retry. Use the organization delivery list for failed sends. The worker has bounded attempts and SMTP timeouts.
 - Application retention decisions, execution of deletion requests, inbox support delivery, calendar-provider integration and live legacy imports need operational workflows or external configuration. Migration readiness remains a read-only operator CLI, not an organization-admin web action. See [legacy migration readiness](phase-10-migration-readiness.md).
+
+## Assessment & Interview
+
+Open **Assessment & Interview** from the candidate or recruiter sidebar. Select an application to see its assessments and interviews.
+
+- In **Interviews**, use an application in **In review** or **Interview**. Enter available times and a meeting link or physical address. The candidate can pick a time from **Next action**, join the confirmed meeting, and download a calendar event. A reschedule request appears under **Needs attention**. The current appointment stays booked until the candidate confirms a replacement.
+- In **Assessments**, create a job template, publish it, and assign it with a deadline. **Assessment templates** under **Posted jobs** also lets you prepare templates before any applications arrive. Candidates can save an answer or attachment as a private draft, then submit it. The recruiter reviews the submission against the published criteria and sends feedback.
+- AI suggestions are optional. To try them, set `AI_API_KEY` and `AI_MODEL` for Docker Compose and enable AI in the organization's **Hiring policies**. Question drafting and practice use job information. AI evidence review also requires the candidate's explicit permission to send the written submission to the configured provider. Recruiters record their own scores and decisions.

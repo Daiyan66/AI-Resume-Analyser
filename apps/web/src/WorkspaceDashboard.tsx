@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, type AuditEvent, type CandidateApplication, type CandidateNotification, type CandidateProfile,
   type Job, type Member, type Organization, type Page } from './api'
+import { HiringTaskCard } from './HiringTaskCard'
 import { CandidateJobList } from './CandidateJobList'
 import { HiringToolsSetting } from './HiringToolsTrial'
 import { applicationStatuses } from './recruiterSearch'
@@ -35,6 +36,7 @@ function CandidateDashboard({ accountId }: { accountId: string }) {
       <a className="pv-card pv-stat" href="#updates"><span>Unread notifications</span><strong>{inbox?.total ?? '—'}</strong><small>Open notifications</small></a>
       <a className="pv-card pv-stat" href="#applications"><span>My applications</span><strong>{applications?.total ?? '—'}</strong><small>View applications</small></a>
     </div>
+    <HiringTaskCard />
     <div className="candidate-dashboard-columns">
       <section aria-labelledby="dashboard-open-jobs">
         <div className="section-heading"><h2 id="dashboard-open-jobs">Open jobs</h2><a href="#candidate">Browse all jobs</a></div>
@@ -129,7 +131,8 @@ function AdminDashboard({ organization, members, audit, accountId }: { organizat
       <div><p className="pv-kicker">ORGANIZATION ADMIN</p><h2>{organization.name}</h2><p>Manage who can hire and how applications are handled.</p></div>
       <a href={workspaceHref('admin', 'ADMIN')} className="pv-button primary">Manage team</a>
     </section>
-    <HiringInsights key={organization.organizationId} organization={organization} />
+    <HiringTaskCard key={organization.organizationId} organization={organization} />
+    <HiringInsights organization={organization} key={`${organization.organizationId}-insights`} />
     <div className="pv-grid stats live-dashboard-cards">
       <a className="pv-card pv-stat" href={workspaceHref('admin', 'ADMIN')}><span>Active team members</span><strong>{members.filter(member=>member.status==='ACTIVE').length}</strong><small>Team & invitations</small></a>
       <a className="pv-card pv-stat" href={workspaceHref('policy', 'ADMIN')}><span>Hiring policies</span><strong>Settings</strong><small>Review retention, reapplication, and AI settings</small></a>
@@ -151,7 +154,8 @@ export function WorkspaceDashboard({ role, accountId, organization, members, aud
     <div className="section-heading"><h2>{organization.name}</h2>
       <a className="pv-button primary" href={workspaceHref('post-job', 'RECRUITER')}>Post a job</a>
     </div>
-    <HiringInsights key={organization.organizationId} organization={organization} />
+    <HiringTaskCard key={organization.organizationId} organization={organization} />
+    <HiringInsights organization={organization} key={`${organization.organizationId}-insights`} />
     <section className="pv-card"><HiringToolsSetting organizationId={organization.organizationId} accountId={accountId} /></section>
   </>
   if (role === 'ADMIN') return <AdminDashboard organization={organization} members={members} audit={audit} accountId={accountId}/>

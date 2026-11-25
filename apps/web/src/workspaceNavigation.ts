@@ -10,6 +10,7 @@ const sharedPaths = {
   'team-chat': 'chat',
   'recruiter-notifications': 'notifications',
   'hired-candidates': 'hires',
+  'staff-assessment-interview': 'assessment-interview',
 } as const
 const adminPaths = {
   ...sharedPaths, admin: 'team', policy: 'hiring-policies', audit: 'audit',
@@ -18,13 +19,14 @@ const adminPaths = {
 const recruiterPaths = { ...sharedPaths, 'batch-screening': 'batch-screening' } as const
 type DirectoryView = 'organization-recruiters' | 'organization-recruiter-jobs' | 'organization-job-hires'
 type StaffView = keyof typeof adminPaths | keyof typeof recruiterPaths | DirectoryView
-export type View = StaffView | CandidateSection | 'home' | 'candidate-home' | 'documents' | 'invitation'
+export type View = StaffView | CandidateSection | 'home' | 'candidate-home' | 'documents' | 'invitation' | 'candidate-assessment-interview'
 
 export const viewTitles: Record<View, string> = {
   home: 'Dashboard', 'candidate-home': 'Candidate dashboard', candidate: 'Find jobs',
   applications: 'My applications', profile: 'Candidate profile', updates: 'Notifications', privacy: 'Privacy & data',
   'posted-jobs': 'Posted jobs', 'post-job': 'Post a job', 'recruiter-applications': 'Applications',
   'recruiter-notifications': 'Notifications', 'hired-candidates': 'Hired candidates', 'batch-screening': 'Batch screening',
+  'candidate-assessment-interview': 'Assessment & Interview', 'staff-assessment-interview': 'Assessment & Interview',
   'team-chat': 'Team chat', admin: 'Team & invitations', policy: 'Hiring policies', audit: 'Audit log',
   documents: 'My documents', organizations: 'Organizations', 'create-organization': 'Create organization',
   'organization-recruiters': 'Organization recruiters', 'organization-recruiter-jobs': 'Recruiter jobs',
@@ -36,7 +38,7 @@ export function isCandidateSection(view: View): view is CandidateSection {
 }
 
 export function isCandidateView(view: View) {
-  return isCandidateSection(view) || view === 'candidate-home' || view === 'documents'
+  return isCandidateSection(view) || view === 'candidate-home' || view === 'documents' || view === 'candidate-assessment-interview'
 }
 
 type StaffRoute = { view: StaffView; role: StaffRole; organizationId?: string; recruiterId?: string; jobId?: string }
@@ -67,6 +69,7 @@ export function directoryHref(organizationId: string, recruiterId?: string, jobI
 
 export function workspaceHref(view: View, role: WorkspaceRole) {
   if (view === 'home' || view === 'candidate-home') return '/dashboard'
+  if (view === 'candidate-assessment-interview') return '/dashboard/assessment-interview'
   const paths = role === 'ADMIN' ? adminPaths : recruiterPaths
   if (role !== 'CANDIDATE' && Object.hasOwn(paths, view)) {
     return `/dashboard/${role.toLowerCase()}/${paths[view as keyof typeof paths]}`
@@ -75,6 +78,7 @@ export function workspaceHref(view: View, role: WorkspaceRole) {
 }
 
 export function currentView(fragment: string): View {
+  if (location.pathname.replace(/\/$/, '') === '/dashboard/assessment-interview') return 'candidate-assessment-interview'
   const route = staffRoute(location.pathname)
   if (route) return route.view
   const [hash] = fragment.slice(1).split('?')
@@ -82,9 +86,9 @@ export function currentView(fragment: string): View {
 }
 
 export const workspaceMenus: Record<WorkspaceRole, View[]> = {
-  CANDIDATE: ['candidate-home', 'profile', 'updates', 'candidate', 'applications', 'documents', 'privacy'],
-  RECRUITER: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'hired-candidates', 'batch-screening', 'team-chat'],
-  ADMIN: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'hired-candidates', 'team-chat',
+  CANDIDATE: ['candidate-home', 'profile', 'updates', 'candidate', 'applications', 'candidate-assessment-interview', 'documents', 'privacy'],
+  RECRUITER: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'staff-assessment-interview', 'hired-candidates', 'batch-screening', 'team-chat'],
+  ADMIN: ['home', 'recruiter-notifications', 'posted-jobs', 'post-job', 'recruiter-applications', 'staff-assessment-interview', 'hired-candidates', 'team-chat',
     'admin', 'policy', 'audit', 'organizations', 'create-organization'],
 }
 

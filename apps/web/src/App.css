@@ -131,3 +131,11 @@
   .candidate-job-opening {align-items:start;flex-direction:column}
   .candidate-job-action {width:100%;justify-content:space-between}
 }
+
+.hiring-workflow {display:grid;gap:12px}
+.hiring-workflow > .panel,.hiring-workflow > .pv-card {margin:0;min-width:0}
+.hiring-workflow .criterion > :last-child {margin-bottom:0}
+.hiring-workflow fieldset {margin:0;border:1px solid var(--pv-line);border-radius:8px;min-width:0}
+.hiring-workflow .workflow-choice {display:flex;align-items:baseline;gap:8px;margin-block:6px}
+.hiring-workflow .workflow-choice input {margin:0;flex:none;width:auto}
+.hiring-workflow summary {cursor:pointer;font-weight:650}
