@@ -100,7 +100,7 @@ export function RecruiterCandidateReview({ path }: { path: string }) {
     </form>
     {!detail.documentId && <p>No résumé was submitted.</p>}
     {scheduling && <div id="application-assessment-schedule" className="criterion">
-      <StaffAssessments organizationId={detail.job.organizationId} applicationId={detail.id} jobId={detail.job.id} scheduleFirst />
+      <StaffAssessments organizationId={detail.job.organizationId} applicationId={detail.id} jobId={detail.job.id} />
       <a href={workspaceHref('staff-assessment-interview', 'RECRUITER') + '?' + assessment}>Open assessment workspace</a>
     </div>}
   </section>

@@ -247,8 +247,19 @@ function StaffAssessment({ assessment, base, refresh }: { assessment: Assessment
   </article>
 }
 
-export function StaffAssessments({ applicationId, jobId, organizationId, closed = false, canAssign = true, interviewHref, scheduleFirst = false }: {
-  applicationId?: string; jobId: string; organizationId: string; closed?: boolean; canAssign?: boolean; interviewHref?: string; scheduleFirst?: boolean
+function parseAssessmentTime(value: FormDataEntryValue | null, field: string) {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(String(value ?? '').trim())
+  if (match) {
+    const [, day, month, year, hour, minute] = match.map(Number)
+    const date = new Date(year, month - 1, day, hour, minute)
+    if (date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day &&
+      date.getHours() === hour && date.getMinutes() === minute) return date
+  }
+  throw new Error(`Enter a valid ${field} date and time in DD/MM/YYYY HH:MM format (24-hour time).`)
+}
+
+export function StaffAssessments({ applicationId, jobId, organizationId, closed = false, canAssign = true, interviewHref }: {
+  applicationId?: string; jobId: string; organizationId: string; closed?: boolean; canAssign?: boolean; interviewHref?: string
 }) {
   const organizationPath = `/organizations/${organizationId}`
   const templates = `${organizationPath}/jobs/${jobId}/assessment-templates`
@@ -266,44 +277,45 @@ export function StaffAssessments({ applicationId, jobId, organizationId, closed 
   const assignmentForm = !closed && canAssign && <>
     <h3>Assign an assessment</h3>
     <p>Choose when the assessment opens and closes. Once assigned, the candidate gets a notification and can see the assessment under Assessment & Interview.</p>
-    <p>Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
-    {!collection ? <p role="status">Loading templates…</p> : published.length ? <form className="inline-form" onSubmit={event => {
+    <p>Use DD/MM/YYYY HH:MM in 24-hour time. Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
+    <form className="inline-form" onSubmit={event => {
       event.preventDefault()
       const form = event.currentTarget
       const data = new FormData(form)
       void run(async () => {
-        const starts = String(data.get('starts') ?? '')
-        const availableFrom = starts ? new Date(starts) : null
-        const dueAt = new Date(String(data.get('due')))
-        if (availableFrom && availableFrom.getTime() <= Date.now()) throw new Error('Choose an opening date and time in the future.')
-        if (dueAt.getTime() <= (availableFrom?.getTime() ?? Date.now())) throw new Error('Choose a deadline after the assessment opens.')
-        await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: availableFrom?.toISOString() ?? null,
+        const availableFrom = parseAssessmentTime(data.get('starts'), 'opening')
+        const dueAt = parseAssessmentTime(data.get('due'), 'closing')
+        if (availableFrom.getTime() <= Date.now()) throw new Error('Choose an opening date and time in the future.')
+        if (dueAt.getTime() <= availableFrom.getTime()) throw new Error('Choose a deadline after the assessment opens.')
+        await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: availableFrom.toISOString(),
           dueAt: dueAt.toISOString() })
         form.reset()
         refresh()
       }, 'Assessment assigned. The candidate has been notified in the platform.')
     }}>
-      <label>Published template<select aria-label="Published template" name="templateId" required>
+      <label>Published template<select name="templateId" required disabled={!published.length}>
+        {!published.length && <option value="">{collection ? 'No published templates on this page' : 'Loading templates…'}</option>}
         {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
       </select></label>
-      <label>Opening date and time{!scheduleFirst && " (optional)"}<input type="datetime-local" name="starts" required={scheduleFirst} /></label>
-      <label>Closing date and time<input type="datetime-local" name="due" required /></label>
-      <button type="submit" disabled={busy}>Assign assessment</button>
-    </form> : <p>Create and publish a template below to assign this assessment.</p>}
+      <label>Opening date and time<input name="starts" placeholder="DD/MM/YYYY HH:MM" maxLength={16} required /></label>
+      <label>Closing date and time<input name="due" placeholder="DD/MM/YYYY HH:MM" maxLength={16} required /></label>
+      <button type="submit" disabled={busy || !published.length}>Assign assessment</button>
+    </form>
+    {collection && !published.length && <p>Create and publish a template below, or select an existing published template from another page.</p>}
   </>
 
   return <section className="panel">
     <h2>Assessments</h2>
     {(error || collection?.error || assigned?.error) && <p role="alert" className="alert error">{error || collection?.error || assigned?.error}</p>}
     {notice && <p role="status" className="alert success">{notice}</p>}
-    {applicationId && scheduleFirst && assignmentForm}
+    {applicationId && assignmentForm}
     {applicationId && <><h3>Assigned to this candidate</h3>
     {!assigned ? <p role="status">Loading assessments…</p> : assigned.data?.length ?
       assigned.data.map(assessment => <StaffAssessment key={assessment.id} assessment={assessment} base={base} refresh={refresh} />) :
       !assigned.error && <p>No assessments assigned.</p>}
     {!closed && canProceed && interviewHref &&
       <a className="pv-button primary" href={interviewHref}>Proceed to interview</a>}
-    {!scheduleFirst && assignmentForm}</>}
+    </>}
     {!closed && <>
       <h3>Templates for this job</h3>
       <TemplateEditor base={templates} saved={() => { setPage(0); refresh() }} />
