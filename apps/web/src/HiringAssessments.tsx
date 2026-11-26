@@ -247,6 +247,28 @@ function StaffAssessment({ assessment, base, refresh }: { assessment: Assessment
   </article>
 }
 
+function formatAssessmentTime(event: FormEvent<HTMLInputElement>) {
+  const input = event.currentTarget
+  const cursor = input.selectionStart ?? input.value.length
+  const digitsBeforeCursor = input.value.slice(0, cursor).replace(/\D/g, '').length
+  const digits = input.value.replace(/\D/g, '').slice(0, 12)
+  const formatted = digits.slice(0, 2) +
+    (digits.length > 2 ? '/' + digits.slice(2, 4) : '') +
+    (digits.length > 4 ? '/' + digits.slice(4, 8) : '') +
+    (digits.length > 8 ? ' ' + digits.slice(8, 10) : '') +
+    (digits.length > 10 ? ':' + digits.slice(10) : '')
+
+  if (input.value === formatted) return
+  input.value = formatted
+  let position = 0
+  let remaining = digitsBeforeCursor
+  while (position < formatted.length && remaining > 0) {
+    if (/\d/.test(formatted[position])) remaining--
+    position++
+  }
+  input.setSelectionRange(position, position)
+}
+
 function parseAssessmentTime(value: FormDataEntryValue | null, field: string) {
   const match = /^(\d{2})\/(\d{2})\/(\d{4}) (\d{2}):(\d{2})$/.exec(String(value ?? '').trim())
   if (match) {
@@ -277,7 +299,7 @@ export function StaffAssessments({ applicationId, jobId, organizationId, closed 
   const assignmentForm = !closed && canAssign && <>
     <h3>Assign an assessment</h3>
     <p>Choose when the assessment opens and closes. Once assigned, the candidate gets a notification and can see the assessment under Assessment & Interview.</p>
-    <p>Use DD/MM/YYYY HH:MM in 24-hour time. Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
+    <p>Type the digits in DD/MM/YYYY HH:MM order using 24-hour time. Separators appear automatically. Times use {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
     <form className="inline-form" onSubmit={event => {
       event.preventDefault()
       const form = event.currentTarget
@@ -297,8 +319,8 @@ export function StaffAssessments({ applicationId, jobId, organizationId, closed 
         {!published.length && <option value="">{collection ? 'No published templates on this page' : 'Loading templates…'}</option>}
         {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
       </select></label>
-      <label>Opening date and time<input name="starts" placeholder="DD/MM/YYYY HH:MM" maxLength={16} required /></label>
-      <label>Closing date and time<input name="due" placeholder="DD/MM/YYYY HH:MM" maxLength={16} required /></label>
+      <label>Opening date and time<input name="starts" placeholder="DD/MM/YYYY HH:MM" inputMode="numeric" onInput={formatAssessmentTime} required /></label>
+      <label>Closing date and time<input name="due" placeholder="DD/MM/YYYY HH:MM" inputMode="numeric" onInput={formatAssessmentTime} required /></label>
       <button type="submit" disabled={busy || !published.length}>Assign assessment</button>
     </form>
     {collection && !published.length && <p>Create and publish a template below, or select an existing published template from another page.</p>}
