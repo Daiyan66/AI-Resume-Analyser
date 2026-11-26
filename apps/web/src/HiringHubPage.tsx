@@ -53,7 +53,7 @@ function StaffHiringPage({ organization, accountId }: { organization: Organizati
     {templateJob ? job?.error ? <p role="alert" className="alert error">{job.error}</p> :
       !job?.data ? <p role="status">Loading job…</p> : <>
         <section className="pv-card"><h2>{job.data.title}</h2><p>Build reusable assessments for this job.</p></section>
-        <StaffAssessments jobId={templateJob} organization={organization} />
+        <StaffAssessments jobId={templateJob} organizationId={organization.organizationId} />
       </> : !applicationId ? <section className="panel">
       <h2>{tab === 'assessments' ? 'Assigned assessments' : 'Interview candidates'}</h2>
       <p>Oldest applications first.</p>
@@ -90,7 +90,7 @@ function StaffHiringPage({ organization, accountId }: { organization: Organizati
                 organizationId={organization.organizationId} accountId={accountId} role={organization.role} finalReview />
             </details>}
           </> :
-          <StaffAssessments applicationId={applicationId} jobId={jobId} organization={organization}
+          <StaffAssessments applicationId={applicationId} jobId={jobId} organizationId={organization.organizationId}
             closed={closed} canAssign={['SUBMITTED', 'IN_REVIEW'].includes(selection.status)}
             interviewHref={link('interviews', applicationId, jobId)} />}
       </>}

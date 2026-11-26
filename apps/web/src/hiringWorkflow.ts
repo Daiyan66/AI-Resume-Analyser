@@ -30,18 +30,28 @@ export function localTime(value: string) {
   return new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
 }
 
-export function useHiringData<T>(path: string, revision = 0) {
+export function useHiringData<T>(path: string, revision = 0, refreshMs = 0) {
   const [result, setResult] = useState<{ path: string; revision: number; data?: T; error?: string }>()
   useEffect(() => {
     if (!path) return
     const controller = new AbortController()
-    void api<T>(path, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) setResult({ path, revision, data })
-    }).catch(cause => {
-      if (!controller.signal.aborted) setResult({ path, revision, error: errorMessage(cause) })
-    })
-    return () => controller.abort()
-  }, [path, revision])
+    let timer: number | undefined
+    async function load() {
+      try {
+        const data = await api<T>(path, { signal: controller.signal, cache: 'no-store' })
+        if (!controller.signal.aborted) setResult({ path, revision, data })
+      } catch (cause) {
+        if (!controller.signal.aborted) {
+          setResult(previous => refreshMs && previous?.path === path && previous.data && revision === previous.revision
+            ? previous : { path, revision, error: errorMessage(cause) })
+        }
+      } finally {
+        if (refreshMs && !controller.signal.aborted) timer = window.setTimeout(load, refreshMs)
+      }
+    }
+    void load()
+    return () => { controller.abort(); window.clearTimeout(timer) }
+  }, [path, revision, refreshMs])
   return result && result.path === path ? result : undefined
 }
 

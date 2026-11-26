@@ -24,6 +24,7 @@ const steps = {
 } as const
 type Progress = {
   id: string; jobId: string; jobTitle: string; organizationName: string; status: keyof typeof applicationStatuses
+  assessmentOpens: string | null; assessmentCloses: string | null
   submittedAt: string; nextKind: keyof typeof steps; nextAt: string | null; assessmentTitle: string | null
 }
 
@@ -41,7 +42,11 @@ function ProgressCard({ application, detail = false }: { application: Progress; 
     <div className="candidate-progress-next">
       <div><strong>{next.label}</strong>
         {application.assessmentTitle && <div>{application.assessmentTitle}</div>}
-        {application.nextAt && 'time' in next && <div>{next.time} <time dateTime={application.nextAt}>{localTime(application.nextAt)}</time></div>}
+        {application.assessmentTitle && application.assessmentOpens && application.assessmentCloses && <>
+          <div>Opens <time dateTime={application.assessmentOpens}>{localTime(application.assessmentOpens)}</time></div>
+          <div>Closes <time dateTime={application.assessmentCloses}>{localTime(application.assessmentCloses)}</time></div>
+        </>}
+        {application.nextAt && 'time' in next && !['assessment_scheduled', 'assessment_due', 'assessment_expired'].includes(application.nextKind) && <div>{next.time} <time dateTime={application.nextAt}>{localTime(application.nextAt)}</time></div>}
       </div>
       {!detail && <a className="pv-button primary" href={`${path}?application=${application.id}`}>{next.action}</a>}
     </div>
@@ -53,8 +58,8 @@ export function CandidateHiringPage({ documents }: { documents: Document[] }) {
   const id = routeId(params.get('application'))
   const index = pageIndex(params.get('page'))
   const [revision, setRevision] = useState(0)
-  const detail = useHiringData<Progress>(id ? `${apiPath}/${id}` : '', revision)
-  const listing = useHiringData<Page<Progress>>(id ? '' : `${apiPath}?page=${index}&size=12`)
+  const detail = useHiringData<Progress>(id ? `${apiPath}/${id}` : '', revision, 5000)
+  const listing = useHiringData<Page<Progress>>(id ? '' : `${apiPath}?page=${index}&size=12`, 0, 5000)
   const application = detail?.data
   const error = id ? detail?.error : listing?.error
 

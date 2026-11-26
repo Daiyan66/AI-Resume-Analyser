@@ -40,11 +40,12 @@ public class CandidateHiringController {
                    WHEN assessment.kind IS NOT NULL THEN assessment.at
                    WHEN offer.starts_at IS NOT NULL AND confirmed.reschedule_requested_at IS NOT NULL THEN offer.starts_at
                    ELSE COALESCE(confirmed.starts_at, offer.starts_at) END AS next_at,
-              CASE WHEN a.status NOT IN ('HIRED', 'NOT_SELECTED', 'WITHDRAWN') THEN assessment.title END AS assessment_title
+              CASE WHEN a.status NOT IN ('HIRED', 'NOT_SELECTED', 'WITHDRAWN') THEN assessment.title END AS assessment_title,
+              assessment.available_from AS assessment_opens, assessment.due_at AS assessment_closes
             FROM applications a
             JOIN jobs j ON j.id = a.job_id JOIN organizations o ON o.id = j.organization_id
             LEFT JOIN LATERAL (
-                SELECT t.title,
+                SELECT t.title, s.available_from, s.due_at,
                    CASE WHEN s.outcome = 'RETRY' THEN 'assessment_retry'
                         WHEN s.submitted_at IS NOT NULL THEN 'assessment_review'
                         WHEN s.outcome = 'EXPIRED' OR s.due_at <= CURRENT_TIMESTAMP THEN 'assessment_expired'
@@ -102,12 +103,15 @@ public class CandidateHiringController {
 
     private static Progress map(ResultSet rs, int row) throws SQLException {
         var at = rs.getTimestamp("next_at");
+        var opens = rs.getTimestamp("assessment_opens");
+        var closes = rs.getTimestamp("assessment_closes");
         return new Progress(rs.getObject("id", UUID.class), rs.getObject("job_id", UUID.class), rs.getString("title"),
                 rs.getString("organization"), rs.getString("status"), rs.getTimestamp("submitted_at").toInstant(),
-                rs.getString("next_kind"), at == null ? null : at.toInstant(), rs.getString("assessment_title"));
+                rs.getString("next_kind"), at == null ? null : at.toInstant(), rs.getString("assessment_title"),
+                opens == null ? null : opens.toInstant(), closes == null ? null : closes.toInstant());
     }
 
     public record Progress(UUID id, UUID jobId, String jobTitle, String organizationName, String status,
-                           Instant submittedAt, String nextKind, Instant nextAt, String assessmentTitle) {}
+                           Instant submittedAt, String nextKind, Instant nextAt, String assessmentTitle, Instant assessmentOpens, Instant assessmentCloses) {}
     public record Page(List<Progress> items, int page, int size, long total) {}
 }

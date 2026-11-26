@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { api, type Document, type Organization } from './api'
+import { api, type Document } from './api'
 import { currentAssessments, localTime, useHiringAction, useHiringData, useWorkflowClock, write, type AssessmentAssignment, type AssessmentFields, type AssessmentTemplate } from './hiringWorkflow'
 
 const emptyTemplate = { title: '', instructions: '', effortMinutes: 30, allowedTools: '', rubric: [] }
@@ -247,10 +247,10 @@ function StaffAssessment({ assessment, base, refresh }: { assessment: Assessment
   </article>
 }
 
-export function StaffAssessments({ applicationId, jobId, organization, closed = false, canAssign = true, interviewHref }: {
-  applicationId?: string; jobId: string; organization: Organization; closed?: boolean; canAssign?: boolean; interviewHref?: string
+export function StaffAssessments({ applicationId, jobId, organizationId, closed = false, canAssign = true, interviewHref, scheduleFirst = false }: {
+  applicationId?: string; jobId: string; organizationId: string; closed?: boolean; canAssign?: boolean; interviewHref?: string; scheduleFirst?: boolean
 }) {
-  const organizationPath = `/organizations/${organization.organizationId}`
+  const organizationPath = `/organizations/${organizationId}`
   const templates = `${organizationPath}/jobs/${jobId}/assessment-templates`
   const base = applicationId ? `${organizationPath}/applications/${applicationId}/assessments` : ''
   const [revision, setRevision] = useState(0)
@@ -263,37 +263,47 @@ export function StaffAssessments({ applicationId, jobId, organization, closed = 
   const canProceed = attempts.length > 0 && attempts.every(item => item.outcome === 'PASSED')
   function refresh() { setRevision(value => value + 1) }
 
+  const assignmentForm = !closed && canAssign && <>
+    <h3>Assign an assessment</h3>
+    <p>Choose when the assessment opens and closes. Once assigned, the candidate gets a notification and can see the assessment under Assessment & Interview.</p>
+    <p>Times shown in {Intl.DateTimeFormat().resolvedOptions().timeZone}.</p>
+    {!collection ? <p role="status">Loading templates…</p> : published.length ? <form className="inline-form" onSubmit={event => {
+      event.preventDefault()
+      const form = event.currentTarget
+      const data = new FormData(form)
+      void run(async () => {
+        const starts = String(data.get('starts') ?? '')
+        const availableFrom = starts ? new Date(starts) : null
+        const dueAt = new Date(String(data.get('due')))
+        if (availableFrom && availableFrom.getTime() <= Date.now()) throw new Error('Choose an opening date and time in the future.')
+        if (dueAt.getTime() <= (availableFrom?.getTime() ?? Date.now())) throw new Error('Choose a deadline after the assessment opens.')
+        await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: availableFrom?.toISOString() ?? null,
+          dueAt: dueAt.toISOString() })
+        form.reset()
+        refresh()
+      }, 'Assessment assigned. The candidate has been notified in the platform.')
+    }}>
+      <label>Published template<select aria-label="Published template" name="templateId" required>
+        {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+      </select></label>
+      <label>Opening date and time{!scheduleFirst && " (optional)"}<input type="datetime-local" name="starts" required={scheduleFirst} /></label>
+      <label>Closing date and time<input type="datetime-local" name="due" required /></label>
+      <button type="submit" disabled={busy}>Assign assessment</button>
+    </form> : <p>Create and publish a template below to assign this assessment.</p>}
+  </>
+
   return <section className="panel">
     <h2>Assessments</h2>
     {(error || collection?.error || assigned?.error) && <p role="alert" className="alert error">{error || collection?.error || assigned?.error}</p>}
     {notice && <p role="status" className="alert success">{notice}</p>}
+    {applicationId && scheduleFirst && assignmentForm}
     {applicationId && <><h3>Assigned to this candidate</h3>
     {!assigned ? <p role="status">Loading assessments…</p> : assigned.data?.length ?
       assigned.data.map(assessment => <StaffAssessment key={assessment.id} assessment={assessment} base={base} refresh={refresh} />) :
       !assigned.error && <p>No assessments assigned.</p>}
     {!closed && canProceed && interviewHref &&
       <a className="pv-button primary" href={interviewHref}>Proceed to interview</a>}
-    {!closed && canAssign && <>
-      <h3>Assign an assessment</h3>
-      <p>The candidate is notified when you select Assign assessment. Leave the opening time blank to let them start immediately.</p>
-      {published.length ? <form className="inline-form" onSubmit={event => {
-        event.preventDefault()
-        const data = new FormData(event.currentTarget)
-        void run(async () => {
-          const starts = String(data.get('starts') ?? '')
-          await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: starts ? new Date(starts).toISOString() : null,
-            dueAt: new Date(String(data.get('due'))).toISOString() })
-          refresh()
-        }, 'Assessment assigned. The candidate has been notified in the platform.')
-      }}>
-        <label>Published template<select aria-label="Published template" name="templateId" required>
-          {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
-        </select></label>
-        <label>Opening time in your timezone (optional)<input type="datetime-local" name="starts" /></label>
-        <label>Deadline in your timezone<input type="datetime-local" name="due" required /></label>
-        <button type="submit" disabled={busy}>Assign assessment</button>
-      </form> : <p>Publish a job template to assign it to this candidate.</p>}
-    </>}</>}
+    {!scheduleFirst && assignmentForm}</>}
     {!closed && <>
       <h3>Templates for this job</h3>
       <TemplateEditor base={templates} saved={() => { setPage(0); refresh() }} />

@@ -428,14 +428,22 @@ class PlatformWorkflowIntegrationTest {
                 .andExpect(status().isOk()).andReturn(), "id");
         mvc.perform(post(queueTemplates + "/" + queueTemplate + "/publish").session(admin).with(csrf()))
                 .andExpect(status().isOk());
-        mvc.perform(payload(post(org + "/applications/" + queueApp + "/assessments"), admin,
-                Map.of("templateId", queueTemplate, "dueAt", due))).andExpect(status().isOk());
+        String queueAssignment = id(mvc.perform(payload(post(org + "/applications/" + queueApp + "/assessments"), admin,
+                Map.of("templateId", queueTemplate, "dueAt", due))).andExpect(status().isOk()).andReturn(), "id");
         mvc.perform(get(org + "/applications").param("hiringStep", "assessments").param("size", "1").session(admin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
                 .andExpect(jsonPath("$.items[0].id").value(queueApp));
         mvc.perform(get(progress).param("size", "1").session(first))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2))
-                .andExpect(jsonPath("$.items[0].id").value(queueApp));
+                .andExpect(jsonPath("$.items[0].id").value(queueApp))
+                .andExpect(jsonPath("$.items[0].assessmentOpens").isNotEmpty())
+                .andExpect(jsonPath("$.items[0].assessmentCloses").isNotEmpty());
+        jdbc.update("""
+                UPDATE assessment_assignments SET available_from = CURRENT_TIMESTAMP - INTERVAL '2 hours',
+                    due_at = CURRENT_TIMESTAMP - INTERVAL '1 hour' WHERE id = ?
+                """, UUID.fromString(queueAssignment));
+        mvc.perform(payload(post("/api/v1/candidate/applications/" + queueApp + "/assessments/" + queueAssignment + "/submit"),
+                first, Map.of("answer", "Attempted after the deadline."))).andExpect(status().isConflict());
     }
 
     private String workflowApplication(MockHttpSession candidate, MockHttpSession admin, String listing, String job) throws Exception {

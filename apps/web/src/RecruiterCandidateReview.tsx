@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api, type ReviewDetail } from './api'
 import { applicationStatuses } from './recruiterSearch'
+import { StaffAssessments } from './HiringAssessments'
 import { workspaceHref } from './workspaceNavigation'
 
 type Evidence = { criterionId: string; excerpt: string | null }
@@ -14,6 +15,7 @@ export function RecruiterCandidateReview({ path }: { path: string }) {
   const [evidence, setEvidence] = useState<Evidence[]>()
   const [evidenceError, setEvidenceError] = useState(false)
   const [preview, setPreview] = useState(false)
+  const [scheduling, setScheduling] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [busy, setBusy] = useState(false)
 
@@ -89,14 +91,18 @@ export function RecruiterCandidateReview({ path }: { path: string }) {
       <div className="action-row">
         <button type="button" className="quiet" disabled={!detail.documentId} aria-expanded={preview}
           onClick={() => setPreview(!preview)}>{preview ? 'Hide resume' : 'View resume'}</button>
-        {canAssess ? <a className="pv-button primary" href={workspaceHref('staff-assessment-interview', 'RECRUITER') + '?' + assessment}>Proceed to assessment</a> :
-          <button type="button" disabled>Proceed to assessment</button>}
+        <button type="button" disabled={!canAssess || rejecting} aria-expanded={scheduling}
+          aria-controls="application-assessment-schedule" onClick={() => setScheduling(!scheduling)}>Proceed to assessment</button>
         {rejecting ? <button type="submit" className="quiet" disabled={busy}>Confirm rejection</button> :
-          <button type="button" className="quiet" disabled={closed} onClick={() => setRejecting(true)}>Reject</button>}
+          <button type="button" className="quiet" disabled={closed || scheduling} onClick={() => setRejecting(true)}>Reject</button>}
         {rejecting && <button type="button" className="quiet" disabled={busy} onClick={() => { setRejecting(false); setError('') }}>Cancel</button>}
       </div>
     </form>
     {!detail.documentId && <p>No résumé was submitted.</p>}
+    {scheduling && <div id="application-assessment-schedule" className="criterion">
+      <StaffAssessments organizationId={detail.job.organizationId} applicationId={detail.id} jobId={detail.job.id} scheduleFirst />
+      <a href={workspaceHref('staff-assessment-interview', 'RECRUITER') + '?' + assessment}>Open assessment workspace</a>
+    </div>}
   </section>
 }
 
