@@ -152,6 +152,11 @@ class RecruiterFlowIntegrationTest {
                 .session(candidate.session()).with(csrf())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.read").value(true));
 
+        mvc.perform(post("/api/v1/candidate/applications").session(candidate.session()).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("jobId", jobId))))
+                .andExpect(status().isConflict());
+        jdbc.update("UPDATE application_events SET created_at = CURRENT_TIMESTAMP - INTERVAL '91 days' " +
+                "WHERE application_id = ? AND status = 'NOT_SELECTED'", UUID.fromString(applicationId));
         String secondApplicationId = id(mvc.perform(post("/api/v1/candidate/applications")
                 .session(candidate.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("jobId", jobId, "answers", Map.of()))))

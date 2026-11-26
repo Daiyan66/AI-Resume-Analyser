@@ -289,6 +289,12 @@ class PlatformWorkflowIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(firstApp));
         mvc.perform(get(org + "/applications").param("sort", "oldest").param("size", "1").param("page", "1").session(admin))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(secondApp));
+        mvc.perform(get(org + "/applications").param("hiringStep", "assessments").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get(org + "/applications").param("hiringStep", "interviews").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/candidate/hiring-applications").session(first))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         String firstInterview = "/api/v1/candidate/applications/" + firstApp + "/interviews";
         String secondInterview = "/api/v1/candidate/applications/" + secondApp + "/interviews";
         var starts = Instant.now().plusSeconds(7200);
@@ -351,6 +357,9 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(post(templates + "/" + template + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
         mvc.perform(payload(put(templates + "/" + template), admin, draft)).andExpect(status().isConflict());
         String assignment = id(mvc.perform(payload(post(staff), admin, assign)).andExpect(status().isOk()).andReturn(), "id");
+        mvc.perform(get("/api/v1/candidate/notifications").session(first))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items[?(@.message =~ /An assessment was assigned.*/)]").isNotEmpty());
         mvc.perform(get(candidate).session(second)).andExpect(status().isNotFound());
         String progress = "/api/v1/candidate/hiring-applications";
         mvc.perform(get(progress).session(first)).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
@@ -402,6 +411,31 @@ class PlatformWorkflowIntegrationTest {
         mvc.perform(payload(put(listing + "/applications/" + firstApp + "/interviews/offer"), admin, slots))
                 .andExpect(status().isOk());
         mvc.perform(get(progress + "/" + firstApp).session(first)).andExpect(jsonPath("$.nextKind").value("interview_booking"));
+        mvc.perform(get(org + "/applications").param("hiringStep", "interviews").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[?(@.id == '%s')]", firstApp).isNotEmpty());
+        mvc.perform(get(org + "/applications").param("hiringStep", "assessments").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[?(@.id == '%s')]", firstApp).isEmpty());
+
+        String secondJob = id(mvc.perform(payload(post(org + "/jobs"), admin, Map.of(
+                "title", "QA Reviewer", "location", "Remote", "workType", "REMOTE",
+                "description", "Review QA workflows", "requirements", "Interface testing")))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        String secondListing = org + "/jobs/" + secondJob;
+        mvc.perform(post(secondListing + "/publish").session(admin).with(csrf())).andExpect(status().isOk());
+        String queueApp = workflowApplication(first, admin, secondListing, secondJob);
+        String queueTemplates = secondListing + "/assessment-templates";
+        String queueTemplate = id(mvc.perform(payload(post(queueTemplates), admin, draft))
+                .andExpect(status().isOk()).andReturn(), "id");
+        mvc.perform(post(queueTemplates + "/" + queueTemplate + "/publish").session(admin).with(csrf()))
+                .andExpect(status().isOk());
+        mvc.perform(payload(post(org + "/applications/" + queueApp + "/assessments"), admin,
+                Map.of("templateId", queueTemplate, "dueAt", due))).andExpect(status().isOk());
+        mvc.perform(get(org + "/applications").param("hiringStep", "assessments").param("size", "1").session(admin))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(queueApp));
+        mvc.perform(get(progress).param("size", "1").session(first))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2))
+                .andExpect(jsonPath("$.items[0].id").value(queueApp));
     }
 
     private String workflowApplication(MockHttpSession candidate, MockHttpSession admin, String listing, String job) throws Exception {

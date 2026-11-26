@@ -85,13 +85,31 @@ export function CandidateWorkspace({ account, documents, section, jobId, onSignI
     void api<CandidateProfile>('/candidate/profile').then(nextProfile => {
       if (active) setProfile(nextProfile)
     }).catch(cause => { if (active) setError(message(cause)) })
-    void Promise.all([api<DataRequest[]>('/candidate/deletion-requests'),
-      api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12')])
-      .then(([nextRequests, nextNotifications]) => {
-        if (active) { setRequests(nextRequests); setNotifications(nextNotifications) }
-      }).catch(cause => { if (active) setError(message(cause)) })
+    void api<DataRequest[]>('/candidate/deletion-requests')
+      .then(nextRequests => { if (active) setRequests(nextRequests) })
+      .catch(cause => { if (active) setError(message(cause)) })
     return () => { active = false }
   }, [account])
+
+  useEffect(() => {
+    if (!account || section !== 'updates') return
+    const controller = new AbortController()
+    let timer: number
+    async function check() {
+      try {
+        const results = await api<Page<CandidateNotification>>('/candidate/notifications?page=0&size=12', {
+          signal: controller.signal, cache: 'no-store',
+        })
+        if (!controller.signal.aborted) setNotifications(results)
+      } catch {
+        // Keep the current updates visible through temporary connection errors.
+      } finally {
+        if (!controller.signal.aborted) timer = window.setTimeout(check, 5000)
+      }
+    }
+    void check()
+    return () => { controller.abort(); window.clearTimeout(timer) }
+  }, [account, section])
 
   async function run(action: () => Promise<void>) {
     setBusy(true); setError(''); setNotice('')

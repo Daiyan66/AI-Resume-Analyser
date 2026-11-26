@@ -73,6 +73,7 @@ export function HiringPoliciesPage({ organization, policy, busy, onSave }: {
           required defaultValue={policy.retentionDays} /></label>
       </div>
       <label><input name="aiEnabled" type="checkbox" defaultChecked={policy.aiEnabled} /> Allow AI assistance for this organization</label>
+      <p>Rejected candidates must wait at least 90 days to reapply to the same job. A longer organization cooldown still applies.</p>
       <p>Use the retention period when reviewing deletion requests. An admin must review each request.</p>
       <button type="submit" disabled={busy}>Save policy</button>
     </form> : <p role="status">Loading hiring policies…</p>}

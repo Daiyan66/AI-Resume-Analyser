@@ -16,6 +16,8 @@ import org.springframework.web.server.ResponseStatusException;
 @RestController
 @RequestMapping("/api/v1/candidate/hiring-applications")
 public class CandidateHiringController {
+    private static final String HAS_ASSESSMENT =
+            " AND EXISTS (SELECT 1 FROM assessment_assignments s WHERE s.application_id = a.id)";
     private static final String SUMMARY = """
             SELECT a.id, a.job_id, a.status, a.submitted_at, j.title, o.name AS organization,
               CASE
@@ -80,12 +82,13 @@ public class CandidateHiringController {
     public Page list(@RequestParam(defaultValue = "0") @Min(0) int page,
                      @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
         UUID candidate = identities.currentUserId();
-        long total = jdbc.queryForObject("SELECT count(*) FROM applications WHERE candidate_user_id = ?", Long.class, candidate);
+        long total = jdbc.queryForObject("SELECT count(*) FROM applications a WHERE candidate_user_id = ?" +
+                HAS_ASSESSMENT, Long.class, candidate);
         // Select the requested page before calculating each application's next action.
         String source = """
-                FROM (SELECT * FROM applications WHERE candidate_user_id = ?
+                FROM (SELECT * FROM applications a WHERE candidate_user_id = ? %s
                       ORDER BY submitted_at DESC, id LIMIT ? OFFSET ?) a
-                """.strip();
+                """.formatted(HAS_ASSESSMENT).strip();
         List<Progress> items = jdbc.query(SUMMARY.replace("FROM applications a", source) + " ORDER BY a.submitted_at DESC, a.id",
                 CandidateHiringController::map, candidate, size, (long) page * size, candidate);
         return new Page(items, page, size, total);
@@ -93,7 +96,7 @@ public class CandidateHiringController {
 
     @GetMapping("/{application}")
     public Progress details(@PathVariable UUID application) {
-        return jdbc.query(SUMMARY + " AND a.id = ?", CandidateHiringController::map, identities.currentUserId(), application)
+        return jdbc.query(SUMMARY + HAS_ASSESSMENT + " AND a.id = ?", CandidateHiringController::map, identities.currentUserId(), application)
                 .stream().findFirst().orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found."));
     }
 

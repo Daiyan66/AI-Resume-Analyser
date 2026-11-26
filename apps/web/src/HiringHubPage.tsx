@@ -26,7 +26,7 @@ function StaffHiringPage({ organization, accountId }: { organization: Organizati
   const index = pageIndex(params.get('page'))
   const q = (params.get('q') ?? '').slice(0, 160)
   const scope = `/organizations/${organization.organizationId}`
-  const query = new URLSearchParams({ page: String(index), size: '12', sort: 'oldest', q })
+  const query = new URLSearchParams({ page: String(index), size: '12', sort: 'oldest', hiringStep: tab, q })
   const detailPath = applicationId && jobId ? `${scope}/jobs/${jobId}/applications/${applicationId}` : ''
   const [revision, setRevision] = useState(0)
   const detail = useHiringData<ReviewDetail>(detailPath, revision)
@@ -45,19 +45,19 @@ function StaffHiringPage({ organization, accountId }: { organization: Organizati
   return <div className="hiring-workflow">
     <nav className="action-row" aria-label="Assessment and interview views">
       <a className={`pv-button ${tab === 'assessments' ? 'primary' : ''}`} aria-current={tab === 'assessments' ? 'page' : undefined}
-        href={templateJob ? `${path}?tab=assessments&templateJob=${templateJob}` : link('assessments', applicationId, jobId)}>Assessments</a>
+        href={templateJob ? `${path}?tab=assessments&templateJob=${templateJob}` : link('assessments')}>Assessments</a>
       <a className={`pv-button ${tab === 'interviews' ? 'primary' : ''}`} aria-current={tab === 'interviews' ? 'page' : undefined}
-        href={link('interviews', applicationId, jobId)}>Interviews</a>
-      {(applicationId || templateJob) && <a href={link(tab)}>All applications</a>}
+        href={link('interviews')}>Interviews</a>
+      {(applicationId || templateJob) && <a href={link(tab)}>Back to {tab}</a>}
     </nav>
     {templateJob ? job?.error ? <p role="alert" className="alert error">{job.error}</p> :
       !job?.data ? <p role="status">Loading job…</p> : <>
         <section className="pv-card"><h2>{job.data.title}</h2><p>Build reusable assessments for this job.</p></section>
         <StaffAssessments jobId={templateJob} organization={organization} />
       </> : !applicationId ? <section className="panel">
-      <h2>Choose an application</h2>
+      <h2>{tab === 'assessments' ? 'Assigned assessments' : 'Interview candidates'}</h2>
       <p>Oldest applications first.</p>
-      {tab === 'assessments' && <p>To set up a template before assigning it, open a job in <a href={workspaceHref('posted-jobs', organization.role)}>Posted jobs</a>.</p>}
+      {tab === 'assessments' && <p>To invite a candidate, open their application in <a href={workspaceHref('recruiter-applications', organization.role)}>Applications</a> and schedule an assessment.</p>}
       <form className="inline-form" action={path}>
         <input type="hidden" name="tab" value={tab} />
         <label>Search applications<input type="search" name="q" defaultValue={q} maxLength={160} placeholder="Candidate or job title" /></label>
@@ -65,7 +65,7 @@ function StaffHiringPage({ organization, accountId }: { organization: Organizati
       </form>
       {listing?.error ? <p role="alert" className="alert error">{listing.error}</p> :
         !listing?.data ? <p role="status">Loading applications…</p> :
-          !listing.data.items.length ? <p>No applications found.</p> :
+          !listing.data.items.length ? <p>{tab === 'assessments' ? 'No assigned assessments match this view.' : 'No interview candidates match this view.'}</p> :
             <ul className="list">{listing.data.items.map(application => <li key={application.id}>
               <div><strong>{application.candidateName}</strong><br />
                 {application.jobTitle} · {applicationStatuses[application.status]}<br />

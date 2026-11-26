@@ -59,7 +59,7 @@ export function CandidateHiringPage({ documents }: { documents: Document[] }) {
   const error = id ? detail?.error : listing?.error
 
   return <div className="hiring-workflow">
-    {id && <a href={path}>Back to applied jobs</a>}
+    {id && <a href={path}>Back to assessments and interviews</a>}
     {error ? <p role="alert" className="alert error">{error}</p> : id ?
       !application ? <p role="status">Loading application…</p> : <>
         <ProgressCard application={application} detail />
@@ -72,11 +72,11 @@ export function CandidateHiringPage({ documents }: { documents: Document[] }) {
             <CandidateAssessments applicationId={application.id} documents={documents} closed={application.nextKind === 'closed'}
               onProgress={() => setRevision(value => value + 1)} />
           </details>}
-      </> : !listing?.data ? <p role="status">Loading applied jobs…</p> : <>
-        <h2>Applied jobs</h2>
+      </> : !listing?.data ? <p role="status">Loading assessments and interviews…</p> : <>
+        <h2>Jobs with assessments</h2>
         {listing.data.items.length ? <ul className="candidate-card-stack">
           {listing.data.items.map(item => <li key={item.id}><ProgressCard application={item} /></li>)}
-        </ul> : <section className="panel"><p>Your assessment and interview steps will appear here after you apply.</p>
+        </ul> : <section className="panel"><p>An application appears here once a recruiter assigns you an assessment.</p>
           <a className="pv-button" href="/dashboard#candidate">Find jobs</a></section>}
         <RecruiterPagination result={listing.data} path={path} filters={new URLSearchParams()} noun="applications" />
       </>}

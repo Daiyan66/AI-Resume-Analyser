@@ -275,7 +275,7 @@ export function StaffAssessments({ applicationId, jobId, organization, closed = 
       <a className="pv-button primary" href={interviewHref}>Proceed to interview</a>}
     {!closed && canAssign && <>
       <h3>Assign an assessment</h3>
-      <p>Leave the opening time blank to let the candidate start immediately.</p>
+      <p>The candidate is notified when you select Assign assessment. Leave the opening time blank to let them start immediately.</p>
       {published.length ? <form className="inline-form" onSubmit={event => {
         event.preventDefault()
         const data = new FormData(event.currentTarget)
@@ -284,7 +284,7 @@ export function StaffAssessments({ applicationId, jobId, organization, closed = 
           await write(base, 'POST', { templateId: data.get('templateId'), availableFrom: starts ? new Date(starts).toISOString() : null,
             dueAt: new Date(String(data.get('due'))).toISOString() })
           refresh()
-        }, 'Assessment assigned.')
+        }, 'Assessment assigned. The candidate has been notified in the platform.')
       }}>
         <label>Published template<select aria-label="Published template" name="templateId" required>
           {published.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}

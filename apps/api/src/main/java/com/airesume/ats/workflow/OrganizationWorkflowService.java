@@ -74,7 +74,7 @@ public class OrganizationWorkflowService {
     }
 
     public ApplicationPage pipeline(UUID org, UUID job, UUID recruiterId, UUID hiredBy,
-                                    String status, String query, int page, int size, boolean oldest) {
+                                    String status, String query, int page, int size, boolean oldest, String hiringStep) {
         if (recruiterId != null || hiredBy != null) organizations.requireAdmin(org);
         else organizations.requireMember(org);
         if (job != null) jobs.privateJob(org, job);
@@ -92,6 +92,19 @@ public class OrganizationWorkflowService {
                    AND (?::uuid IS NULL OR COALESCE(j.published_by, j.created_by) = ?)
                    AND (?::uuid IS NULL OR d.actor_user_id = ?)
                 """;
+        if (hiringStep != null) {
+            String interviewStarted = """
+                    (EXISTS (SELECT 1 FROM application_interviews i WHERE i.application_id = a.id)
+                     OR EXISTS (SELECT 1 FROM interview_offers o WHERE o.application_id = a.id AND o.closed_at IS NULL))
+                    """;
+            filter += " AND a.status NOT IN ('HIRED', 'NOT_SELECTED', 'WITHDRAWN')";
+            if ("assessments".equals(hiringStep)) {
+                filter += " AND a.status = 'IN_REVIEW' AND NOT " + interviewStarted +
+                        " AND EXISTS (SELECT 1 FROM assessment_assignments s WHERE s.application_id = a.id)";
+            } else {
+                filter += " AND " + interviewStarted;
+            }
+        }
         String state = status == null ? "" : status;
         String search = query.strip();
         Object[] params = {org, state, state, search, search, job, job, recruiterId, recruiterId, hiredBy, hiredBy};
