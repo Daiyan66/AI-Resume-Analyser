@@ -1,6 +1,8 @@
 package com.airesume.ats.recruiter;
 
 import com.airesume.ats.documents.DocumentService;
+import com.airesume.ats.workflow.ScreeningService;
+import java.nio.charset.StandardCharsets;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -55,6 +57,30 @@ public class RecruiterController {
                         .filename(file.metadata().filename()).build().toString())
                 .header(HttpHeaders.CACHE_CONTROL, "no-store").body(file.resource());
     }
+
+    @GetMapping("/{applicationId}/resume-preview")
+    public ResponseEntity<?> resumePreview(@PathVariable UUID organizationId, @PathVariable UUID jobId,
+                                            @PathVariable UUID applicationId) {
+        DocumentService.Download file = documents.downloadForReview(organizationId, jobId, applicationId);
+        ResponseEntity.BodyBuilder response = ResponseEntity.ok().header(HttpHeaders.CACHE_CONTROL, "no-store");
+        if (MediaType.APPLICATION_PDF_VALUE.equals(file.metadata().mediaType())) {
+            return response.contentType(MediaType.APPLICATION_PDF)
+                    .header("X-Frame-Options", "SAMEORIGIN")
+                    .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()
+                            .filename(file.metadata().filename(), StandardCharsets.UTF_8).build().toString())
+                    .body(file.resource());
+        }
+        return response.contentType(new MediaType("text", "plain", StandardCharsets.UTF_8))
+                .body(ScreeningService.readText(file));
+    }
+
+    @PostMapping("/{applicationId}/reject")
+    public RecruiterService.Detail reject(@PathVariable UUID organizationId, @PathVariable UUID jobId,
+                                          @PathVariable UUID applicationId, @Valid @RequestBody RejectionRequest request) {
+        return recruiters.reject(organizationId, jobId, applicationId, request.reason());
+    }
+
+    public record RejectionRequest(@NotBlank @Size(min = 10, max = 4000) String reason) {}
 
     @PostMapping("/{applicationId}/reviews")
     public RecruiterService.Review review(@PathVariable UUID organizationId, @PathVariable UUID jobId,

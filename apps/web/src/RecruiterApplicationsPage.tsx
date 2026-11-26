@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api, type Member, type Organization, type Page } from './api'
+import { RecruiterCandidateReview } from './RecruiterCandidateReview'
 import { RecruiterApplicationReview } from './RecruiterApplicationReview'
 import { RecruiterPagination } from './RecruiterPagination'
 import { applicationStatuses, jobStatuses, pageIndex, routeId } from './recruiterSearch'
@@ -23,6 +24,14 @@ export function RecruiterApplicationsPage({ organization, accountId, hires = fal
   const jobId = directory?.jobId ?? routeId(params.get('job'))
   const selectedJob = directory ? jobId : routeId(params.get('reviewJob')) || jobId
   const base = `/organizations/${organization.organizationId}`
+  if (application && !admin && !hires) {
+    const reviewPath = `${base}/jobs/${selectedJob}/applications/${reviewId}`
+    return <>
+      <a className="pv-button" href={workspaceHref('home', organization.role)}>Back to dashboard</a>
+      {selectedJob && reviewId ? <RecruiterCandidateReview key={reviewPath} path={reviewPath} /> :
+        <p role="alert">This application link is invalid.</p>}
+    </>
+  }
   if (application) {
     params.delete('application')
     params.delete('reviewJob')

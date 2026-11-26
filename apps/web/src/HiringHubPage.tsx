@@ -1,20 +1,22 @@
+import { useState } from 'react'
 import type { Document, Job, Organization, Page, ReviewDetail } from './api'
 import { CandidateHiringPage } from './CandidateHiringPage'
 import { StaffAssessments } from './HiringAssessments'
 import { HiringInterviews } from './HiringInterviews'
 import { localTime, useHiringData } from './hiringWorkflow'
 import { applicationStatuses, pageIndex, routeId } from './recruiterSearch'
+import { RecruiterApplicationReview } from './RecruiterApplicationReview'
 import { RecruiterPagination } from './RecruiterPagination'
 import { workspaceHref } from './workspaceNavigation'
 
 type ApplicationSummary = { id: string; jobId: string; jobTitle: string; status: keyof typeof applicationStatuses
   candidateName: string; submittedAt: string }
 
-export function HiringHubPage({ organization, documents }: { organization?: Organization; documents: Document[] }) {
-  return organization ? <StaffHiringPage organization={organization} /> : <CandidateHiringPage documents={documents} />
+export function HiringHubPage({ organization, documents, accountId }: { organization?: Organization; documents: Document[]; accountId: string }) {
+  return organization ? <StaffHiringPage organization={organization} accountId={accountId} /> : <CandidateHiringPage documents={documents} />
 }
 
-function StaffHiringPage({ organization }: { organization: Organization }) {
+function StaffHiringPage({ organization, accountId }: { organization: Organization; accountId: string }) {
   const path = workspaceHref('staff-assessment-interview', organization.role)
   const params = new URLSearchParams(location.search)
   const applicationId = routeId(params.get('application'))
@@ -26,7 +28,8 @@ function StaffHiringPage({ organization }: { organization: Organization }) {
   const scope = `/organizations/${organization.organizationId}`
   const query = new URLSearchParams({ page: String(index), size: '12', sort: 'oldest', q })
   const detailPath = applicationId && jobId ? `${scope}/jobs/${jobId}/applications/${applicationId}` : ''
-  const detail = useHiringData<ReviewDetail>(detailPath)
+  const [revision, setRevision] = useState(0)
+  const detail = useHiringData<ReviewDetail>(detailPath, revision)
   const listing = useHiringData<Page<ApplicationSummary>>(applicationId || templateJob ? '' : `${scope}/applications?${query}`)
   const job = useHiringData<Job>(templateJob ? `${scope}/jobs/${templateJob}` : '')
   const selection = detail?.data
@@ -78,8 +81,15 @@ function StaffHiringPage({ organization }: { organization: Organization }) {
           <h2>{selection.job.title}</h2>
           <p>{selection.profileSnapshot.displayName} · {applicationStatuses[selection.status as keyof typeof applicationStatuses]}</p>
         </section>
-        {tab === 'interviews' ? <HiringInterviews applicationId={applicationId} jobId={jobId}
-          jobTitle={selection.job.title} stage={selection.status} organization={organization} /> :
+        {tab === 'interviews' ? <><HiringInterviews applicationId={applicationId} jobId={jobId}
+          jobTitle={selection.job.title} stage={selection.status} organization={organization} onProgress={() => setRevision(value => value + 1)} />
+          {organization.role === 'RECRUITER' && ['INTERVIEW', 'OFFER'].includes(selection.status) &&
+            <details className="panel">
+              <summary>Final review and hiring decision</summary>
+              <RecruiterApplicationReview base={`${scope}/jobs/${jobId}/applications`} applicationId={applicationId}
+                organizationId={organization.organizationId} accountId={accountId} role={organization.role} finalReview />
+            </details>}
+          </> :
           <StaffAssessments applicationId={applicationId} jobId={jobId} organization={organization}
             closed={closed} canAssign={['SUBMITTED', 'IN_REVIEW'].includes(selection.status)}
             interviewHref={link('interviews', applicationId, jobId)} />}

@@ -121,6 +121,19 @@ public class RecruiterService {
             throw new ResponseStatusException(HttpStatus.CONFLICT,
                     "Record a human review for every job criterion before deciding.");
         }
+        return recordDecision(organizationId, jobId, applicationId, outcome, reason);
+    }
+
+    @Transactional
+    public Detail reject(UUID organizationId, UUID jobId, UUID applicationId, String reason) {
+        jobs.privateJob(organizationId, jobId);
+        if (!List.of("SUBMITTED", "IN_REVIEW", "INTERVIEW", "OFFER").contains(lockedStatus(jobId, applicationId))) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already closed.");
+        }
+        return recordDecision(organizationId, jobId, applicationId, "NOT_SELECTED", reason);
+    }
+
+    private Detail recordDecision(UUID organizationId, UUID jobId, UUID applicationId, String outcome, String reason) {
         UUID actor = identities.currentUserId();
         jdbc.update("INSERT INTO application_decisions (id, application_id, actor_user_id, outcome, reason) " +
                 "VALUES (?, ?, ?, ?, ?)", UUID.randomUUID(), applicationId, actor, outcome, reason.trim());

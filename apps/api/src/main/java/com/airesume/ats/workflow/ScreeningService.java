@@ -139,7 +139,7 @@ public class ScreeningService {
                         : "Expand on this example with the result and your own contribution.")).toList();
     }
 
-    private static String readText(DocumentService.Download file) {
+    public static String readText(DocumentService.Download file) {
         try (var stream = file.resource().getInputStream()) {
             return DocumentText.extract(file.metadata().filename(), stream);
         } catch (IOException ex) {
