@@ -1,27 +1,31 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Job, type Organization, type Page, type PipelineItem, type ReviewDetail } from './api'
+import { useSuccessNotice } from './useSuccessNotice'
+import { api, type ReviewDetail } from './api'
+import { workspaceHref, type StaffRole } from './workspaceNavigation'
+import { ResumePreview } from './RecruiterCandidateReview'
+import { HiringToolsTrial } from './HiringToolsTrial'
 
-type Props = { organization: Organization; job: Job }
+type Evidence = { criterionId: string; criterion: string; excerpt: string | null; extractedLine: number | null }
 
-export function RecruiterPipeline({ organization, job }: Props) {
-  const base = `/organizations/${organization.organizationId}/jobs/${job.id}/applications`
-  const [page, setPage] = useState(0)
-  const [pipeline, setPipeline] = useState<Page<PipelineItem>>({ items: [], page: 0, size: 12, total: 0 })
-  const [detail, setDetail] = useState<ReviewDetail | null>(null)
+export function RecruiterApplicationReview({ base, applicationId, organizationId, accountId, role, finalReview = false }: {
+  base: string; applicationId: string; organizationId: string; accountId: string; role: StaffRole; finalReview?: boolean
+}) {
+  const [detail, setDetail] = useState<ReviewDetail>()
+  const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
+  const [evidence, setEvidence] = useState<Evidence[]>()
 
   useEffect(() => {
-    void api<Page<PipelineItem>>(`${base}?page=${page}&size=12`).then(setPipeline)
-      .catch((cause: unknown) => setError(message(cause)))
-  }, [base, page])
+    const controller = new AbortController()
+    void api<ReviewDetail>(`${base}/${applicationId}`, { signal: controller.signal }).then(setDetail)
+      .catch((cause: Error) => { if (!controller.signal.aborted) setError(cause.message) })
+    return () => controller.abort()
+  }, [base, applicationId])
 
-  async function refresh(applicationId: string) {
-    const [nextDetail, nextPipeline] = await Promise.all([
-      api<ReviewDetail>(`${base}/${applicationId}`), api<Page<PipelineItem>>(`${base}?page=${page}&size=12`),
-    ])
-    setDetail(nextDetail); setPipeline(nextPipeline)
+  async function refresh(id: string) {
+    setDetail(await api<ReviewDetail>(`${base}/${id}`))
   }
 
   async function run(action: () => Promise<void>) {
@@ -31,16 +35,12 @@ export function RecruiterPipeline({ organization, job }: Props) {
     finally { setBusy(false) }
   }
 
-  function open(applicationId: string) {
-    void run(async () => { setDetail(await api<ReviewDetail>(`${base}/${applicationId}`)) })
-  }
+  if (!detail) return error ? <p className="alert error" role="alert">{error}</p> : <p role="status">Loading application…</p>
 
   function review(event: FormEvent<HTMLFormElement>, criterionId: string) {
     event.preventDefault()
-    if (!detail) return
     const form = event.currentTarget
     const fields = new FormData(form)
-    const applicationId = detail.id
     void run(async () => {
       await api(`${base}/${applicationId}/reviews`, { method: 'POST', body: JSON.stringify({
         criterionId, rating: fields.get('rating'), note: fields.get('note'),
@@ -51,8 +51,6 @@ export function RecruiterPipeline({ organization, job }: Props) {
   }
 
   function advance(status: string) {
-    if (!detail) return
-    const applicationId = detail.id
     void run(async () => {
       await api(`${base}/${applicationId}/stage`, { method: 'POST', body: JSON.stringify({ status }) })
       await refresh(applicationId)
@@ -62,12 +60,10 @@ export function RecruiterPipeline({ organization, job }: Props) {
 
   function decide(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!detail) return
     const form = event.currentTarget
     const fields = new FormData(form)
     const outcome = String(fields.get('outcome'))
     if (!window.confirm(`Record the final decision: ${outcome === 'HIRED' ? 'Hired' : 'Not selected'}?`)) return
-    const applicationId = detail.id
     void run(async () => {
       await api(`${base}/${applicationId}/decisions`, { method: 'POST', body: JSON.stringify({
         outcome, reason: fields.get('reason'),
@@ -77,30 +73,21 @@ export function RecruiterPipeline({ organization, job }: Props) {
     })
   }
 
-  const nextStage = ({ SUBMITTED: 'IN_REVIEW', IN_REVIEW: 'INTERVIEW', INTERVIEW: 'OFFER' } as Record<string, string>)[detail?.status || '']
+  const nextStage = ({ SUBMITTED: 'IN_REVIEW', IN_REVIEW: 'INTERVIEW', INTERVIEW: 'OFFER' } as Record<string, string>)[detail.status]
 
-  return <div className="job-detail">
-    <h3>Applicants for {job.title}</h3>
+  return <section className="panel" aria-label="Application review">
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
-    {pipeline.items.length === 0 ? <p>No applications for this job yet.</p> : <ul className="list">
-      {pipeline.items.map((item) => <li key={item.id}>
-        <span><strong>{item.candidateName}</strong> · {item.status.replaceAll('_', ' ').toLowerCase()} · reviews {item.reviewedCriteria}/{item.totalCriteria}</span>
-        <button type="button" className="quiet" onClick={() => open(item.id)} disabled={busy}>Review</button>
-      </li>)}
-    </ul>}
-    {pipeline.total > 12 && <div className="pagination">
-      <button type="button" className="quiet" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-      <span>Page {page + 1} · {pipeline.total} applicants</span>
-      <button type="button" className="quiet" disabled={(page + 1) * 12 >= pipeline.total} onClick={() => setPage(page + 1)}>Next</button>
-    </div>}
-
-    {detail && <div className="review-detail">
-      <h4>{detail.profileSnapshot.displayName} · {detail.status.replaceAll('_', ' ').toLowerCase()}</h4>
+      <h2>{detail.profileSnapshot.displayName} · {detail.status.replaceAll('_', ' ').toLowerCase()}</h2>
+      {!finalReview && <p><a className="pv-button" href={`${workspaceHref('staff-assessment-interview', role)}?tab=assessments&application=${detail.id}&job=${detail.job.id}`}>
+        Assessment &amp; Interview
+      </a></p>}
       <p>{detail.profileSnapshot.email} · submitted {new Date(detail.submittedAt).toLocaleString()}</p>
       {Object.entries(detail.profileSnapshot.profile).map(([field, value]) => <p key={field} className="preserve-lines">
         <strong>{field[0].toUpperCase() + field.slice(1)}:</strong> {value || '—'}</p>)}
-      {detail.documentId && <p><a href={`/api/v1${base}/${detail.id}/document`}>Download submitted document: {detail.documentName}</a></p>}
+      {detail.documentId && <button type="button" className="quiet" aria-expanded={preview}
+        onClick={() => setPreview(!preview)}>{preview ? 'Hide resume' : 'View resume'}</button>}
+      {preview && <ResumePreview path={`${base}/${detail.id}/resume-preview`} name={detail.documentName ?? 'Submitted résumé'} />}
       <h4>Application answers</h4>
       {Object.values(detail.answers).length === 0 ? <p>No questions.</p> : <ul>
         {Object.entries(detail.answers).map(([id, answer]) => <li key={id}><strong>{answer.prompt}:</strong> {answer.answer || 'No answer'}</li>)}
@@ -108,7 +95,22 @@ export function RecruiterPipeline({ organization, job }: Props) {
       <h4>Status history</h4>
       <ol>{detail.events.map((event, index) => <li key={`${event.createdAt}-${index}`}>
         {event.message} · {new Date(event.createdAt).toLocaleString()}</li>)}</ol>
-      <h4>Criteria and assessments</h4>
+      {detail.documentId && detail.job.criteria.length > 0 && <div className="criterion">
+        <h3>Résumé evidence</h3>
+        <p>Find excerpts from the submitted document to check against the job criteria.</p>
+        <button type="button" className="quiet" disabled={busy}
+          onClick={() => void run(async () => setEvidence(await api<Evidence[]>(`${base}/${detail.id}/evidence`)))}>
+          Find evidence in résumé
+        </button>
+        {evidence && <ul>{evidence.map(item => <li key={item.criterionId}>
+          <strong>{item.criterion}</strong>
+          {item.excerpt ? <blockquote className="preserve-lines">
+            {item.excerpt}{item.extractedLine != null && <small> (extracted line {item.extractedLine})</small>}
+          </blockquote> : <p>No matching excerpt found. Review the document manually.</p>}
+        </li>)}</ul>}
+      </div>}
+      <HiringToolsTrial detail={detail} organizationId={organizationId} accountId={accountId} />
+      <h3>Criteria and assessments</h3>
       {detail.job.criteria.map((criterion) => <div className="criterion" key={criterion.id}>
         <p><strong>{criterion.description}</strong> · {criterion.importance.toLowerCase()}</p>
         {criterion.guidance && <p>Review guidance: {criterion.guidance}</p>}
@@ -133,8 +135,7 @@ export function RecruiterPipeline({ organization, job }: Props) {
       </form>}
       {detail.decisions.map((decision) => <p key={decision.id} className="preserve-lines">
         <strong>{decision.outcome.replaceAll('_', ' ')} by {decision.actorName}:</strong> {decision.reason}</p>)}
-    </div>}
-  </div>
+  </section>
 }
 
 function message(cause: unknown): string {

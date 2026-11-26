@@ -25,15 +25,20 @@ public class OrganizationService {
     private final JavaMailSender mail;
     private final String publicUrl;
     private final String mailFrom;
+    private final java.util.Set<String> bootstrapAdmins;
 
     public OrganizationService(JdbcTemplate jdbc, IdentityService identities, AuditService audit, JavaMailSender mail,
-                               @Value("${app.public-url}") String publicUrl, @Value("${app.mail-from}") String mailFrom) {
+                               @Value("${app.public-url}") String publicUrl, @Value("${app.mail-from}") String mailFrom,
+                               @Value("${app.organizations.bootstrap-admin-emails:}") String bootstrapEmails) {
         this.jdbc = jdbc;
         this.identities = identities;
         this.audit = audit;
         this.mail = mail;
         this.publicUrl = publicUrl;
         this.mailFrom = mailFrom;
+        this.bootstrapAdmins = java.util.Arrays.stream(bootstrapEmails.split(","))
+                .map(IdentityService::normalizeEmail).filter(email -> !email.isEmpty())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     public List<OrganizationMembership> myOrganizations() {
@@ -44,9 +49,18 @@ public class OrganizationService {
                         rs.getString("name"), rs.getString("role")), identities.currentUserId());
     }
 
+    public boolean canCreateOrganizations(IdentityService.Account account) {
+        if (!account.emailVerified()) return false;
+        if (bootstrapAdmins.contains(IdentityService.normalizeEmail(account.email()))) return true;
+        return Boolean.TRUE.equals(jdbc.queryForObject("SELECT EXISTS (SELECT 1 FROM memberships " +
+                        "WHERE user_id = ? AND role = 'ADMIN' AND status = 'ACTIVE')", Boolean.class, account.id()));
+    }
+
     @Transactional
     public OrganizationMembership create(String slug, String name) {
-        UUID owner = identities.currentUserId();
+        var account = identities.currentAccount();
+        if (!canCreateOrganizations(account)) throw new AccessDeniedException("Administrator access is required");
+        UUID owner = account.id();
         UUID orgId = UUID.randomUUID();
         try {
             jdbc.update("INSERT INTO organizations (id, slug, name) VALUES (?, ?, ?)", orgId, slug, name.trim());
@@ -123,10 +137,13 @@ public class OrganizationService {
                 invitation.id());
         if (updated != 1) throw new ResponseStatusException(HttpStatus.GONE, "Invitation already used");
         jdbc.update("INSERT INTO memberships (organization_id, user_id, role, status) VALUES (?, ?, ?, 'ACTIVE') " +
-                        "ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role, status = 'ACTIVE'",
+                        "ON CONFLICT (organization_id, user_id) DO UPDATE SET role = EXCLUDED.role, status = 'ACTIVE' " +
+                        "WHERE memberships.status = 'REVOKED'",
                 invitation.organizationId(), actor, invitation.role());
+        String role = jdbc.queryForObject("SELECT role FROM memberships WHERE organization_id = ? AND user_id = ?",
+                String.class, invitation.organizationId(), actor);
         audit.record(actor, invitation.organizationId(), "membership.accept", "invitation", invitation.id());
-        return new OrganizationMembership(invitation.organizationId(), invitation.slug(), invitation.name(), invitation.role());
+        return new OrganizationMembership(invitation.organizationId(), invitation.slug(), invitation.name(), role);
     }
 
     public List<Member> members(UUID organizationId) {
@@ -139,7 +156,7 @@ public class OrganizationService {
 
     @Transactional
     public void revoke(UUID organizationId, UUID userId) {
-        requireAdmin(organizationId);
+        lockOrganizationForAdmin(organizationId);
         UUID actor = identities.currentUserId();
         if (actor.equals(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot revoke yourself");
         List<String> roles = jdbc.query("SELECT role FROM memberships WHERE organization_id = ? AND user_id = ? " +
@@ -155,13 +172,35 @@ public class OrganizationService {
         audit.record(actor, organizationId, "membership.revoke", "user", userId);
     }
 
+    @Transactional
+    public Member changeRole(UUID organizationId, UUID userId, String role) {
+        lockOrganizationForAdmin(organizationId);
+        UUID actor = identities.currentUserId();
+        if (actor.equals(userId)) throw new ResponseStatusException(HttpStatus.CONFLICT, "You cannot change your own role.");
+        int updated = jdbc.update("UPDATE memberships SET role = ? WHERE organization_id = ? AND user_id = ? " +
+                "AND status = 'ACTIVE'", role, organizationId, userId);
+        if (updated != 1) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Active member not found.");
+        audit.record(actor, organizationId, "membership.role_change", "user", userId);
+        return jdbc.queryForObject("SELECT u.id, u.email, u.display_name, m.role, m.status FROM memberships m " +
+                        "JOIN users u ON u.id = m.user_id WHERE m.organization_id = ? AND m.user_id = ?",
+                (rs, row) -> new Member(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getString(5)), organizationId, userId);
+    }
+
+    private void lockOrganizationForAdmin(UUID organizationId) {
+        requireAdmin(organizationId);
+        jdbc.queryForObject("SELECT id FROM organizations WHERE id = ? FOR NO KEY UPDATE", UUID.class, organizationId);
+        requireAdmin(organizationId);
+    }
+
     public List<AuditEvent> recentAudit(UUID organizationId) {
         requireAdmin(organizationId);
-        return jdbc.query("SELECT id, actor_user_id, action, target_type, target_id, created_at FROM audit_events " +
-                        "WHERE organization_id = ? ORDER BY created_at DESC LIMIT 100",
+        return jdbc.query("SELECT a.id, a.actor_user_id, a.action, a.target_type, a.target_id, a.created_at, u.display_name " +
+                        "FROM audit_events a LEFT JOIN users u ON u.id = a.actor_user_id " +
+                        "WHERE a.organization_id = ? ORDER BY a.created_at DESC, a.id DESC LIMIT 100",
                 (rs, row) -> new AuditEvent(rs.getObject("id", UUID.class), rs.getObject("actor_user_id", UUID.class),
                         rs.getString("action"), rs.getString("target_type"), rs.getObject("target_id", UUID.class),
-                        rs.getTimestamp("created_at").toInstant()), organizationId);
+                        rs.getTimestamp("created_at").toInstant(), rs.getString("display_name")), organizationId);
     }
 
     public Policy policy(UUID organizationId) {
@@ -186,7 +225,7 @@ public class OrganizationService {
     public record OrganizationMembership(UUID organizationId, String slug, String name, String role) {}
     public record Invitation(UUID id, String email, String role, Instant expiresAt) {}
     public record Member(UUID id, String email, String displayName, String role, String status) {}
-    public record AuditEvent(UUID id, UUID actorUserId, String action, String targetType, UUID targetId, Instant createdAt) {}
+    public record AuditEvent(UUID id, UUID actorUserId, String action, String targetType, UUID targetId, Instant createdAt, String actorName) {}
     private record PendingInvitation(UUID id, UUID organizationId, String email, String role, Instant expiresAt,
                                      boolean accepted, String slug, String name) {}
 }

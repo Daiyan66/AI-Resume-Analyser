@@ -23,6 +23,8 @@ services:
       DATABASE_PASSWORD: ats_local_only
       SMTP_HOST: mailpit
       SMTP_PORT: 1025
+      APPLICATION_EMAIL_ENABLED: "true"
+      ORGANIZATION_BOOTSTRAP_ADMIN_EMAILS: ${ORGANIZATION_BOOTSTRAP_ADMIN_EMAILS:-}
       APP_PUBLIC_URL: http://localhost:5174
       MAIL_FROM: ats@example.test
       DOCUMENT_DIR: /data/documents

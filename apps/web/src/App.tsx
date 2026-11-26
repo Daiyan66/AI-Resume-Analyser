@@ -1,95 +1,173 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Account, type AuditEvent, type Document, type Member, type Organization,
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
+import { api, type Account, type Page, type AuditEvent, type Document, type Member, type Organization,
   type OrganizationPolicy } from './api'
+import { AuditPage, CreateOrganizationPage, HiringPoliciesPage, OrganizationRecruitersPage, OrganizationsPage, TeamPage } from './AdminPages'
 import { CandidateWorkspace } from './CandidateWorkspace'
-import { JobPublisher } from './JobPublisher'
-import './App.css'
+import { PostedJobsPage } from './PostedJobsPage'
+import { PostJobPage } from './PostJobPage'
+import { RecruiterApplicationsPage } from './RecruiterApplicationsPage'
+import { RecruiterNotificationsPage } from './RecruiterNotificationsPage'
+import { BatchScreeningPage } from './BatchScreeningPage'
+import { HiringHubPage } from './HiringHubPage'
+import { TeamChatPage } from './TeamChatPage'
+import { ConnectedAuthCard, ConnectedLayout } from './ConnectedLayout'
 
-type ApiStatus = 'checking' | 'ready' | 'unavailable'
-type View = 'home' | 'candidate' | 'recruiter' | 'admin' | 'documents'
-
-function currentView(): View {
-  const value = window.location.hash.slice(1)
-  return ['home', 'candidate', 'recruiter', 'admin', 'documents'].includes(value) ? value as View : 'home'
-}
-
-async function getApiStatus(): Promise<ApiStatus> {
-  try {
-    const result = await api<{ status: string }>('/system/status')
-    return result.status === 'ready' ? 'ready' : 'unavailable'
-  } catch {
-    return 'unavailable'
-  }
-}
+import { currentView, firstName, isCandidateSection, isCandidateView, staffRoute, directoryHref, workspaceHref, viewTitles, workspaceMenus,
+  type View, type WorkspaceRole } from './workspaceNavigation'
+import { WorkspaceDashboard } from './WorkspaceDashboard'
 
 function App() {
-  const [status, setStatus] = useState<ApiStatus>('checking')
-  const [view, setView] = useState<View>(currentView)
+  const [sessionLoading, setSessionLoading] = useState(true)
+  const [fragment, setFragment] = useState(() => window.location.hash)
+  const view = currentView(fragment)
+  const jobId = new URLSearchParams(fragment.split('?')[1]).get('job')
   const [account, setAccount] = useState<Account | null>(null)
+  const [workspaceLoading, setWorkspaceLoading] = useState(false)
+  const [canCreateOrganizations, setCanCreateOrganizations] = useState(false)
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [selectedOrgId, setSelectedOrgId] = useState('')
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<Member[]>()
   const [audit, setAudit] = useState<AuditEvent[]>([])
   const [policy, setPolicy] = useState<OrganizationPolicy | null>(null)
   const [documents, setDocuments] = useState<Document[]>([])
-  const [jobsVersion, setJobsVersion] = useState(0)
-  const [mode, setMode] = useState<'login' | 'register'>('login')
+  const [mode, setMode] = useState<'login' | 'register'>(()=>new URLSearchParams(location.search).get('mode') === 'register' ? 'register' : 'login')
   const [resendEmail, setResendEmail] = useState('')
   const [inviteToken, setInviteToken] = useState(new URLSearchParams(window.location.search).get('token'))
   const [verifyToken, setVerifyToken] = useState(new URLSearchParams(window.location.search).get('verify'))
+  const verificationStarted = useRef(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
 
-  const selectedOrg = organizations.find((org) => org.organizationId === selectedOrgId)
+  const route = staffRoute(location.pathname)
+  const routeRole = route?.role
+  const role: WorkspaceRole = organizations.some(org => org.role === 'ADMIN') ? 'ADMIN' :
+    organizations.length ? 'RECRUITER' : canCreateOrganizations ? 'ADMIN' : 'CANDIDATE'
+  const roleOrganizations = organizations.filter(org => org.role === role)
+  const selectedOrg = roleOrganizations.find(org => org.organizationId === (route?.organizationId ?? selectedOrgId)) ??
+    (!route?.organizationId ? roleOrganizations[0] : undefined)
+  const orgId = selectedOrg?.organizationId
+  const directoryRecruiter = members?.find(member => member.id === route?.recruiterId &&
+    member.role === 'RECRUITER' && member.status === 'ACTIVE')
+  const adminOverview = view === 'organizations' || view === 'create-organization'
+  const staffView = workspaceMenus.ADMIN.includes(view) || workspaceMenus.RECRUITER.includes(view)
+  const unknownStaffPath = /^\/dashboard\/(admin|recruiter)(?:\/|$)/.test(location.pathname) && !route
+  const allowed = !unknownStaffPath && (view === 'home' || (route ? (role === route.role || role === 'ADMIN' && route.role === 'RECRUITER' && view !== 'batch-screening')
+    && (adminOverview || !!selectedOrg) : isCandidateView(view) ? role === 'CANDIDATE' || !account :
+      staffView && role === 'ADMIN' && (adminOverview || !!selectedOrg)))
+  const activeView = inviteToken && account ? 'invitation' : !allowed ? 'home' : view
+  const menu: View[] = role === 'ADMIN' && !orgId ? ['home', 'organizations', 'create-organization'] : workspaceMenus[role]
+  const dashboardView = activeView === 'home' || activeView === 'candidate-home'
+  const activeMenuView = dashboardView && role === 'CANDIDATE' ? 'candidate-home' :
+    route?.organizationId ? 'organizations' : activeView
+  const [unread, setUnread] = useState<{ path: string; found: boolean }>()
+  const [notificationRevision, setNotificationRevision] = useState(0)
+  const notificationsPath = !account ? '' : role === 'CANDIDATE' ? '/candidate/notifications?read=false&size=1' :
+    orgId ? `/organizations/${orgId}/recruiter-notifications?unread=true&size=1` : ''
 
   useEffect(() => {
-    const updateView = () => setView(currentView())
+    if (!notificationsPath) return
+    const controller = new AbortController()
+    let timer: number
+    async function check() {
+      try {
+        const data = await api<Page<unknown>>(notificationsPath, { signal: controller.signal })
+        if (!controller.signal.aborted) setUnread({ path: notificationsPath, found: data.total > 0 })
+      } catch {
+        // Retry during the next check.
+      } finally {
+        if (!controller.signal.aborted) timer = window.setTimeout(check, 5000)
+      }
+    }
+    void check()
+    return () => { controller.abort(); window.clearTimeout(timer) }
+  }, [notificationsPath, notificationRevision])
+
+  useEffect(() => {
+    if (!account || workspaceLoading || inviteToken || !allowed) return
+    if ((routeRole === 'RECRUITER' && role === 'ADMIN') || (!routeRole && role === 'ADMIN' && staffView && view !== 'home')) {
+      const next = workspaceHref(view, role)
+      if (!next.includes('#')) location.replace(next + location.search)
+    }
+  }, [account, workspaceLoading, inviteToken, allowed, role, routeRole, staffView, view])
+
+  useEffect(() => {
+    const updateView = () => {
+      setFragment(window.location.hash)
+      window.scrollTo(0, 0)
+    }
     window.addEventListener('hashchange', updateView)
     return () => window.removeEventListener('hashchange', updateView)
   }, [])
 
   useEffect(() => {
-    void getApiStatus().then(setStatus)
-    void api<Account | undefined>('/auth/session').then((current) => setAccount(current || null))
-      .catch(() => setAccount(null))
+    let active = true
+    void api<Account | undefined>('/auth/session')
+      .then(current => { if (active) { setWorkspaceLoading(!!current); setAccount(current ?? null) } })
+      .catch(() => { if (active) setError('Could not check your session. Check that the app server is running and try again.') })
+      .finally(() => { if (active) setSessionLoading(false) })
+    return () => { active = false }
   }, [])
 
   useEffect(() => {
-    if (!verifyToken) return
+    if (!verifyToken || verificationStarted.current) return
+    verificationStarted.current = true
     void api('/auth/verify-email', { method: 'POST', body: JSON.stringify({ token: verifyToken }) })
       .then(() => {
         setVerifyToken(null)
-        window.history.replaceState({}, '', '/connected')
+        window.history.replaceState({}, '', '/dashboard')
+        setFragment('')
         setNotice('Email verified. You can sign in now.')
       })
-      .catch((cause: unknown) => setError(message(cause)))
-  }, [verifyToken])
+      .catch((cause: unknown) => {
+        setError(message(cause))
+        setVerifyToken(null)
+        window.history.replaceState({}, '', '/dashboard')
+      })
+  }, [verifyToken, setNotice])
 
   useEffect(() => {
     if (!account) return
-    void Promise.all([api<Organization[]>('/organizations'), api<Document[]>('/documents')])
-      .then(([orgs, docs]) => {
+    let active = true
+    void Promise.all([api<{ account: Account; organizations: Organization[]; canCreateOrganizations: boolean }>('/me/workspaces'), api<Document[]>('/documents')])
+      .then(([workspace, docs]) => {
+        if (!active) return
+        setCanCreateOrganizations(workspace.canCreateOrganizations)
+        const orgs = workspace.organizations
         setOrganizations(orgs)
         setDocuments(docs)
-        setSelectedOrgId((current) => orgs.some((org) => org.organizationId === current)
-          ? current : (orgs[0]?.organizationId || ''))
+        setSelectedOrgId(sessionStorage.getItem(`active-organization-${account.id}`) ?? '')
       })
-      .catch((cause: unknown) => setError(message(cause)))
+      .catch((cause: unknown) => { if (active) setError(message(cause)) })
+      .finally(() => { if (active) setWorkspaceLoading(false) })
+    return () => { active = false }
   }, [account])
 
+  function selectOrganization(id: string) {
+    if (!account) return
+    sessionStorage.setItem(`active-organization-${account.id}`, id)
+    location.assign(route?.organizationId ? workspaceHref('organizations', 'ADMIN') : location.pathname)
+  }
+
   useEffect(() => {
-    if (!selectedOrgId || selectedOrg?.role !== 'ADMIN') return
-    void Promise.all([
-      api<Member[]>(`/organizations/${selectedOrgId}/members`),
-      api<AuditEvent[]>(`/organizations/${selectedOrgId}/audit`),
-      api<OrganizationPolicy>(`/organizations/${selectedOrgId}/policy`),
-    ]).then(([nextMembers, nextAudit, nextPolicy]) => {
-      setMembers(nextMembers)
-      setAudit(nextAudit)
-      setPolicy(nextPolicy)
-    }).catch((cause: unknown) => setError(message(cause)))
-  }, [selectedOrgId, selectedOrg?.role])
+    if (!orgId || role !== 'ADMIN') return
+    const controller = new AbortController()
+    const options = { signal: controller.signal }
+    const base = `/organizations/${orgId}`
+    const reportError = (cause: unknown) => { if (!controller.signal.aborted) setError(message(cause)) }
+    if (['home', 'admin', 'posted-jobs', 'recruiter-applications', 'hired-candidates',
+      'organization-recruiters', 'organization-recruiter-jobs', 'organization-job-hires'].includes(activeView)) {
+      void api<Member[]>(`${base}/members`, options).then(setMembers).catch(reportError)
+    }
+    if (activeView === 'home' || activeView === 'audit') {
+      void api<AuditEvent[]>(`${base}/audit`, options).then(setAudit).catch(reportError)
+    }
+    if (activeView === 'policy') {
+      void api<OrganizationPolicy>(`${base}/policy`, options).then(setPolicy).catch(reportError)
+    }
+    return () => controller.abort()
+  }, [activeView, orgId, role])
 
   async function run(action: () => Promise<void>) {
     setBusy(true)
@@ -115,12 +193,13 @@ function App() {
         await api<Account>('/auth/register', { method: 'POST', body: JSON.stringify({ email, password, displayName }) })
         setResendEmail(email)
         setMode('login')
-        setNotice('Account created. Open the verification email in Mailpit at localhost:8025, then sign in.')
+        setNotice('Account created. Open the verification email, then sign in.')
         return
       }
       const signedIn = await api<Account>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) })
+      setWorkspaceLoading(true)
       setAccount(signedIn)
-      setNotice(`Signed in as ${signedIn.displayName}`)
+
     })
   }
 
@@ -128,22 +207,19 @@ function App() {
     event.preventDefault()
     void run(async () => {
       await api('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ email: resendEmail }) })
-      setNotice('If this account is waiting for verification, a new email was sent. Check Mailpit at localhost:8025.')
+      setNotice('If this account is waiting for verification, a new email was sent. Check your inbox.')
     })
   }
 
   function createOrganization(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = event.currentTarget
     const fields = new FormData(event.currentTarget)
     const name = String(fields.get('name') || '')
     const slug = String(fields.get('slug') || '')
     void run(async () => {
       const created = await api<Organization>('/organizations', { method: 'POST', body: JSON.stringify({ name, slug }) })
-      setOrganizations((current) => [...current, created])
-      setSelectedOrgId(created.organizationId)
-      setNotice(`${created.name} created. You are its Admin.`)
-      form.reset()
+      if (account) sessionStorage.setItem(`active-organization-${account.id}`, created.organizationId)
+      location.assign(directoryHref(created.organizationId))
     })
   }
 
@@ -158,9 +234,8 @@ function App() {
       await api(`/organizations/${selectedOrg.organizationId}/invitations`, {
         method: 'POST', body: JSON.stringify({ email, role }),
       })
-      setNotice(`Invitation sent to ${email}. Open Mailpit at localhost:8025 to see it locally.`)
+      setNotice(`Invitation sent to ${email}.`)
       form.reset()
-      setAudit(await api<AuditEvent[]>(`/organizations/${selectedOrg.organizationId}/audit`))
     })
   }
 
@@ -171,9 +246,14 @@ function App() {
         method: 'POST', body: JSON.stringify({ token: inviteToken }),
       })
       setInviteToken(null)
-      window.history.replaceState({}, '', '/connected')
+      window.history.replaceState({}, '', '/dashboard')
       setOrganizations((current) => [...current.filter((org) => org.organizationId !== joined.organizationId), joined])
+      if (account) sessionStorage.setItem(`active-organization-${account.id}`, joined.organizationId)
       setSelectedOrgId(joined.organizationId)
+      setMembers(undefined)
+      setAudit([])
+      setPolicy(null)
+      setFragment('')
       setNotice(`You joined ${joined.name} as ${joined.role}.`)
     })
   }
@@ -195,7 +275,6 @@ function App() {
     void run(async () => {
       await api(`/organizations/${selectedOrg.organizationId}/members/${member.id}`, { method: 'DELETE' })
       setMembers(await api<Member[]>(`/organizations/${selectedOrg.organizationId}/members`))
-      setAudit(await api<AuditEvent[]>(`/organizations/${selectedOrg.organizationId}/audit`))
       setNotice(`${member.displayName}'s access was revoked.`)
     })
   }
@@ -217,133 +296,120 @@ function App() {
     void run(async () => {
       await api('/auth/logout', { method: 'POST' })
       setAccount(null)
+      setWorkspaceLoading(false)
       setOrganizations([])
+      setUnread(undefined)
+      setPolicy(null)
       setDocuments([])
-      setMembers([])
+      setMembers(undefined)
       setAudit([])
-      setNotice('Signed out.')
+      setFragment('')
+      if (!inviteToken) window.history.replaceState({}, '', '/dashboard')
+      setCanCreateOrganizations(false)
     })
   }
 
+  if (sessionLoading || workspaceLoading) return <ConnectedLayout><main className="pv-main" aria-busy="true"><p role="status">Opening your workspace…</p></main></ConnectedLayout>
+
+  if (!account && (view !== 'candidate' || inviteToken || verifyToken || error || notice)) {
+    const registering = mode === 'register'
+    return <ConnectedAuthCard title={registering ? 'Create your account' : 'Sign in to your workspace'}
+      description={registering ? 'Set up a candidate account or accept an invitation from a hiring team.' :
+        'Use your account to track applications, review candidates, or manage hiring access.'}
+      actions={<button type="button" className="pv-button" onClick={() => {setError('');setNotice('');setMode(registering ? 'login' : 'register')}}>
+        {registering ? 'Sign in' : 'Create account'}
+      </button>}>
+      {error && <p className="alert error" role="alert">{error}</p>}
+      {notice && <p className="alert success" role="status">{notice}</p>}
+      {inviteToken && <p>Use the email address where you received the invitation.</p>}
+      {verifyToken && <p role="status">Verifying your email…</p>}
+      <form key={mode} onSubmit={submitAccount}>
+        {registering && <label>Display name<input name="displayName" maxLength={160} required autoComplete="name" /></label>}
+        <label>Email<input name="email" type="email" defaultValue={resendEmail} required autoComplete="email" /></label>
+        <label>Password<input name="password" type="password" minLength={registering ? 12 : undefined}
+          maxLength={registering ? 72 : undefined} required
+          aria-describedby={registering ? 'password-hint' : undefined}
+          autoComplete={registering ? 'new-password' : 'current-password'} />
+          {registering && <small id="password-hint">Use at least 12 characters. The limit is 72 bytes.</small>}</label>
+        <button type="submit" className="pv-button primary" disabled={busy}>
+          {busy ? 'Please wait…' : registering ? 'Create account' : 'Sign in'}
+        </button>
+      </form>
+      {!registering && <div className="live-auth-links">
+        <a href="/dashboard/password-recovery">Forgot your password?</a>
+        <details><summary>Resend verification email</summary><form onSubmit={resendVerification}>
+          <label>Account email<input type="email" required value={resendEmail} onChange={event => setResendEmail(event.target.value)} /></label>
+          <button type="submit" className="pv-button" disabled={busy}>Send verification email</button>
+        </form></details>
+      </div>}
+    </ConnectedAuthCard>
+  }
+
   return (
-    <main className="page">
-      <div className="shell">
-        <header className="topbar">
-          <span className="eyebrow">AI Resume Analyser</span>
-          {account && <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out</button>}
-        </header>
-        <nav className="main-nav" aria-label="Main navigation">
-          {([['home', 'Overview'], ['candidate', 'Find jobs & applications'],
-            ...(selectedOrg ? [['recruiter', 'Recruiter workspace']] : []),
-            ...(selectedOrg?.role === 'ADMIN' ? [['admin', 'Admin workspace']] : []),
-            ...(account ? [['documents', 'My documents']] : [])] as [View, string][]).map(([target, label]) =>
-            <a key={target} href={`#${target}`} aria-current={view === target ? 'page' : undefined}>{label}</a>)}
-        </nav>
-        {view === 'home' && <><h1>A clearer hiring experience starts here.</h1>
-          <p className="intro">Find jobs, apply, and track progress. Hiring teams have their own workspace for reviewing applications.</p></>}
-        {view !== 'home' && <h1>{({ candidate: 'Find jobs & applications', recruiter: 'Recruiter workspace',
-          admin: 'Admin workspace', documents: 'My documents' } as Record<string, string>)[view]}</h1>}
-        {view === 'home' &&
-        <section className="status-card" aria-labelledby="status-heading">
-          <div>
-            <h2 id="status-heading">System connection</h2>
-            <p aria-live="polite" className={`status status-${status}`}>
-              {status === 'checking' && 'Checking the API and database…'}
-              {status === 'ready' && 'Ready · API and database are connected'}
-              {status === 'unavailable' && 'Unavailable · Start the API and database, then try again'}
-            </p>
+    <ConnectedLayout workspace={!!account} actions={!account && <a className="pv-button" href="/dashboard">Sign in</a>}>
+      <div className="pv-body">
+        <aside className="pv-sidebar">
+          <div className="pv-org live-sidebar-name"><strong>{account ? firstName(account.displayName) : 'Public job board'}</strong></div>
+          {role !== 'CANDIDATE' && selectedOrg && <div className="recruiter-organization">
+            {roleOrganizations.length > 1 ? <label>Organization<select aria-label="Organization" value={selectedOrg.organizationId}
+              onChange={event => selectOrganization(event.target.value)}>
+              {roleOrganizations.map(org => <option key={org.organizationId} value={org.organizationId}>{org.name} · {org.role}</option>)}
+            </select></label> : <span>{selectedOrg.name}</span>}
+          </div>}
+          <nav aria-label="Workspace navigation">
+            {(account ? menu : ['candidate'] as View[]).map(target => {
+              const badge = (target === 'updates' || target === 'recruiter-notifications') &&
+                unread?.path === notificationsPath && unread.found
+              return <a className="pv-nav-item" key={target} href={workspaceHref(target, role)}
+                aria-current={activeMenuView === target ? 'page' : undefined}
+                aria-description={badge ? 'Unread notifications' : undefined}>
+                {target === 'home' || target === 'candidate-home' ? 'Dashboard' : target === 'profile' ? 'Profile' : viewTitles[target]}
+                {badge && <span className="sidebar-unread" aria-hidden="true" />}
+              </a>
+            })}
+          </nav>
+          {account && <div className="pv-sidebar-bottom">
+            <button type="button" className="pv-button" onClick={signOut} disabled={busy}>Sign out</button>
+          </div>}
+        </aside>
+        <main className="pv-main">
+          <div className="pv-page-heading">
+            <h1>{dashboardView && account ? `Welcome, ${firstName(account.displayName)}` : viewTitles[activeView]}</h1>
           </div>
-          <button type="button" onClick={() => { setStatus('checking'); void getApiStatus().then(setStatus) }}
-            disabled={status === 'checking'}>Check again</button>
-        </section>}
-
-        {error && <p className="alert error" role="alert">{error}</p>}
-        {notice && <p className="alert success" role="status">{notice}</p>}
-
-        {!account ? (
-          <section className="panel narrow" aria-labelledby="account-heading">
-            <div className="section-heading">
-              <h2 id="account-heading">{mode === 'login' ? 'Sign in' : 'Create an account'}</h2>
-              <button type="button" className="text-button" onClick={() => setMode(mode === 'login' ? 'register' : 'login')}>
-                {mode === 'login' ? 'Create an account' : 'I have an account'}
-              </button>
+          {error && <p className="alert error" role="alert">{error}</p>}
+          {notice && <p className="alert success" role="status">{notice}</p>}
+          {!allowed && <p className="alert error" role="alert">This workspace page is unavailable for your active organization role.</p>}
+          {account && dashboardView && <WorkspaceDashboard role={role} accountId={account.id} members={members ?? []}
+            audit={audit} organization={role === 'CANDIDATE' ? undefined : selectedOrg} />}
+          {account && activeView === 'invitation' && <section className="panel" aria-label="Accept invitation">
+            <p>Invitations can only be accepted by the email they were sent to. You are signed in as {account.email}.</p>
+            <div className="action-row">
+              <button type="button" onClick={acceptInvitation} disabled={busy}>Accept invitation</button>
+              <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out to switch account</button>
             </div>
-            {inviteToken && <p>Sign in or register with the email that received the invitation. You can accept it afterward.</p>}
-            {verifyToken && <p>Checking your email verification link…</p>}
-            <form onSubmit={submitAccount}>
-              {mode === 'register' && <label>Display name<input name="displayName" maxLength={160} required autoComplete="name" /></label>}
-              <label>Email<input name="email" type="email" required autoComplete="email" /></label>
-              <label>Password<input name="password" type="password" minLength={mode === 'register' ? 12 : undefined}
-                maxLength={mode === 'register' ? 128 : undefined} required
-                aria-describedby={mode === 'register' ? 'password-hint' : undefined}
-                autoComplete={mode === 'register' ? 'new-password' : 'current-password'} />
-                {mode === 'register' && <small id="password-hint">Use 12 to 128 characters.</small>}</label>
-              <button type="submit" disabled={busy}>{mode === 'login' ? 'Sign in' : 'Create account'}</button>
-            </form>
-            {mode === 'login' && <form onSubmit={resendVerification}>
-              <h3>Need a new verification email?</h3>
-              <label>Account email<input type="email" required value={resendEmail}
-                onChange={(event) => setResendEmail(event.target.value)} /></label>
-              <button type="submit" className="quiet" disabled={busy}>Resend verification email</button>
-            </form>}
-          </section>
-        ) : (
-          <div className="workspace">
-            {view === 'home' &&
-            <section className="panel" aria-labelledby="account-heading">
-              <div className="section-heading"><h2 id="account-heading">Welcome, {account.displayName}</h2><span>{account.email}</span></div>
-              {inviteToken && <div className="invite-banner">
-                <p>Invitations can only be accepted by the email they were sent to. You are signed in as {account.email}.</p>
-                <button type="button" onClick={acceptInvitation} disabled={busy}>Accept invitation</button>{' '}
-                <button type="button" className="quiet" onClick={signOut} disabled={busy}>Sign out to switch account</button>
-              </div>}
-              <h3>Your organizations</h3>
-              {organizations.length === 0 ? <p>You have not joined an organization yet. You can create one below or accept an invitation.</p> : (
-                <label>Active organization<select value={selectedOrgId} onChange={(event) => setSelectedOrgId(event.target.value)}>
-                  {organizations.map((org) => <option key={org.organizationId} value={org.organizationId}>
-                    {org.name} · {org.role}
-                  </option>)}
-                </select></label>
-              )}
-              <form className="inline-form" onSubmit={createOrganization}>
-                <label>Organization name<input name="name" placeholder="Example Hiring Team" required maxLength={200} /></label>
-                <label>URL slug<input name="slug" placeholder="example-hiring-team" pattern="[a-z0-9]+(-[a-z0-9]+)*" required maxLength={80} /></label>
-                <button type="submit" disabled={busy}>Create organization</button>
-              </form>
-            </section>}
-
-            {view === 'admin' && selectedOrg?.role === 'ADMIN' && <section className="panel" aria-labelledby="members-heading">
-              <h2 id="members-heading">Manage {selectedOrg.name}</h2>
-              {policy && <form key={selectedOrg.organizationId} onSubmit={savePolicy}>
-                <h3>Organization policy</h3>
-                <div className="field-grid">
-                  <label>Days before a candidate can reapply to the same job<input name="reapplyCooldownDays"
-                    type="number" min="0" max="365" required defaultValue={policy.reapplyCooldownDays} /></label>
-                  <label>Retention review period (days)<input name="retentionDays" type="number" min="30" max="3650"
-                    required defaultValue={policy.retentionDays} /></label>
-                </div>
-                <label><input name="aiEnabled" type="checkbox" defaultChecked={policy.aiEnabled} /> Allow AI assistance for this organization</label>
-                <p>The retention period is a policy record. Deletion requests still require human review; data is never erased automatically.</p>
-                <button type="submit" disabled={busy}>Save policy</button>
-              </form>}
-              <form className="inline-form" onSubmit={inviteMember}>
-                <label>Invite email<input name="email" type="email" required /></label>
-                <label>Role<select name="role"><option value="RECRUITER">Recruiter</option><option value="ADMIN">Admin</option></select></label>
-                <button type="submit" disabled={busy}>Send invitation</button>
-              </form>
-              <h3>Members</h3>
-              <ul className="list">{members.map((member) => <li key={member.id}>
-                <span>{member.displayName} · {member.email} · {member.role} · {member.status}</span>
-                {member.id !== account.id && member.status === 'ACTIVE' &&
-                  <button type="button" className="quiet" onClick={() => revokeMember(member)} disabled={busy}>Revoke</button>}
-              </li>)}</ul>
-              <h3>Recent access changes</h3>
-              <ul className="list">{audit.slice(0, 8).map((event) => <li key={event.id}>
-                {event.action} · {event.targetType} · {new Date(event.createdAt).toLocaleString()}
-              </li>)}</ul>
-            </section>}
-
-            {view === 'documents' && <section className="panel" aria-labelledby="documents-heading">
+          </section>}
+          {role === 'ADMIN' && activeView === 'create-organization' && canCreateOrganizations &&
+            <CreateOrganizationPage busy={busy} onCreate={createOrganization} />}
+          {role === 'ADMIN' && activeView === 'organizations' && <OrganizationsPage organizations={roleOrganizations} />}
+          {selectedOrg && account && activeView === 'admin' && <TeamPage organization={selectedOrg} accountId={account.id}
+            members={members} busy={busy} onInvite={inviteMember} onRevoke={revokeMember} />}
+          {selectedOrg && activeView === 'policy' && <HiringPoliciesPage organization={selectedOrg} policy={policy} busy={busy} onSave={savePolicy} />}
+          {selectedOrg && activeView === 'audit' && <AuditPage organization={selectedOrg} audit={audit} />}
+          {selectedOrg && account && route?.organizationId && route.view === activeView && <>
+            <nav aria-label="Organization directory" className="action-row">
+              <a href={workspaceHref('organizations', 'ADMIN')}>Organizations</a>
+              {route.recruiterId && <a href={directoryHref(selectedOrg.organizationId)}>{selectedOrg.name}</a>}
+              {route.jobId && directoryRecruiter &&
+                <a href={directoryHref(selectedOrg.organizationId, directoryRecruiter.id)}>{directoryRecruiter.displayName}’s jobs</a>}
+            </nav>
+            {activeView === 'organization-recruiters' ? <OrganizationRecruitersPage organization={selectedOrg} members={members} /> :
+              !members ? <p role="status">Loading recruiter…</p> : !directoryRecruiter ?
+                <p role="alert">This recruiter is unavailable in the organization.</p> : route.jobId ?
+                  <RecruiterApplicationsPage organization={selectedOrg} accountId={account.id} hires
+                    directory={{ recruiter: directoryRecruiter, jobId: route.jobId }} /> :
+                  <PostedJobsPage organization={selectedOrg} directoryRecruiter={directoryRecruiter} />}
+          </>}
+            {account && activeView === 'documents' && <section className="panel" aria-labelledby="documents-heading">
               <h2 id="documents-heading">Your private documents</h2>
               <p>Documents here belong to your account. Organization members cannot download them from this page.</p>
               <form className="inline-form" onSubmit={uploadDocument}>
@@ -355,14 +421,22 @@ function App() {
                 <a href={`/api/v1/documents/${document.id}`}>Download</a>
               </li>)}</ul>
             </section>}
-          </div>
-        )}
-        {view === 'recruiter' && selectedOrg && <JobPublisher key={selectedOrg.organizationId} organization={selectedOrg}
-          onPublished={() => setJobsVersion((current) => current + 1)} />}
-        {view === 'candidate' && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents} jobsVersion={jobsVersion}
+        {selectedOrg && activeView === 'posted-jobs' && <PostedJobsPage key={selectedOrg.organizationId} organization={selectedOrg} members={members} />}
+        {selectedOrg && activeView === 'post-job' && <PostJobPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && account && activeView === 'recruiter-applications' && <RecruiterApplicationsPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} members={members} />}
+        {selectedOrg && account && activeView === 'hired-candidates' && <RecruiterApplicationsPage key={selectedOrg.organizationId + ':hires'} organization={selectedOrg} accountId={account.id} members={members} hires />}
+        {selectedOrg && activeView === 'recruiter-notifications' && <RecruiterNotificationsPage key={selectedOrg.organizationId} organization={selectedOrg} onRead={() => setNotificationRevision(value => value + 1)} />}
+        {selectedOrg && activeView === 'batch-screening' && <BatchScreeningPage key={selectedOrg.organizationId} organization={selectedOrg} />}
+        {selectedOrg && account && activeView === 'team-chat' && <TeamChatPage key={selectedOrg.organizationId} organization={selectedOrg} accountId={account.id} />}
+        {account && activeView === 'candidate-assessment-interview' && <HiringHubPage accountId={account.id} documents={documents} />}
+        {account && selectedOrg && activeView === 'staff-assessment-interview' &&
+          <HiringHubPage accountId={account.id} key={selectedOrg.organizationId} organization={selectedOrg} documents={[]} />}
+        {isCandidateSection(activeView) && <CandidateWorkspace key={account?.id || 'guest'} account={account} documents={documents}
+          section={activeView} jobId={jobId} onNotificationRead={() => setNotificationRevision(value => value + 1)} onDocumentAdded={(document) => setDocuments(current => [document, ...current])}
           onSignIn={() => { window.location.hash = 'home' }} />}
+        </main>
       </div>
-    </main>
+    </ConnectedLayout>
   )
 }
 

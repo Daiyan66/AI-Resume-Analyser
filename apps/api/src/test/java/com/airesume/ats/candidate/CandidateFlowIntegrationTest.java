@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -41,6 +42,7 @@ class CandidateFlowIntegrationTest {
         MockHttpSession admin = account("admin");
         MockHttpSession candidate = account("candidate");
         MockHttpSession other = account("other");
+        OrganizationTestAccess.provisionExistingAdmin(jdbc, admin);
         String orgId = id(mvc.perform(post("/api/v1/organizations").session(admin).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("name", "Candidate Flow Test", "slug", "candidate-" + UUID.randomUUID()))))
@@ -111,6 +113,16 @@ class CandidateFlowIntegrationTest {
                 .andExpect(status().isNotFound());
         mvc.perform(post("/api/v1/candidate/applications/{id}/withdraw", applicationId).session(candidate).with(csrf()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.events.length()").value(2));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "WITHDRAWN").session(candidate))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(applicationId));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "SUBMITTED").session(candidate))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.items").isEmpty());
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "WITHDRAWN").session(other))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/candidate/applications").param("status", "UNKNOWN").session(candidate))
+                .andExpect(status().isBadRequest());
         mvc.perform(get("/api/v1/organizations/{id}/policy", orgId).session(candidate))
                 .andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/organizations/{id}/policy", orgId).session(admin).with(csrf())

@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.airesume.ats.identity.OrganizationTestAccess;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -43,9 +44,13 @@ class RecruiterFlowIntegrationTest {
         Account owner = account("owner");
         Account candidate = account("candidate");
         Account outsider = account("outsider");
+        OrganizationTestAccess.provisionExistingAdmin(jdbc, owner.session());
         String organizationId = id(mvc.perform(post("/api/v1/organizations").session(owner.session()).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("name", "Recruiter Test",
                         "slug", "recruiter-" + UUID.randomUUID())))).andExpect(status().isCreated()).andReturn(), "organizationId");
+        var publisher = account("publisher");
+        jdbc.update("INSERT INTO memberships (organization_id, user_id, role) VALUES (?, ?, 'RECRUITER')",
+                UUID.fromString(organizationId), publisher.id());
         String jobId = id(mvc.perform(post("/api/v1/organizations/{id}/jobs", organizationId)
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Draft")))
                 .andExpect(status().isCreated()).andReturn(), "id");
@@ -53,7 +58,13 @@ class RecruiterFlowIntegrationTest {
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Final")))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Final"));
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/publish", organizationId, jobId)
-                .session(owner.session()).with(csrf())).andExpect(status().isOk());
+                .session(publisher.session()).with(csrf())).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", publisher.id().toString())
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.items[0].id").value(jobId));
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", owner.id().toString())
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
+        mvc.perform(get("/api/v1/organizations/{orgId}/jobs", organizationId).param("recruiterId", publisher.id().toString())
+                .session(publisher.session())).andExpect(status().isForbidden());
         mvc.perform(put("/api/v1/organizations/{orgId}/jobs/{jobId}", organizationId, jobId)
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON).content(jobBody("Too late")))
                 .andExpect(status().isConflict());
@@ -93,6 +104,13 @@ class RecruiterFlowIntegrationTest {
                 organizationId, jobId, applicationId).session(outsider.session())).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/organizations/{orgId}/jobs/{jobId}/applications/{appId}/document",
                 organizationId, jobId, applicationId).session(owner.session())).andExpect(status().isOk());
+        String previewPath = "/api/v1/organizations/{orgId}/jobs/{jobId}/applications/{appId}/resume-preview";
+        mvc.perform(get(previewPath, organizationId, jobId, applicationId).session(outsider.session()))
+                .andExpect(status().isForbidden());
+        var preview = mvc.perform(get(previewPath, organizationId, jobId, applicationId).session(publisher.session()))
+                .andExpect(status().isOk()).andReturn().getResponse();
+        assertThat(preview.getContentAsString()).isEqualTo("candidate resume");
+        assertThat(preview.getHeader("Content-Disposition")).isNull();
         mvc.perform(get("/api/v1/organizations/{orgId}/jobs/{jobId}/applications", organizationId, jobId)
                 .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1));
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/applications/{appId}/decisions",
@@ -134,6 +152,11 @@ class RecruiterFlowIntegrationTest {
                 .session(candidate.session()).with(csrf())).andExpect(status().isOk())
                 .andExpect(jsonPath("$.read").value(true));
 
+        mvc.perform(post("/api/v1/candidate/applications").session(candidate.session()).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("jobId", jobId))))
+                .andExpect(status().isConflict());
+        jdbc.update("UPDATE application_events SET created_at = CURRENT_TIMESTAMP - INTERVAL '91 days' " +
+                "WHERE application_id = ? AND status = 'NOT_SELECTED'", UUID.fromString(applicationId));
         String secondApplicationId = id(mvc.perform(post("/api/v1/candidate/applications")
                 .session(candidate.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("jobId", jobId, "answers", Map.of()))))
@@ -153,14 +176,39 @@ class RecruiterFlowIntegrationTest {
                 organizationId, jobId, secondApplicationId).session(owner.session()).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("outcome", "HIRED",
                         "reason", "Private hiring decision reason")))).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/organizations/{orgId}/applications", organizationId).param("status", "HIRED")
+                .param("recruiterId", publisher.id().toString()).param("hiredBy", owner.id().toString()).session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.items[0].id").value(secondApplicationId))
+                .andExpect(jsonPath("$.items[0].hiredAt").isNotEmpty());
+        mvc.perform(get("/api/v1/organizations/{orgId}/applications", organizationId).param("status", "HIRED")
+                .param("recruiterId", publisher.id().toString()).param("hiredBy", publisher.id().toString()).session(owner.session()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.total").value(0));
         mvc.perform(get("/api/v1/candidate/applications/{id}", secondApplicationId).session(candidate.session()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("HIRED"));
+        Account rejectedCandidate = account("early-rejection");
+        mvc.perform(put("/api/v1/candidate/profile").session(rejectedCandidate.session()).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("headline", "Engineer", "location", "Remote",
+                        "phone", "", "summary", "Builds software", "skills", "Java", "experience", "Work",
+                        "education", "Degree")))).andExpect(status().isOk());
+        String rejectedId = id(mvc.perform(post("/api/v1/candidate/applications")
+                .session(rejectedCandidate.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
+                .content(body(Map.of("jobId", jobId, "answers", Map.of()))))
+                .andExpect(status().isCreated()).andReturn(), "id");
+        String rejectPath = "/api/v1/organizations/{orgId}/jobs/{jobId}/applications/{appId}/reject";
+        for (var actor : List.of(outsider, publisher)) {
+            mvc.perform(post(rejectPath, organizationId, jobId, rejectedId).session(actor.session()).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON).content(body(Map.of("reason", "Private early rejection reason"))))
+                    .andExpect(actor == outsider ? status().isForbidden() : status().isOk());
+        }
+        var rejected = mvc.perform(get("/api/v1/candidate/applications/{id}", rejectedId).session(rejectedCandidate.session()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("NOT_SELECTED")).andReturn();
+        assertThat(rejected.getResponse().getContentAsString()).doesNotContain("Private early rejection reason");
         mvc.perform(post("/api/v1/organizations/{orgId}/jobs/{jobId}/status", organizationId, jobId)
                 .session(owner.session()).with(csrf()).contentType(MediaType.APPLICATION_JSON)
                 .content(body(Map.of("status", "CLOSED")))).andExpect(status().isOk());
         mvc.perform(get("/api/v1/public/jobs/{id}", jobId)).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/organizations/{orgId}/jobs/{jobId}/applications", organizationId, jobId)
-                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(2));
+                .session(owner.session())).andExpect(status().isOk()).andExpect(jsonPath("$.total").value(3));
 
         jdbc.update("UPDATE memberships SET status = 'REVOKED' WHERE organization_id = ? AND user_id = ?",
                 UUID.fromString(organizationId), owner.id());

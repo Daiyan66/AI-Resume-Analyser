@@ -270,7 +270,7 @@ export default function Preview() {
       case 'privacy':return panel('Privacy in this preview',<><p>Sample profile data and workflow changes are stored in this browser. Files stay on your device and the preview stores their names only.</p><p>Use the candidate workspace for an example export or deletion review.</p><div className="pv-actions">{link('data','Candidate data controls')}{link('help','Contact help')}</div></>)
       case 'help':return <Form label="Preview support request" submit={()=>notify('This is a sample request preview. Nothing was sent.')}><p>Use the sample support form to review the interaction.</p><Field name="subject" label="Subject" required/><Field name="message" label="Message" area required/>{link('forgot','Reset password')}</Form>
       case 'states':return <Empty title="Page unavailable" detail="Check the address, or return to a workspace or the public site.">{link('home','Go home')}{link('help','Get help')}</Empty>
-      case 'operations':return panel('Preview status',<><p>The browser preview is ready. Use the connected app to check its API and database.</p><a className="pv-button" href="/connected">Open connected app</a></>)
+      case 'operations':return panel('Preview status',<><p>The browser preview is ready. Use the connected app to check its API and database.</p><a className="pv-button" href="/dashboard">Open connected app</a></>)
       case 'mobile':return panel('Responsive workspace',<><p>Resize the browser or open this preview on a phone. The workspace menu remains available above the content.</p>{link('account','Choose workspace')}</>)
       default:return <Empty title="Preview unavailable" detail="Open the screen directory to choose a different view."/>
     }
@@ -281,7 +281,11 @@ export default function Preview() {
     <a href="#preview-content" className="pv-skip" onClick={e=>{e.preventDefault();document.getElementById('preview-content')?.focus()}}>Skip to content</a>
     <header className="pv-header"><div className="pv-top">
       <Link go={go} id="home" className="pv-brand"><span className="pv-mark">A<span>.</span></span><span>AI Resume Analyser</span></Link>
-      <nav aria-label="Top navigation"><a className="pv-top-link" href="/#how-it-works">How it works</a>{role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Sign in',undefined,'pv-button')}{!role&&link('register','Create account',undefined,'pv-button primary')}</nav>
+      <nav aria-label="Top navigation">
+        <a className="pv-top-link" href="/#how-it-works">How it works</a>
+        {id==='home'?<><a href="/dashboard" className="pv-button">Sign in</a><a href="/dashboard?mode=register" className="pv-button primary">Create account</a></>:
+          role?link('account',roleLabel[role]+' workspace',undefined,'pv-button'):link('login','Try a sample sign-in',undefined,'pv-button')}
+      </nav>
     </div></header>
     <div className="pv-body">
       {inWorkspace&&role&&<aside className="pv-sidebar"><div className="pv-org"><span className="pv-symbol">{data.organization.slice(0,2).toUpperCase()}</span><div><strong>{data.organization}</strong><small>{roleLabel[role]} workspace</small></div></div>
@@ -294,7 +298,7 @@ export default function Preview() {
         {denied?<Empty title={role?'Switch workspace to continue':'Sign in to continue'} detail={'This screen belongs to the '+roleLabel[required]+' workspace.'}>{act('Continue as '+roleLabel[required],()=>switchRole(required),true)}{link('login','Sign in options')}</Empty>:core()}
       </main>
     </div>
-    <footer className="pv-footer"><span>Interactive preview · Sample data</span><nav aria-label="Footer">{link('privacy','Privacy',undefined,'pv-top-link')}{link('help','Help',undefined,'pv-top-link')}{link('assistant','Assistant',undefined,'pv-top-link')}<details><summary>Screen directory</summary><div className="pv-directory">{screens.map(s=><Link key={s.id} go={go} id={s.id}>{s.title}</Link>)}</div></details><a href="/connected">Connected app</a></nav></footer>
+    <footer className="pv-footer"><span>Interactive preview · Sample data</span><nav aria-label="Footer">{link('privacy','Privacy',undefined,'pv-top-link')}{link('help','Help',undefined,'pv-top-link')}{link('assistant','Assistant',undefined,'pv-top-link')}<details><summary>Screen directory</summary><div className="pv-directory">{screens.map(s=><Link key={s.id} go={go} id={s.id}>{s.title}</Link>)}</div></details><a href="/dashboard">Open live workspace</a></nav></footer>
   </div>
 }
 const audiences = [

@@ -8,7 +8,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
-public record AppPrincipal(UUID id, String email, String passwordHash, boolean emailVerified) implements UserDetails, Serializable {
+public record AppPrincipal(UUID id, String email, String passwordHash, boolean emailVerified, long credentialVersion) implements UserDetails, Serializable {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_USER"));

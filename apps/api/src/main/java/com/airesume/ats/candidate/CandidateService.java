@@ -10,9 +10,13 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.dao.DuplicateKeyException;
@@ -74,21 +78,26 @@ public class CandidateService {
         }
         Integer cooldown = jdbc.queryForObject("SELECT reapply_cooldown_days FROM organization_policies " +
                 "WHERE organization_id = ?", Integer.class, job.organizationId());
-        if (cooldown != null && cooldown > 0) {
-            Integer recentClosure = jdbc.queryForObject("SELECT count(*) FROM applications a JOIN application_events e " +
-                    "ON e.application_id = a.id WHERE a.job_id = ? AND a.candidate_user_id = ? " +
-                    "AND e.status IN ('HIRED', 'NOT_SELECTED', 'WITHDRAWN') " +
-                    "AND e.created_at > CURRENT_TIMESTAMP - (? * INTERVAL '1 day')", Integer.class,
-                    jobId, candidateId, cooldown);
-            if (recentClosure != null && recentClosure > 0) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "This organization requires " + cooldown + " days before reapplying to this job.");
-            }
+        // Serialize against a concurrent decision on an existing application before checking its events.
+        jdbc.query("SELECT id FROM applications WHERE job_id = ? AND candidate_user_id = ? FOR SHARE",
+                (rs, row) -> rs.getObject(1, UUID.class), jobId, candidateId);
+        int policyDays = cooldown == null ? 0 : cooldown;
+        int rejectionDays = Math.max(90, policyDays);
+        var reapplyAt = jdbc.queryForObject("""
+                SELECT max(e.created_at + CASE WHEN e.status = 'NOT_SELECTED' THEN ? ELSE ? END * INTERVAL '24 hours')
+                FROM applications a JOIN application_events e ON e.application_id = a.id
+                WHERE a.job_id = ? AND a.candidate_user_id = ?
+                  AND (e.status = 'NOT_SELECTED' OR (? > 0 AND e.status IN ('HIRED', 'WITHDRAWN')))
+                """, Timestamp.class, rejectionDays, policyDays, jobId, candidateId, policyDays);
+        if (reapplyAt != null && reapplyAt.toInstant().isAfter(Instant.now())) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "You can reapply to this job after " + reapplyAt.toInstant().atOffset(ZoneOffset.UTC)
+                            .format(DateTimeFormatter.ofPattern("d MMM uuuu, HH:mm 'UTC'", Locale.ENGLISH)) + ".");
         }
         if (documentId != null) {
-            Integer count = jdbc.queryForObject("SELECT count(*) FROM documents WHERE id = ? AND owner_user_id = ?",
-                    Integer.class, documentId, candidateId);
-            if (count == null || count == 0) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose one of your own documents.");
+            var owned = jdbc.query("SELECT id FROM documents WHERE id = ? AND owner_user_id = ? FOR SHARE",
+                    (rs, row) -> rs.getObject(1, UUID.class), documentId, candidateId);
+            if (owned.isEmpty()) throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Choose one of your own documents.");
         }
         Map<UUID, String> submittedAnswers = answers == null ? Map.of() : answers;
         for (JobService.Question question : job.questions()) {
@@ -138,13 +147,16 @@ public class CandidateService {
         return applications.getFirst();
     }
 
-    public Page applications(int page, int size) {
+    public Page applications(int page, int size, String status) {
         UUID userId = identities.currentUserId();
-        long total = jdbc.queryForObject("SELECT count(*) FROM applications WHERE candidate_user_id = ?", Long.class, userId);
+        long total = jdbc.queryForObject(
+                "SELECT count(*) FROM applications WHERE candidate_user_id = ? AND (CAST(? AS TEXT) IS NULL OR status = ?)",
+                Long.class, userId, status, status);
         List<Application> items = jdbc.query("SELECT a.*, j.title AS job_title, o.name AS organization_name " +
                         "FROM applications a JOIN jobs j ON j.id = a.job_id JOIN organizations o ON o.id = j.organization_id " +
-                        "WHERE a.candidate_user_id = ? ORDER BY a.submitted_at DESC, a.id LIMIT ? OFFSET ?",
-                (rs, row) -> map(rs), userId, size, (long) page * size);
+                        "WHERE a.candidate_user_id = ? AND (CAST(? AS TEXT) IS NULL OR a.status = ?) " +
+                        "ORDER BY a.submitted_at DESC, a.id LIMIT ? OFFSET ?",
+                (rs, row) -> map(rs), userId, status, status, size, (long) page * size);
         return new Page(items, page, size, total);
     }
 
@@ -158,6 +170,8 @@ public class CandidateService {
                 "WHERE id = ? AND candidate_user_id = ? AND status IN ('SUBMITTED', 'IN_REVIEW', 'INTERVIEW', 'OFFER')",
                 id, identities.currentUserId());
         if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "This application is already closed.");
+        jdbc.update("UPDATE application_interviews SET cancelled_at = CURRENT_TIMESTAMP " +
+                "WHERE application_id = ? AND cancelled_at IS NULL AND starts_at > CURRENT_TIMESTAMP", id);
         addEvent(id, identities.currentUserId(), "WITHDRAWN", "You withdrew this application");
         UUID orgId = jdbc.queryForObject("SELECT organization_id FROM jobs WHERE id = ?", UUID.class, current.jobId());
         audit.record(identities.currentUserId(), orgId, "application.withdraw", "application", id);
@@ -176,6 +190,7 @@ public class CandidateService {
     @Transactional
     public DataRequest requestDeletion() {
         UUID userId = identities.currentUserId();
+        jdbc.queryForObject("SELECT id FROM users WHERE id = ? FOR UPDATE", UUID.class, userId);
         List<DataRequest> existing = jdbc.query("SELECT id, status, created_at FROM candidate_data_requests " +
                         "WHERE user_id = ? AND status = 'PENDING' ORDER BY created_at DESC LIMIT 1",
                 (rs, row) -> new DataRequest(rs.getObject("id", UUID.class), rs.getString("status"),

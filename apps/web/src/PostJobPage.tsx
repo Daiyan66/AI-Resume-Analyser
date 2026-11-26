@@ -1,27 +1,40 @@
-import { useEffect, useState, type FormEvent } from 'react'
-import { api, type Job, type Organization, type Page } from './api'
-import { RecruiterPipeline } from './RecruiterPipeline'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useSuccessNotice } from './useSuccessNotice'
+import { api, type Job, type Organization } from './api'
+import { jobImport } from './jobImport'
+import { routeId } from './recruiterSearch'
+import { workspaceHref } from './workspaceNavigation'
 
-type Props = { organization: Organization; onPublished: () => void }
+export function PostJobPage({ organization }: { organization: Organization }) {
+  const draftParam = new URLSearchParams(location.search).get('draft')
+  const id = routeId(draftParam)
+  const [result, setResult] = useState<{ job?: Job; error?: string }>()
+  const path = `/organizations/${organization.organizationId}/jobs/${id}`
+  useEffect(() => {
+    if (!id) return
+    const controller = new AbortController()
+    void api<Job>(path, { signal: controller.signal }).then(job => setResult({ job }))
+      .catch((cause: Error) => { if (!controller.signal.aborted) setResult({ error: cause.message }) })
+    return () => controller.abort()
+  }, [id, path])
 
-export function JobPublisher({ organization, onPublished }: Props) {
-  const [jobs, setJobs] = useState<Job[]>([])
-  const [page, setPage] = useState(0)
-  const [total, setTotal] = useState(0)
-  const [editing, setEditing] = useState<Job | null>(null)
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null)
-  const [criteria, setCriteria] = useState<{ description: string; importance: 'REQUIRED' | 'PREFERRED'; guidance: string }[]>([])
+  if (draftParam && !id) return <p role="alert">Invalid draft link.</p>
+  if (result?.error) return <p className="alert error" role="alert">{result.error}</p>
+  if (id && !result?.job) return <p role="status">Loading draft…</p>
+  if (result?.job && result.job.status !== 'DRAFT') return <p>This job has already left the draft stage. <a href={workspaceHref('posted-jobs', organization.role)}>Back to posted jobs</a></p>
+  return <JobForm organization={organization} editing={result?.job} />
+}
+
+function JobForm({ organization, editing }: { organization: Organization; editing?: Job }) {
+  const formRef = useRef<HTMLFormElement>(null)
+  const [criteria, setCriteria] = useState(() => editing?.criteria.map(criterion => ({
+    description: criterion.description, importance: criterion.importance, guidance: criterion.guidance ?? '',
+  })) ?? [])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useSuccessNotice()
   const [draftSuggestion, setDraftSuggestion] = useState('')
   const [draftModel, setDraftModel] = useState('')
-
-  useEffect(() => {
-    void api<Page<Job>>(`/organizations/${organization.organizationId}/jobs?page=${page}&size=12`)
-      .then((result) => { setJobs(result.items); setTotal(result.total) })
-      .catch((cause: unknown) => setError(message(cause)))
-  }, [organization.organizationId, page])
 
   async function run(action: () => Promise<void>) {
     setBusy(true); setError(''); setNotice('')
@@ -32,8 +45,7 @@ export function JobPublisher({ organization, onPublished }: Props) {
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    const form = event.currentTarget
-    const fields = new FormData(form)
+    const fields = new FormData(event.currentTarget)
     const min = String(fields.get('salaryMin') || '')
     const max = String(fields.get('salaryMax') || '')
     const currency = String(fields.get('currency') || '').trim().toUpperCase()
@@ -47,47 +59,13 @@ export function JobPublisher({ organization, onPublished }: Props) {
       }
       if (min && Number(max) < Number(min)) throw new Error('Maximum salary must be at least the minimum salary.')
       const path = `/organizations/${organization.organizationId}/jobs${editing ? `/${editing.id}` : ''}`
-      const job = await api<Job>(path, { method: editing ? 'PUT' : 'POST',
+      await api<Job>(path, { method: editing ? 'PUT' : 'POST',
         body: JSON.stringify({ title: fields.get('title'), location: fields.get('location'), workType: fields.get('workType'),
           salaryMin: min ? Number(min) : null, salaryMax: max ? Number(max) : null,
           currency: currency || null, description: fields.get('description'), requirements: fields.get('requirements'),
-          questions: questions.map((prompt) => ({ prompt, required: true })), criteria }) })
-      setJobs((current) => editing ? current.map((item) => item.id === job.id ? job : item) : [job, ...current].slice(0, 12))
-      if (!editing) setTotal((current) => current + 1)
-      setEditing(null); setCriteria([]); form.reset()
-      setNotice(editing ? 'Draft updated.' : 'Draft job created. Publish it when the details are ready for candidates.')
+          questions: questions.map((prompt) => ({ prompt, required: editing?.questions.find(question => question.prompt === prompt)?.required ?? true })), criteria }) })
+      location.assign(`${workspaceHref('posted-jobs', organization.role)}?status=DRAFT`)
     })
-  }
-
-  function publish(job: Job) {
-    if (!window.confirm(`Publish ${job.title} for candidates to see?`)) return
-    void run(async () => {
-      const published = await api<Job>(`/organizations/${organization.organizationId}/jobs/${job.id}/publish`, { method: 'POST' })
-      setJobs((current) => current.map((item) => item.id === job.id ? published : item))
-      if (selectedJob?.id === job.id) setSelectedJob(published)
-      setNotice(`${job.title} is now on the public job board.`)
-      onPublished()
-    })
-  }
-
-  function changeStatus(job: Job, status: 'PAUSED' | 'PUBLISHED' | 'CLOSED') {
-    if (status === 'CLOSED' && !window.confirm(`Close ${job.title}? It will no longer accept applications.`)) return
-    void run(async () => {
-      const updated = await api<Job>(`/organizations/${organization.organizationId}/jobs/${job.id}/status`, {
-        method: 'POST', body: JSON.stringify({ status }),
-      })
-      setJobs((current) => current.map((item) => item.id === job.id ? updated : item))
-      if (selectedJob?.id === job.id) setSelectedJob(updated)
-      setNotice(`${job.title} is now ${status.toLowerCase()}.`)
-      onPublished()
-    })
-  }
-
-  function edit(job: Job) {
-    setEditing(job)
-    setCriteria(job.criteria.map((criterion) => ({ description: criterion.description,
-      importance: criterion.importance, guidance: criterion.guidance || '' })))
-    setNotice('Edit the draft below, then save it before publishing.')
   }
 
   function suggest(event: React.MouseEvent<HTMLButtonElement>) {
@@ -114,38 +92,51 @@ export function JobPublisher({ organization, onPublished }: Props) {
     setNotice('AI text copied into the editable description. Check it against your original facts.')
   }
 
-  return <section className="panel" aria-labelledby="publish-heading">
-    <h2 id="publish-heading">Jobs for {organization.name}</h2>
-    <p>Draft jobs, set review criteria, publish openings, and review applicants. Published job text and criteria stay fixed for submitted applications.</p>
+  function importDocument(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const data = new FormData(event.currentTarget)
+    const file = data.get('file')
+    void run(async () => {
+      if (!(file instanceof File) || !/\.(pdf|docx|txt)$/i.test(file.name) || !file.size || file.size > 2_000_000) {
+        throw new Error('Choose a nonempty text-based PDF, DOCX or TXT up to 2 MB.')
+      }
+      const imported = await api<{ title: string; description: string }>(`/organizations/${organization.organizationId}/jobs/import-draft`, {
+        method: 'POST', body: data,
+      })
+      const form = formRef.current
+      if (!form) return
+      const values = Object.entries(jobImport(imported)).flatMap(([name, value]) => {
+        const field = form.elements.namedItem(name)
+        return value && (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement || field instanceof HTMLSelectElement)
+          ? [{ field, value }] : []
+      })
+      if (values.some(({ field, value }) => field.value && field.value !== value) &&
+          !confirm('Replace the matching fields with the values extracted from this file?')) return
+      for (const { field, value } of values) field.value = value
+      setDraftSuggestion('')
+      setNotice('Job details filled from the document. Review the imported fields, complete missing details, and save the draft.')
+    })
+  }
+
+  return <section className="panel" aria-label="Job draft">
+    <div className="section-heading"><h2>{organization.name}</h2><a href={workspaceHref('posted-jobs', organization.role)}>Back to posted jobs</a></div>
+    <form className="inline-form" onSubmit={importDocument}>
+      <label>Job description file<input type="file" name="file" accept=".pdf,.docx,.txt" required aria-describedby="job-import-hint" /></label>
+      <button type="submit" disabled={busy}>Upload and autofill</button>
+    </form>
+    <p id="job-import-hint">Use a text-based PDF, DOCX, or TXT up to 2 MB. Extracted fields are editable.</p>
     {error && <p className="alert error" role="alert">{error}</p>}
     {notice && <p className="alert success" role="status">{notice}</p>}
-    <ul className="list">{jobs.map((job) => <li key={job.id}>
-      <span><strong>{job.title}</strong> · {job.status.toLowerCase()}</span>
-      <span className="action-row">
-        {job.status === 'DRAFT' && <><button type="button" className="quiet" disabled={busy} onClick={() => edit(job)}>Edit</button>
-          <button type="button" disabled={busy} onClick={() => publish(job)}>Publish</button></>}
-        {job.status === 'PUBLISHED' && <><button type="button" className="quiet" disabled={busy} onClick={() => changeStatus(job, 'PAUSED')}>Pause</button>
-          <button type="button" className="quiet" disabled={busy} onClick={() => changeStatus(job, 'CLOSED')}>Close</button></>}
-        {job.status === 'PAUSED' && <button type="button" className="quiet" disabled={busy} onClick={() => changeStatus(job, 'PUBLISHED')}>Resume</button>}
-        {job.status !== 'DRAFT' && <button type="button" className="quiet" onClick={() => setSelectedJob(job)}>Applicants</button>}
-      </span>
-    </li>)}</ul>
-    {total > 12 && <div className="pagination">
-      <button type="button" className="quiet" disabled={page === 0} onClick={() => setPage(page - 1)}>Previous</button>
-      <span>Page {page + 1} · {total} jobs</span>
-      <button type="button" className="quiet" disabled={(page + 1) * 12 >= total} onClick={() => setPage(page + 1)}>Next</button>
-    </div>}
-    {selectedJob && <RecruiterPipeline key={selectedJob.id} organization={organization} job={selectedJob} />}
-    <form key={editing?.id || 'new'} onSubmit={save}>
+    <form ref={formRef} onSubmit={save}>
       <h3>{editing ? `Edit draft: ${editing.title}` : 'Create a draft job'}</h3>
       <div className="field-grid">
         <label>Job title<input name="title" required maxLength={160} defaultValue={editing?.title} /></label>
         <label>Location<input name="location" required maxLength={160} defaultValue={editing?.location} /></label>
-        <label>Work arrangement<select name="workType" defaultValue={editing?.workType || 'REMOTE'}><option value="REMOTE">Remote</option><option value="HYBRID">Hybrid</option><option value="ONSITE">On site</option></select></label>
+        <label>Work arrangement<select name="workType" required defaultValue={editing?.workType || ''}><option value="" disabled>Choose an arrangement</option><option value="REMOTE">Remote</option><option value="HYBRID">Hybrid</option><option value="ONSITE">On site</option></select></label>
       </div>
       <div className="field-grid">
-        <label>Minimum salary (optional)<input name="salaryMin" type="number" min="0" defaultValue={editing?.salaryMin ?? ''} /></label>
-        <label>Maximum salary (optional)<input name="salaryMax" type="number" min="0" defaultValue={editing?.salaryMax ?? ''} /></label>
+        <label>Minimum salary (optional)<input name="salaryMin" type="number" min="0" max="2147483647" defaultValue={editing?.salaryMin ?? ''} /></label>
+        <label>Maximum salary (optional)<input name="salaryMax" type="number" min="0" max="2147483647" defaultValue={editing?.salaryMax ?? ''} /></label>
         <label>Currency, e.g. INR (required with salary)<input name="currency" maxLength={3} pattern="[A-Za-z]{3}" defaultValue={editing?.currency ?? ''} /></label>
       </div>
       <label>Role description<textarea name="description" required maxLength={20000} defaultValue={editing?.description} /></label>
@@ -175,7 +166,7 @@ export function JobPublisher({ organization, onPublished }: Props) {
       <button type="button" className="quiet" disabled={criteria.length >= 20}
         onClick={() => setCriteria([...criteria, { description: '', importance: 'REQUIRED', guidance: '' }])}>Add criterion</button>
       <span className="action-row"><button type="submit" disabled={busy}>{editing ? 'Save draft changes' : 'Create draft job'}</button>
-        {editing && <button type="button" className="quiet" onClick={() => { setEditing(null); setCriteria([]) }}>Cancel editing</button>}</span>
+        {editing && <a className="pv-button" href={workspaceHref('posted-jobs', organization.role)}>Cancel editing</a>}</span>
     </form>
   </section>
 }

@@ -28,8 +28,10 @@ public class JobController {
 
     @GetMapping("/public/jobs")
     public JobService.Page publicJobs(@RequestParam(defaultValue = "0") @Min(0) int page,
-                                      @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
-        return jobs.publicJobs(page, size);
+                                      @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
+                                      @RequestParam(defaultValue = "") @Size(max = 160) String q,
+                                      @RequestParam(required = false) @Pattern(regexp = "REMOTE|HYBRID|ONSITE") String workType) {
+        return jobs.publicJobs(page, size, q, workType);
     }
 
     @GetMapping("/public/jobs/{jobId}")
@@ -38,8 +40,13 @@ public class JobController {
     @GetMapping("/organizations/{organizationId}/jobs")
     public JobService.Page organizationJobs(@PathVariable UUID organizationId,
                                            @RequestParam(defaultValue = "0") @Min(0) int page,
-                                           @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
-        return jobs.organizationJobs(organizationId, page, size);
+                                           @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
+                                           @RequestParam(defaultValue = "") @Size(max = 160) String q,
+                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|DRAFT|PUBLISHED|PAUSED|CLOSED") String status,
+                                           @RequestParam(defaultValue = "") @Pattern(regexp = "|REMOTE|HYBRID|ONSITE") String workType,
+                                           @RequestParam(required = false) UUID recruiterId,
+                                           @RequestParam(defaultValue = "false") boolean excludeDrafts) {
+        return jobs.organizationJobs(organizationId, page, size, q, status, workType, recruiterId, excludeDrafts);
     }
 
     @PostMapping("/organizations/{organizationId}/jobs")
@@ -73,7 +80,7 @@ public class JobController {
     public record CriterionInput(@NotBlank @Size(max = 500) String description,
                                  @NotBlank @Pattern(regexp = "REQUIRED|PREFERRED") String importance,
                                  @Size(max = 1000) String guidance) {}
-    public record JobStatusRequest(@NotBlank @Pattern(regexp = "PUBLISHED|PAUSED|CLOSED") String status) {}
+    public record JobStatusRequest(@NotBlank @Pattern(regexp = "PUBLISHED|PAUSED|CLOSED|ARCHIVED") String status) {}
     public record CreateJob(@NotBlank @Size(max = 160) String title,
                             @NotBlank @Size(max = 160) String location,
                             @NotBlank @Pattern(regexp = "REMOTE|HYBRID|ONSITE") String workType,

@@ -29,18 +29,29 @@ public class NotificationController {
 
     @GetMapping
     public Page list(@RequestParam(defaultValue = "0") @Min(0) int page,
-                     @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size) {
+                     @RequestParam(defaultValue = "12") @Min(1) @Max(50) int size,
+                     @RequestParam(required = false) Boolean read) {
         UUID userId = identities.currentUserId();
-        long total = jdbc.queryForObject("SELECT count(*) FROM candidate_notifications WHERE recipient_user_id = ?",
-                Long.class, userId);
+        String filter = " WHERE recipient_user_id = ?" +
+                (read == null ? "" : read ? " AND read_at IS NOT NULL" : " AND read_at IS NULL");
+        long total = jdbc.queryForObject("SELECT count(*) FROM candidate_notifications" + filter, Long.class, userId);
         List<Notification> items = jdbc.query("SELECT id, application_id, message, created_at, read_at " +
-                        "FROM candidate_notifications WHERE recipient_user_id = ? ORDER BY created_at DESC, id DESC " +
+                        "FROM candidate_notifications" + filter + " ORDER BY created_at DESC, id DESC " +
                         "LIMIT ? OFFSET ?", (rs, row) -> new Notification(rs.getObject("id", UUID.class),
                         rs.getObject("application_id", UUID.class), rs.getString("message"),
                         rs.getTimestamp("created_at").toInstant(), rs.getTimestamp("read_at") != null),
                 userId, size, (long) page * size);
         return new Page(items, page, size, total);
     }
+
+    @PostMapping("/read-all")
+    public ReadResult readAll() {
+        int count = jdbc.update("UPDATE candidate_notifications SET read_at = CURRENT_TIMESTAMP " +
+                "WHERE recipient_user_id = ? AND read_at IS NULL", identities.currentUserId());
+        return new ReadResult(count);
+    }
+
+    public record ReadResult(int markedRead) {}
 
     @PostMapping("/{notificationId}/read")
     public Notification read(@PathVariable UUID notificationId) {
